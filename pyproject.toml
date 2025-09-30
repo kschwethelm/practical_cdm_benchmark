@@ -1,0 +1,69 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["cdm"]
+
+[project]
+name = "practical-cdm-benchmark"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "dotenv>=0.9.9",
+    "hydra-core>=1.3.2",
+    "loguru>=0.7.3",
+    "matplotlib>=3.10.6",
+    "openai>=1.109.1",
+    "psycopg>=3.2.10",
+    "pydantic>=2.11.9",
+    "tqdm>=4.67.1",
+    "vllm>=0.10.2",
+]
+
+[dependency-groups]
+dev = [
+    "hatchling>=1.27.0",
+    "ruff>=0.13.2",
+]
+
+[tool.ruff]
+line-length = 100
+exclude = [
+    "*.ipynb",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+skip-magic-trailing-comma = false
+
+[tool.ruff.lint]
+select = [
+    "B", # flake8-bugbear
+    "E", # pycodestyle (PEP 8)
+    "F", # pyflakes
+    "I", # isort,
+    "UP", # pyupgrade
+]
+# The following ignore codes are recommended by the uv team when using
+# both ruff's linter and formatter. https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
+ignore = [
+    "W191", # tab-indentation
+    "E111", # indentation with invalid multiple spaces
+    "E114", # indentation with invalid multiple spaces in comment
+    "E117", # over-indented
+    "D206", # docstring tab indentation
+    "D300", # triple single quotes
+    "Q000", # bad quotes inline string
+    "Q001", # bad quotes multiline string
+    "Q002", # bad quotes docstring
+    "Q003", # avoidable escaped quote
+    "COM812", # missing trailing comma
+    "COM819", # prohibited trailing comma
+    "ISC002", # multi-line implicit string concatenation
+    "E501", # line too long
+]
