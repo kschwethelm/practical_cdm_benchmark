@@ -1,7 +1,7 @@
 # vLLM serve configuration (for server startup)
 # uv run vllm serve --config configs/vllm_config/qwen3_8B.yaml
 model: "Qwen/Qwen3-4B-Instruct-2507" # Qwen/Qwen3-4B-Thinking-2507 for reasoning model
-download_dir: /opt/LLMs
+download_dir: /vol/miltank/users/$USER/LLMs
 served-model-name: "default"
 host: "localhost"
 port: 8000
@@ -10,8 +10,6 @@ enable-prefix-caching: true
 
 max-model-len: 1028
 tensor-parallel-size: 1
-
-#download-dir: "/path/to/download/dir"
 
 # Reasoning parsing handled by server
 #reasoning-parser: "qwen3" <- remove when no thinking wanted

@@ -5,3 +5,5 @@
 .vscode/
 .ruff_cache/
 .env
+*.err
+*.out
