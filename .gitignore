@@ -1,9 +1,11 @@
 *__pycache__*
 *.pytest_cache*
 .venv/
-*outputs*
+output/
+outputs/
 .vscode/
 .ruff_cache/
 .env
 *.err
 *.out
+data/

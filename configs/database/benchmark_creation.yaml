@@ -1,0 +1,10 @@
+# Benchmark creation configuration
+
+# Output directory for generated benchmark files
+output_dir: output
+
+# Input file containing hospital admission IDs (one per line)
+hadm_id_file: hadm_id_list.txt
+
+# Output filename for the benchmark JSON
+output_filename: benchmark_data.json
