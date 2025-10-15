@@ -284,6 +284,13 @@ This project uses a **branch → pull request → review** workflow:
    - Supervisors will merge after reviewing
    - Delete feature branch after merge
 
+### GitHub Actions
+
+This repository includes automated workflows:
+
+- **Automatic Code Review** (`claude-code-review.yml`) - Automatically reviews all PRs for code quality, bugs, security, and compliance with project guidelines
+- **Interactive Assistant** (`claude.yml`) - Invoke on-demand by mentioning `@claude` in issues or PR comments to execute specific tasks
+
 ### Code Quality Checks
 
 Before submitting a PR, ensure:
