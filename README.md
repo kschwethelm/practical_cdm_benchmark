@@ -244,44 +244,99 @@ The slurm script automatically:
 
 ## Development Workflow
 
-### Git Workflow (Collaborative Development)
+### Collaborative Software Development with GitHub
 
-This project uses a **branch → pull request → review** workflow:
+This project uses a **branch → pull request → review → merge** workflow:
 
-1. **Create a feature branch:**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
+#### 1. Define Your Implementation Goal
 
-2. **Make changes and commit:**
-   ```bash
-   # Format code before committing
-   uv run ruff format .
+Clearly identify what you want to implement before starting (e.g., "vLLM tool usage", "add diagnosis prediction feature", "improve database queries").
 
-   # Stage and commit changes
-   git add relevant/files.py # Only relevant code!!! NEVER add data, log files, outputs, etc.
-   git commit -m "Add feature: description"
-   ```
+#### 2. Sync Your Local Repository
 
-3. **Push to GitHub:**
-   ```bash
-   git push origin feature/your-feature-name
-   ```
+Always start from the latest `main` branch:
 
-4. **Create a Pull Request (PR):**
-   - Go to GitHub repository
-   - Click "New Pull Request"
-   - Select your branch
-   - Add description of changes
-   - Request review from supervisors
+```bash
+git checkout main
+git pull origin main
+```
 
-5. **Address review comments:**
+#### 3. Create a New Feature Branch
+
+Create and push a descriptive feature branch:
+
+```bash
+# Create branch
+git checkout -b <branch-name>
+# Example: git checkout -b vllm-tool-integration
+
+# Push branch to remote
+git push -u origin <branch-name>
+# Example: git push -u origin vllm-tool-integration
+```
+
+**Branch naming conventions:**
+- `feature/feature-name` - New features
+- `fix/bug-name` - Bug fixes
+- `refactor/component-name` - Code refactoring
+- `docs/topic` - Documentation updates
+
+#### 4. Code, Commit, Push Loop
+
+Iterate until your feature is complete:
+
+```bash
+# Format code before committing
+uv run ruff format .
+
+# Stage specific files (NEVER add data, logs, outputs, etc.)
+git add <file1> <file2>
+
+# Commit with descriptive message
+git commit -m "feat: Implement initial vLLM client"
+
+# Push changes to your branch
+git push
+
+# Pull changes if working collaboratively
+git pull
+```
+
+**Commit message conventions:**
+- `feat: Add new feature` - New functionality
+- `fix: Fix bug description` - Bug fixes
+- `refactor: Refactor component` - Code improvements
+- `docs: Update documentation` - Documentation changes
+- `test: Add tests` - Test additions
+
+#### 5. Open a Pull Request
+
+When your feature is complete:
+
+1. **Go to GitHub repository**
+2. **Click "New Pull Request"**
+3. **Select your branch**
+4. **Write clear title and description:**
+   - Summarize what the PR does
+   - Explain why the changes were made
+   - List any testing performed
+   - Mention any breaking changes
+
+5. **Review Process:**
+   - **Automated checks:** GitHub Actions will run automatic tests
+   - **Claude Code Review:** Automated review will check code quality, bugs, security
+   - **Address Claude's feedback:** Make appropriate changes based on automated review
+   - **Request manual review:** Ask colleagues and supervisors to review
+   - **Supervisor approval:** Supervisors decide if code can be merged
+
+6. **Address Review Comments:**
    - Make requested changes
    - Push additional commits to same branch
    - PR updates automatically
+   - Re-request review after changes
 
-6. **Merge after approval:**
-   - Supervisors will merge after reviewing
+7. **Merge After Approval:**
+   - Supervisors will merge after all reviews pass
    - Delete feature branch after merge
 
 ### GitHub Actions
