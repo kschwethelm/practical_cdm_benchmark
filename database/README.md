@@ -293,6 +293,7 @@ Steps for Ubuntu:
       ALTER ROLE user_name WITH SUPERUSER CREATEDB CREATEROLE;
       -- Create student user with basic rights
       CREATE ROLE student WITH LOGIN PASSWORD 'student';
+      GRANT ALL PRIVILEGES ON DATABASE mimiciv_pract TO student;
       ```
 
 #### Create MIMIC Database
@@ -323,7 +324,7 @@ Steps for Ubuntu:
 
 3. Load and filter note module:
    ```bash
-   MIMIC_DIR=/opt/mimic/mimiciv/mimic-iv-note/2.2/note/
+   MIMIC_DIR=/srv/mimic/mimiciv/mimic-iv-note/2.2/note/
    psql -d mimiciv_pract -f database/sql/note/create.sql
    psql -d mimiciv_pract -v ON_ERROR_STOP=1 -v mimic_data_dir=$MIMIC_DIR -f database/sql/note/load_gz.sql
    psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/note/filter_hadm.sql

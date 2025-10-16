@@ -65,7 +65,7 @@ practical_cdm_benchmark/
 
 ## Workstation Setup
 
-### 1. Establish Connection
+### Establish Connection
 
 1. **Install [Tailscale](https://tailscale.com/kb/1347/installation)** on your local machine
 2. **Connect via SSH** using VS Code's [Remote SSH extension](https://code.visualstudio.com/docs/remote/ssh):
@@ -74,7 +74,7 @@ practical_cdm_benchmark/
    ```
    (Your supervisor will provide username and password)
 
-### 2. Environment Setup
+### Environment Setup
 
 1. **Install [uv](https://docs.astral.sh/uv/)**
      ```bash
@@ -104,7 +104,7 @@ practical_cdm_benchmark/
 
 5. **Create Environment File**
 
-   Create a `.env` file following `.env.template`:
+   Create a `.env` file following [.env.template](.env.template). `.env` file is never pushed to git as it could contain personal information like API keys and password (see [.gitignore](.gitignore)).
    ```bash
    DB_NAME="mimiciv_pract"
    DB_USER="student"
