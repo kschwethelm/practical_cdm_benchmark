@@ -10,7 +10,7 @@ def get_db_connection() -> psycopg.Connection:
     """
     Create and return a database connection using environment variables.
 
-    Loads DB_NAME and DB_USER from .env file and connects to localhost.
+    Loads DB_NAME, DB_USER, and DB_PWD from .env file and connects to localhost.
 
     Returns:
         psycopg.Connection: Active database connection
@@ -19,11 +19,12 @@ def get_db_connection() -> psycopg.Connection:
 
     db_name = os.getenv("DB_NAME")
     db_user = os.getenv("DB_USER")
+    db_pwd = os.getenv("DB_PWD")
 
-    if not db_name or not db_user:
-        raise ValueError("DB_NAME and DB_USER must be set in .env file")
+    if not db_name or not db_user or not db_pwd:
+        raise ValueError("DB_NAME, DB_USER, and DB_PWD must be set in .env file")
 
-    connection_string = f"dbname={db_name} user={db_user} host=127.0.0.1"
+    connection_string = f"dbname={db_name} user={db_user} password={db_pwd} host=127.0.0.1"
 
     logger.info(f"Connecting to database: {db_name} as user: {db_user}")
 

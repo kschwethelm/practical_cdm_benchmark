@@ -263,3 +263,76 @@ ORDER BY seq_num;
 - [MIMIC-IV Documentation](https://mimic.mit.edu/docs/iv/modules/hosp/)
 - [MIMIC-IV-Note Documentation](https://mimic.mit.edu/docs/iv/modules/note/)
 - Column definitions and detailed schema: See table creation scripts in this directory
+
+## Appendix
+
+### Create Database from Scratch (not needed for you)
+
+Follow these steps to set up the database on a local machine.
+
+#### Install PostgreSQL
+
+Steps for Ubuntu:
+
+1. Install PostgreSQL:
+   ```bash
+   sudo apt install postgresql
+   ```
+
+2. Create database:
+   Go into psql shell:
+      ```bash
+      sudo -u postgres psql
+      ```
+
+   Within psql shell:
+      ```sql
+      CREATE DATABASE mimiciv_pract;
+      -- Create admin user with passwort
+      CREATE ROLE user_name WITH LOGIN PASSWORD 'YourStrongPassword';
+      ALTER ROLE user_name WITH SUPERUSER CREATEDB CREATEROLE;
+      -- Create student user with basic rights
+      CREATE ROLE student WITH LOGIN PASSWORD 'student';
+      ```
+
+#### Create MIMIC Database
+
+1. Download MIMIC-IV hosp `*.csv.gz` files from https://physionet.org/content/mimiciv/3.1/
+
+2. Load and filter hosp module:
+
+   ```bash
+   MIMIC_DIR=/srv/mimic/mimiciv/3.1/
+
+   # Create (empty) tables
+   psql -d mimiciv_pract -f database/sql/hosp/create.sql
+
+   # Load data into tables
+   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -v mimic_data_dir=$MIMIC_DIR -f database/sql/hosp/load_gz.sql
+
+   # Set primary keys, indexes, etc.
+   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/hosp/constraint.sql
+   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/hosp/index.sql
+
+   # Assign lab and microbiology events to hadm_id based on time (optional)
+   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/hosp/assign_events.sql
+
+   # Remove admissions not in 'database/hadm_id_list.txt'
+   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/hosp/filter_hadm.sql
+   ```
+
+3. Load and filter note module:
+   ```bash
+   MIMIC_DIR=/opt/mimic/mimiciv/mimic-iv-note/2.2/note/
+   psql -d mimiciv_pract -f database/sql/note/create.sql
+   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -v mimic_data_dir=$MIMIC_DIR -f database/sql/note/load_gz.sql
+   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/note/filter_hadm.sql
+   ```
+
+4. Load note extractions:
+
+   ```bash
+   EXTRACT_DIR=/home/$USER/practical_cdm_benchmark/database/data
+   psql -d mimiciv_pract -f database/sql/note_extract/create.sql
+   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -v mimic_data_dir=$EXTRACT_DIR -f database/sql/note_extract/load_csv.sql
+   ```
