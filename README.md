@@ -4,26 +4,16 @@
 
 ## Introduction
 
-This practical course guides you through building an **LLM-based clinical decision-making (CDM) benchmark** using real-world data from the MIMIC-IV database. You'll learn how to:
+Build an **LLM-based clinical decision-making (CDM) benchmark** using real-world MIMIC-IV data. This project covers:
 
-- Design and implement clinical reasoning workflows for LLMs
-- Work with structured medical data (lab results, clinical notes, diagnoses)
-- Build evaluation pipelines for medical AI systems
-- Apply software engineering best practices to ML research projects
+- Clinical reasoning workflows for LLMs (diagnosis, treatment planning)
+- Structured medical data (labs, notes, diagnoses)
+- Evaluation pipelines for medical AI
+- Software engineering best practices for ML research
 
-### What is Clinical Decision-Making?
+**Clinical decision-making workflow:** Information gathering → Data synthesis → Diagnostic reasoning → Treatment planning
 
-Clinical decision-making is the process physicians use to diagnose and treat patients. It involves:
-
-1. **Information gathering** - Taking patient history, ordering lab tests, performing physical exams
-2. **Data synthesis** - Combining multiple sources (symptoms, lab results, medical history)
-3. **Diagnostic reasoning** - Generating differential diagnoses and selecting the most likely one
-4. **Treatment planning** - Recommending appropriate interventions
-
-**Example workflow:**
-- Patient presents with abdominal pain → Order lab tests → Review results (elevated lipase) → Perform physical exam (epigastric tenderness) → Diagnose acute pancreatitis → Recommend treatment (NPO, IV fluids, pain management)
-
-This benchmark evaluates how well LLMs can perform these clinical reasoning steps. See [scripts/demo_clinical_workflow.py](scripts/demo_clinical_workflow.py) for a complete implementation of this workflow.
+See [scripts/demo_clinical_workflow.py](scripts/demo_clinical_workflow.py) for a basic demo.
 
 ## Code Structure
 
@@ -72,19 +62,19 @@ practical_cdm_benchmark/
 4. **Log with Loguru** - Use `logger.info()`, `logger.error()`, etc.
 5. **Format with Ruff** - Run `uv run ruff format .` before committing
 
-## Cluster Setup
 
-Follow kick-off lecture slides.
+## Workstation Setup
 
-### Storage Configuration
+### Establish Connection
 
-**Important:** Do NOT use home directory (`~/` or `/u/home/<in-tum-username>`)
+1. **Install [Tailscale](https://tailscale.com/kb/1347/installation)** on your local machine
+2. **Connect via SSH** using VS Code's [Remote SSH extension](https://code.visualstudio.com/docs/remote/ssh):
+   ```bash
+   ssh <your-username>@zmaj
+   ```
+   (Your supervisor will provide username and password)
 
-- Personal directory: `/vol/miltank/users/<username>/`
-- Fast metadata storage: `/meta/users/<username>/`
-
-
-## Installation
+### Environment Setup
 
 1. **Install [uv](https://docs.astral.sh/uv/)**
      ```bash
@@ -114,249 +104,110 @@ Follow kick-off lecture slides.
 
 5. **Create Environment File**
 
-   Create a `.env` file following `.env.template`:
+   Create a `.env` file following [.env.template](.env.template). `.env` file is never pushed to git as it could contain personal information like API keys and password (see [.gitignore](.gitignore)).
    ```bash
    DB_NAME="mimiciv_pract"
-   DB_USER="postgres"
+   DB_USER="student"
+   DB_PWD="student"
    ``` 
 
 ## Quick Start Guide
 
-### 1. Explore the Database
+### 1. vLLM Setup
 
-Our MIMIC-IV subset contains **2,333 hospital admissions** with complete clinical data. Start by understanding what data is available:
+vLLM uses a **server-client architecture**: the server loads the model into GPU memory once and exposes an OpenAI-compatible API at `http://localhost:8000`. Your scripts act as clients sending requests to this server.
 
-**Read the database documentation:** [database/README.md](database/README.md)
-- Detailed table descriptions (diagnoses, lab results, medications, clinical notes)
-- Sample SQL queries
-- Data schema overview and relationships
+**Local PC/Workstation:**
 
-**Database Access:**
-- The database is already set up on the cluster
-- Connection details are configured via `.env` file (use `.env.template` as reference)
-- You can work with SQL commands or Python using `psycopg` (see [cdm/database/](cdm/database/))
+```bash
+# Terminal 1: Start server (wait for "Application startup complete")
+uv run vllm serve --config configs/vllm_config/qwen3_4B.yaml
 
-**Example database queries:**
-```python
-from cdm.database import get_db_connection, get_demographics, get_first_diagnosis
+# Terminal 2: Run test script
+uv run scripts/vllm_test.py
+```
 
-conn = get_db_connection()
-cursor = conn.cursor()
+**Cluster (Slurm):**
 
-# Get patient demographics (using helper function)
-demographics = get_demographics(cursor, hadm_id=20001800)
+```bash
+# Update download_dir in configs/vllm_config/qwen3_4B.yaml to /vol/miltank/projects/LLMs
+sbatch slurm/vllm_test.sbatch
+```
 
-# Get primary diagnosis (using helper function)
-diagnosis = get_first_diagnosis(cursor, hadm_id=20001800)
+**Note:** Model weights are stored in `/srv/llm-weights` (workstation) or `/vol/miltank/projects/LLMs` (cluster). See `download_dir` in config files.
 
-# --- Raw SQL Examples ---
+The test script demonstrates structured JSON output with Pydantic models and OpenAI API integration.
 
-# Get all lab results for a patient
-cursor.execute("""
-    SELECT charttime, itemid, valuenum, valueuom
-    FROM labevents
-    WHERE hadm_id = %s
-    ORDER BY charttime
-""", (20001800,))
-labs = cursor.fetchall()
+### 2. Create Benchmark Dataset
 
-### 2. Create the Benchmark Dataset
-
-Convert database cases into a structured JSON benchmark:
+Generate a structured JSON benchmark from database cases:
 
 ```bash
 uv run database/create_benchmark.py
 ```
 
-This script:
-1. Reads all admission IDs from [database/hadm_id_list.txt](database/hadm_id_list.txt)
-2. Queries the database for each case
-3. Extracts demographics, diagnoses, lab results, physical exams, etc.
-4. Saves to `database/output/benchmark_data.json` using Pydantic models
+Reads admission IDs from [database/hadm_id_list.txt](database/hadm_id_list.txt), queries the database, and saves structured data to `database/output/benchmark_data.json`. Using JSON enables version control, reproducibility, and faster ML iteration.
 
-**Why JSON instead of direct SQL queries?**
-- More portable and version-controllable
-- Easier to share and reproduce results
-- Simpler to load for ML training/evaluation
-- Faster iteration during experiments
+### 3. Run Clinical Workflow Demo
 
-### 3. Run the Clinical Workflow Demo
-
-See a complete example of how an LLM navigates a clinical case:
+Demonstrates LLM-based clinical reasoning (information gathering → diagnosis → treatment):
 
 ```bash
-uv run scripts/demo_clinical_workflow.py
+uv run scripts/demo_clinical_workflow.py  # Requires benchmark JSON from step 2
 ```
 
-This demo shows:
-- Initial patient presentation (demographics, chief complaint)
-- LLM requesting diagnostic tests (labs)
-- LLM performing physical examination
-- Structured diagnosis and treatment output
+### 4. Explore the Database
 
-**Note:** This requires the benchmark JSON from step 2.
+The dataset contains **2,333 hospital admissions** with demographics, diagnoses, labs, medications, and clinical notes. See [database/README.md](database/README.md) for complete schema documentation.
 
-### 4. Test vLLM Setup
+**Query examples:**
 
-**Understanding vLLM Server/Client Architecture:**
+```python
+from cdm.database import get_db_connection, get_demographics, get_first_diagnosis
 
-vLLM uses a **server-client model** to efficiently serve LLM inference:
+conn = get_db_connection()  # Uses .env configuration
+cursor = conn.cursor()
 
-- **Server** - Loads the LLM model into GPU memory and exposes an OpenAI-compatible API endpoint (typically `http://localhost:8000`)
-- **Client** - Sends requests to the server and receives responses (your Python scripts act as clients)
+# Helper functions
+demographics = get_demographics(cursor, hadm_id=20001800)
+diagnosis = get_first_diagnosis(cursor, hadm_id=20001800)
 
-**Why this architecture?**
-- Load the model once, use it many times (efficient GPU memory usage)
-- Multiple clients can share the same server
-- Supports batching and concurrent requests for better throughput
-
-**Test the setup:**
-
-**On Cluster (Slurm):**
-```bash
-sbatch slurm/vllm_test.sbatch
-```
-
-The slurm script automatically:
-- Downloads the model to `/vol/miltank/projects/LLMs` (configured in [configs/vllm_config/qwen3_4B.yaml](configs/vllm_config/qwen3_4B.yaml))
-- Starts the vLLM server in the background
-- Runs the client test script
-- Shuts down the server after completion
-
-**On Local PC/Workstation:**
-
-1. **Terminal 1** - Start vLLM server:
-   ```bash
-   uv run vllm serve --config configs/vllm_config/qwen3_4B.yaml
-   ```
-   Wait until you see `"Application startup complete"` - this means the model is loaded and ready
-
-2. **Terminal 2** - Run client script:
-   ```bash
-   uv run scripts/vllm_test.py
-   ```
-   This demonstrates structured JSON generation using Pydantic models
-
-**What the test script shows:**
-- How to connect to the vLLM server using OpenAI-compatible API
-- Structured output generation with Pydantic models
-- Comparison of regular vs. structured JSON responses
+# Raw SQL
+cursor.execute("""
+    SELECT charttime, itemid, valuenum, valueuom
+    FROM cdm_hosp.labevents
+    WHERE hadm_id = %s
+    ORDER BY charttime
+""", (20001800,))
+labs = cursor.fetchall()
 
 ## Development Workflow
 
-### Collaborative Software Development with GitHub
+This project uses a **branch → pull request → review → merge** workflow. Always format code with `uv run ruff format .` before committing.
 
-This project uses a **branch → pull request → review → merge** workflow:
-
-#### 1. Define Your Implementation Goal
-
-Clearly identify what you want to implement before starting (e.g., "vLLM tool usage", "add diagnosis prediction feature", "improve database queries").
-
-#### 2. Sync Your Local Repository
-
-Always start from the latest `main` branch:
-
+**1. Create feature branch:**
 ```bash
-git checkout main
-git pull origin main
+git checkout main && git pull
+git checkout -b feature/your-feature  # Naming: feature/, fix/, refactor/, docs/
+git push -u origin feature/your-feature
 ```
 
-#### 3. Create a New Feature Branch
-
-Create and push a descriptive feature branch:
-
+**2. Develop and commit:**
 ```bash
-# Create branch
-git checkout -b <branch-name>
-# Example: git checkout -b vllm-tool-integration
-
-# Push branch to remote
-git push -u origin <branch-name>
-# Example: git push -u origin vllm-tool-integration
-```
-
-**Branch naming conventions:**
-- `feature/feature-name` - New features
-- `fix/bug-name` - Bug fixes
-- `refactor/component-name` - Code refactoring
-- `docs/topic` - Documentation updates
-
-#### 4. Code, Commit, Push Loop
-
-Iterate until your feature is complete:
-
-```bash
-# Format code before committing
-uv run ruff format .
-
-# Stage specific files (NEVER add data, logs, outputs, etc.)
-git add <file1> <file2>
-
-# Commit with descriptive message
-git commit -m "feat: Implement initial vLLM client"
-
-# Push changes to your branch
+uv run ruff format .                   # Format before committing
+git add <files>                        # NEVER commit data/logs/outputs
+git commit -m "feat: Description"      # Prefixes: feat/fix/refactor/docs/test
 git push
-
-# Pull changes if working collaboratively
-git pull
 ```
 
-**Commit message conventions:**
-- `feat: Add new feature` - New functionality
-- `fix: Fix bug description` - Bug fixes
-- `refactor: Refactor component` - Code improvements
-- `docs: Update documentation` - Documentation changes
-- `test: Add tests` - Test additions
+**3. Open pull request:**
+- Go to GitHub → New Pull Request → select your branch
+- Write clear title and description (what, why, testing, breaking changes)
+- Automated reviews: GitHub Actions + Claude Code Review check quality/security
+- Address feedback, request manual review from supervisors
+- Supervisors merge after approval
 
-#### 5. Open a Pull Request
-
-When your feature is complete:
-
-1. **Go to GitHub repository**
-2. **Click "New Pull Request"**
-3. **Select your branch**
-4. **Write clear title and description:**
-   - Summarize what the PR does
-   - Explain why the changes were made
-   - List any testing performed
-   - Mention any breaking changes
-
-5. **Review Process:**
-   - **Automated checks:** GitHub Actions will run automatic tests
-   - **Claude Code Review:** Automated review will check code quality, bugs, security
-   - **Address Claude's feedback:** Make appropriate changes based on automated review
-   - **Request manual review:** Ask colleagues and supervisors to review
-   - **Supervisor approval:** Supervisors decide if code can be merged
-
-6. **Address Review Comments:**
-   - Make requested changes
-   - Push additional commits to same branch
-   - PR updates automatically
-   - Re-request review after changes
-
-7. **Merge After Approval:**
-   - Supervisors will merge after all reviews pass
-   - Delete feature branch after merge
-
-### GitHub Actions
-
-This repository includes automated workflows:
-
-- **Automatic Code Review** (`claude-code-review.yml`) - Automatically reviews all PRs for code quality, bugs, security, and compliance with project guidelines
-- **Interactive Assistant** (`claude.yml`) - Invoke on-demand by mentioning `@claude` in issues or PR comments to execute specific tasks
-
-### Code Quality Checks
-
-Before submitting a PR, ensure:
-
-```bash
-# Format code
-uv run ruff format .
-
-# Check for linting errors
-uv run ruff check .
-```
+**GitHub Actions:** Auto-review PRs (`claude-code-review.yml`) and on-demand assistance via `@claude` mentions (`claude.yml`)
 
 ## Resources
 
@@ -381,66 +232,3 @@ uv run ruff check .
 
 - CDMv1: [Framework](https://github.com/paulhager/MIMIC-Clinical-Decision-Making-Framework) | [Dataset](https://github.com/paulhager/MIMIC-Clinical-Decision-Making-Dataset)
 - [Official MIMIC Repository](https://github.com/MIT-LCP/mimic-code)
-
-## Appendix
-
-### Create Database from Scratch (not needed on compute cluster)
-
-Follow these steps to set up the database on a local machine/workstation.
-
-#### Install PostgreSQL
-
-Steps for Ubuntu:
-
-1. Install PostgreSQL:
-   ```bash
-   sudo apt install postgresql
-   ```
-
-2. Create database (trust localhost connections = no password):
-   ```bash
-   initdb -D "$DB_DIR" -U "$DB_USER" -A trust
-   createdb -h 127.0.0.1 -U "$DB_USER" "mimiciv_pract"
-   ```
-
-#### Create MIMIC Database
-
-1. Download MIMIC-IV hosp `*.csv.gz` files from https://physionet.org/content/mimiciv/3.1/
-
-2. Load and filter hosp module:
-
-   ```bash
-   MIMIC_DIR=/opt/mimic/mimiciv/3.1/
-
-   # Create (empty) tables
-   psql -d mimiciv_pract -f database/sql/create.sql
-
-   # Load data into tables
-   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -v mimic_data_dir=$MIMIC_DIR -f database/sql/hosp/load_gz.sql
-
-   # Set primary keys, indexes, etc.
-   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/hosp/constraint.sql
-   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/hosp/index.sql
-
-   # Assign lab and microbiology events to hadm_id based on time (optional)
-   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/hosp/assign_events.sql
-
-   # Remove admissions not in 'database/hadm_id_list.txt'
-   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/hosp/filter_hadm.sql
-   ```
-
-3. Load and filter note module:
-   ```bash
-   MIMIC_DIR=/opt/mimic/mimiciv/mimic-iv-note/2.2/note/
-   psql -d mimiciv_pract -f database/sql/note/create.sql
-   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -v mimic_data_dir=$MIMIC_DIR -f database/sql/note/load_gz.sql
-   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/note/filter_hadm.sql
-   ```
-
-4. Load note extractions:
-
-   ```bash
-   EXTRACT_DIR=/home/$USER/practical_cdm_benchmark/database/data
-   psql -d mimiciv_pract -f database/sql/note_extract/create.sql
-   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -v mimic_data_dir=$EXTRACT_DIR -f database/sql/note_extract/load_csv.sql
-   ```
