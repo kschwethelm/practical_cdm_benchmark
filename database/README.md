@@ -228,7 +228,7 @@ poe (poe_id) --> poe_detail
 SELECT p.gender, p.anchor_age, a.race, a.insurance, a.admission_type
 FROM cdm_hosp.admissions a
 JOIN cdm_hosp.patients p ON a.subject_id = p.subject_id
-WHERE a.hadm_id = 12345678;
+WHERE a.hadm_id = 20000602;
 ```
 
 ### Get all ICD diagnoses with descriptions
@@ -237,7 +237,7 @@ SELECT d.icd_code, d.icd_version, dict.long_title, d.seq_num
 FROM cdm_hosp.diagnoses_icd d
 LEFT JOIN cdm_hosp.d_icd_diagnoses dict
   ON d.icd_code = dict.icd_code AND d.icd_version = dict.icd_version
-WHERE d.hadm_id = 12345678
+WHERE d.hadm_id = 20000602
 ORDER BY d.seq_num;
 ```
 
@@ -245,14 +245,14 @@ ORDER BY d.seq_num;
 ```sql
 SELECT text
 FROM cdm_note.discharge
-WHERE hadm_id = 12345678;
+WHERE hadm_id = 20000602;
 ```
 
 ### Get structured chief complaint
 ```sql
 SELECT category, complaint
 FROM cdm_note_extract.chief_complaint
-WHERE hadm_id = 12345678
+WHERE hadm_id = 20000602
 ORDER BY seq_num;
 ```
 
@@ -288,12 +288,30 @@ Steps for Ubuntu:
    Within psql shell:
       ```sql
       CREATE DATABASE mimiciv_pract;
-      -- Create admin user with passwort
-      CREATE ROLE user_name WITH LOGIN PASSWORD 'YourStrongPassword';
-      ALTER ROLE user_name WITH SUPERUSER CREATEDB CREATEROLE;
+      -- Create admin user with password
+      CREATE ROLE admin_user WITH LOGIN PASSWORD 'YourStrongPassword';
+      ALTER ROLE admin_user WITH SUPERUSER CREATEDB CREATEROLE;
       -- Create student user with basic rights
       CREATE ROLE student WITH LOGIN PASSWORD 'student';
       GRANT ALL PRIVILEGES ON DATABASE mimiciv_pract TO student;
+      -- To grant read access to specific (existing schemas and tables)
+      GRANT USAGE ON SCHEMA cdm_hosp TO student;
+      GRANT SELECT ON ALL TABLES IN SCHEMA cdm_hosp TO student;
+      GRANT USAGE ON SCHEMA cdm_note TO student;
+      GRANT SELECT ON ALL TABLES IN SCHEMA cdm_note TO student;
+      GRANT USAGE ON SCHEMA cdm_note_extract TO student;
+      GRANT SELECT ON ALL TABLES IN SCHEMA cdm_note_extract TO student;
+      ```
+
+3. Test access:
+   Go into psql shell
+      ```bash
+      psql -U student -d mimiciv_pract -h localhost
+      ```
+
+   Run test query:
+      ```sql
+      SELECT hadm_id, subject_id, admittime FROM cdm_hosp.admissions LIMIT 5;
       ```
 
 #### Create MIMIC Database
