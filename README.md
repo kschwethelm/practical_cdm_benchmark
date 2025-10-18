@@ -180,6 +180,7 @@ cursor.execute("""
     ORDER BY charttime
 """, (20001800,))
 labs = cursor.fetchall()
+```
 
 ## Development Workflow
 
