@@ -63,6 +63,16 @@ practical_cdm_benchmark/
 5. **Format with Ruff** - Run `uv run ruff format .` before committing
 
 
+## MIMIC Training
+
+You are not allowed to use the MIMIC data before completing the following training: https://physionet.org/content/mimiciv/view-required-training/3.1/#1.
+
+Register here: https://about.citiprogram.org
+   - Click "Select Your Organization Affiliation"
+   - As affiliation select "Massachusetts Institute of Technology Affiliates"
+   - The remaining steps should be self-explanatory
+
+
 ## Workstation Setup
 
 ### Establish Connection
@@ -70,7 +80,7 @@ practical_cdm_benchmark/
 1. **Install [Tailscale](https://tailscale.com/kb/1347/installation)** on your local machine
 2. **Connect via SSH** using VS Code's [Remote SSH extension](https://code.visualstudio.com/docs/remote/ssh):
    ```bash
-   ssh <your-username>@zmaj
+   ssh <your-username>@zmaj.tail2e07d3.ts.net
    ```
    (Your supervisor will provide username and password)
 
