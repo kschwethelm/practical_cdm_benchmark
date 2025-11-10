@@ -16,3 +16,4 @@ SET CLIENT_ENCODING TO 'utf8';
 \COPY cdm_note_extract.past_medical_history FROM 'past_medical_history.csv' DELIMITER ',' CSV HEADER NULL '';
 \COPY cdm_note_extract.physical_exam FROM 'physical_exam.csv' DELIMITER ',' CSV HEADER NULL '';
 \COPY cdm_note_extract.discharge_diagnosis FROM 'discharge_diagnosis.csv' DELIMITER ',' CSV HEADER NULL '';
+\COPY cdm_note_extract.discharge_free_text FROM 'discharge_free_text.csv' DELIMITER ',' CSV HEADER NULL '';
