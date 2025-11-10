@@ -104,7 +104,7 @@ class BenchmarkDataset(BaseModel):
 
 
 class BenchmarkDatasetCDMv1(BaseModel):
-    """Root model for the complete benchmark dataset"""
+    """Root model for the complete benchmark dataset based on CDMv1 schema"""
 
     cases: list[HadmCaseCDMv1] = Field(default_factory=list)
 
