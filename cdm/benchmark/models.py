@@ -68,7 +68,7 @@ class PhysicalExam(BaseModel):
 class GroundTruth(BaseModel):
     """The ground truth for evaluation."""
 
-    primary_diagnosis: str
+    primary_diagnosis: str | None = None
     treatments: list[str]
 
 
