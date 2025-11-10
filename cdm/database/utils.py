@@ -2,7 +2,6 @@ import re
 
 # Define the keywords to scrub from all text
 # Currently limited to 4 acute abdominal conditions from CDMv1 paper
-# To add new conditions: add category and associated keywords to this dict
 DIAGNOSIS_SCRUB_KEYWORDS = {
     "appendicitis": ["acute appendicitis", "appendicitis", "appendectomy", "tip appendicitis"],
     "cholecystitis": ["acute cholecystitis", "cholecystitis", "cholecystostomy"],
@@ -60,7 +59,7 @@ def scrub_text(text: str, pathology_type: str | None) -> str:
         return text
 
     pattern = re.compile(
-        r"|".join([re.escape(k) for k in keywords_to_scrub]), re.IGNORECASE
+        r"\b(" + "|".join(re.escape(kw) for kw in keywords_to_scrub) + r")\b", re.IGNORECASE
     )
 
     return pattern.sub("___", text)

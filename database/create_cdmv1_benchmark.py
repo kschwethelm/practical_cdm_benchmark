@@ -31,6 +31,7 @@ from cdm.database.queries import (
     get_ground_truth_treatments_coded,
     get_ground_truth_treatments_freetext,
 )
+from cdm.database.utils import get_pathology_type_from_string, scrub_text
 
 
 def load_hadm_ids(filepath: Path) -> list[int]:
@@ -47,18 +48,18 @@ def create_hadm_case(cursor, hadm_id: int) -> HadmCaseCDMv1:
 
     demographics_data = get_demographics(cursor, hadm_id)
     demographics = Demographics(**demographics_data) if demographics_data else None
-    
+
     history_of_present_illness = get_history_of_present_illness(cursor, hadm_id)
-    
+
     physical_examinations_data = get_physical_examination(cursor, hadm_id)
     physical_exams = [PhysicalExam(**exam) for exam in physical_examinations_data]
-    
+
     lab_data = get_lab_tests(cursor, hadm_id)
     lab_results = [DetailedLabResult(**item) for item in lab_data]
-    
+
     radiology_reports_data = get_radiology_reports(cursor, hadm_id)
     radiology_reports = [RadiologyReport(**report) for report in radiology_reports_data]
-    
+
     ground_truth_diagnosis = get_ground_truth_diagnosis(cursor, hadm_id)
     ground_truth_treatments = get_ground_truth_treatments_coded(cursor, hadm_id)
     ground_truth_treatments_free_text = get_ground_truth_treatments_freetext(cursor, hadm_id)
@@ -92,7 +93,7 @@ def main(cfg: DictConfig):
     base_dir = Path(__file__).parent
     hadm_id_file = base_dir / cfg.hadm_id_file
     output_dir = base_dir / cfg.output_dir
-    output_file = output_dir / cfg.output_filename_cdmmv1
+    output_file = output_dir / cfg.output_filename_cdmv1
 
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -120,7 +121,7 @@ def main(cfg: DictConfig):
                     and len(case.lab_results) > 0
                     and len(case.physical_exams) > 0
                     and len(case.radiology_reports) > 0
-                    and case.radiology_reports[0].findings != ""
+                    and any(r.findings for r in case.radiology_reports)
                     and case.ground_truth is not None
                     and case.ground_truth.primary_diagnosis is not None
                     and len(case.ground_truth.treatments) > 0
