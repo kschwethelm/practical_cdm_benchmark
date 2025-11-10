@@ -11,9 +11,26 @@ import hydra
 from loguru import logger
 from omegaconf import DictConfig
 from tqdm import tqdm
-from cdm.benchmark.models import *
+from cdm.benchmark.models import (
+    Demographics,
+    PhysicalExam,
+    DetailedLabResult,
+    RadiologyReport,
+    GroundTruth,
+    HadmCaseCDMv1,
+    BenchmarkDatasetCDMv1,
+)
 from cdm.database.connection import get_db_connection
-from cdm.database.queries import *
+from cdm.database.queries import (
+    get_demographics,
+    get_history_of_present_illness,
+    get_physical_examination,
+    get_lab_tests,
+    get_radiology_reports,
+    get_ground_truth_diagnosis,
+    get_ground_truth_treatments_coded,
+    get_ground_truth_treatments_freetext,
+)
 
 
 def load_hadm_ids(filepath: Path) -> list[int]:
@@ -25,23 +42,23 @@ def load_hadm_ids(filepath: Path) -> list[int]:
     return hadm_ids
 
 
-def create_hadm_case(cursor, hadm_id: int) -> HadmCase:
+def create_hadm_case(cursor, hadm_id: int) -> HadmCaseCDMv1:
     """Create a HadmCase by querying all relevant data for a given admission."""
 
     demographics_data = get_demographics(cursor, hadm_id)
     demographics = Demographics(**demographics_data) if demographics_data else None
-
+    
     history_of_present_illness = get_history_of_present_illness(cursor, hadm_id)
-
+    
     physical_examinations_data = get_physical_examination(cursor, hadm_id)
     physical_exams = [PhysicalExam(**exam) for exam in physical_examinations_data]
-
+    
     lab_data = get_lab_tests(cursor, hadm_id)
     lab_results = [DetailedLabResult(**item) for item in lab_data]
-
+    
     radiology_reports_data = get_radiology_reports(cursor, hadm_id)
     radiology_reports = [RadiologyReport(**report) for report in radiology_reports_data]
-
+    
     ground_truth_diagnosis = get_ground_truth_diagnosis(cursor, hadm_id)
     ground_truth_treatments = get_ground_truth_treatments_coded(cursor, hadm_id)
     ground_truth_treatments_free_text = get_ground_truth_treatments_freetext(cursor, hadm_id)

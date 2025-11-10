@@ -1,6 +1,10 @@
 import psycopg
 from loguru import logger
-from cdm.database.utils import *
+from cdm.database.utils import (
+    extract_findings_from_report,
+    get_pathology_type_from_string,
+    scrub_text,
+)
 
 
 def get_demographics(cursor: psycopg.Cursor, hadm_id: int) -> dict | None:

@@ -1,8 +1,8 @@
 import re
-from typing import List, Optional
 
 # Define the keywords to scrub from all text
-# (This is from the `extract_info` call in the old notebook)
+# Currently limited to 4 acute abdominal conditions from CDMv1 paper
+# To add new conditions: add category and associated keywords to this dict
 DIAGNOSIS_SCRUB_KEYWORDS = {
     "appendicitis": ["acute appendicitis", "appendicitis", "appendectomy", "tip appendicitis"],
     "cholecystitis": ["acute cholecystitis", "cholecystitis", "cholecystostomy"],
@@ -22,7 +22,7 @@ DIAGNOSIS_SCRUB_KEYWORDS = {
 }
 
 
-def get_pathology_type_from_string(ground_truth_diagnosis: str) -> Optional[str]:
+def get_pathology_type_from_string(ground_truth_diagnosis: str) -> str | None:
     """
     Finds the matching 'pathology_type' (e.g., 'diverticulitis')
     from a specific ground_truth string (e.g., 'Complicated diverticulitis...').
@@ -44,13 +44,15 @@ def get_pathology_type_from_string(ground_truth_diagnosis: str) -> Optional[str]
     return None
 
 
-def scrub_text(text: str, pathology_type: str) -> str:
+def scrub_text(text: str, pathology_type: str | None) -> str:
     """
     Removes mentions of the diagnosis and related procedures from
     a block of text, replacing them with '___' as per CDMv1.
     """
-    if not text or not pathology_type:
+    if not text:
         return ""
+    if not pathology_type:
+        return text  # No scrubbing needed if no pathology type
 
     keywords_to_scrub = DIAGNOSIS_SCRUB_KEYWORDS.get(pathology_type, [])
 
@@ -58,11 +60,10 @@ def scrub_text(text: str, pathology_type: str) -> str:
         return text
 
     pattern = re.compile(
-        r"\b(" + "|".join(re.escape(kw) for kw in keywords_to_scrub) + r")\b", re.IGNORECASE
+        r"|".join([re.escape(k) for k in keywords_to_scrub]), re.IGNORECASE
     )
 
-    scrubbed_text = pattern.sub("___", text)
-    return scrubbed_text
+    return pattern.sub("___", text)
 
 
 def extract_findings_from_report(raw_report_text: str) -> str:
