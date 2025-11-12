@@ -341,6 +341,46 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     return lab_tests
 
 
+def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
+    """
+    Get all microbiology events (positive cultures) for a given admission.
+
+    Args:
+        cursor: Database cursor
+        hadm_id: Hospital admission ID
+
+    Returns:
+        list of dicts with microbiology event details (may be empty)
+    """
+    query = """
+        SELECT
+            micro.test_name,
+            micro.spec_type_desc,
+            micro.org_name,
+            micro.interpretation,
+            micro.charttime
+        FROM cdm_hosp.microbiologyevents micro
+        WHERE micro.hadm_id = %s
+            AND micro.org_name IS NOT NULL
+        ORDER BY micro.charttime
+    """
+    cursor.execute(query, (hadm_id,))
+    results = cursor.fetchall()
+
+    microbiology_events = [
+        {
+            "test_name": row[0],
+            "spec_type_desc": row[1],
+            "organism_name": row[2],
+            "interpretation": row[3],
+            "charttime": row[4],
+        }
+        for row in results
+    ]
+    logger.debug(f"Found {len(microbiology_events)} microbiology events for hadm_id={hadm_id}")
+    return microbiology_events
+
+
 def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     """
     Get radiology report findings for a given admission.

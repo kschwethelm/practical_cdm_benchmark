@@ -15,6 +15,7 @@ from cdm.benchmark.models import (
     Demographics,
     PhysicalExam,
     DetailedLabResult,
+    MicrobiologyEvent,
     RadiologyReport,
     GroundTruth,
     HadmCaseCDMv1,
@@ -26,6 +27,7 @@ from cdm.database.queries import (
     get_history_of_present_illness,
     get_physical_examination,
     get_lab_tests,
+    get_microbiology_events,
     get_radiology_reports,
     get_ground_truth_diagnosis,
     get_ground_truth_treatments_coded,
@@ -57,6 +59,9 @@ def create_hadm_case(cursor, hadm_id: int) -> HadmCaseCDMv1:
     lab_data = get_lab_tests(cursor, hadm_id)
     lab_results = [DetailedLabResult(**item) for item in lab_data]
 
+    microbiology_data = get_microbiology_events(cursor, hadm_id)
+    microbiology_events = [MicrobiologyEvent(**item) for item in microbiology_data]
+
     radiology_reports_data = get_radiology_reports(cursor, hadm_id)
     radiology_reports = [RadiologyReport(**report) for report in radiology_reports_data]
 
@@ -78,6 +83,7 @@ def create_hadm_case(cursor, hadm_id: int) -> HadmCaseCDMv1:
         demographics=demographics,
         history_of_present_illness=history_of_present_illness,
         lab_results=lab_results,
+        microbiology_events=microbiology_events,
         radiology_reports=radiology_reports,
         physical_exams=physical_exams,
         ground_truth=ground_truth,
@@ -121,6 +127,7 @@ def main(cfg: DictConfig):
                     and len(case.lab_results) > 0
                     and len(case.physical_exams) > 0
                     and len(case.radiology_reports) > 0
+                    and len(case.microbiology_events) > 0
                     and any(r.findings for r in case.radiology_reports)
                     and case.ground_truth is not None
                     and case.ground_truth.primary_diagnosis is not None

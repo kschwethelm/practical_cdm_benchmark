@@ -25,6 +25,14 @@ class DetailedLabResult(BaseModel):
     flag: str | None = None
 
 
+class MicrobiologyEvent(BaseModel):
+    test_name: str | None = None
+    spec_type_desc: str | None = None
+    organism_name: str | None = None
+    interpretation: str | None = None
+    charttime: datetime | None = None
+
+
 class MicrobiologyResult(BaseModel):
     charttime: datetime
     spec_type_desc: str | None = None
@@ -92,6 +100,7 @@ class HadmCaseCDMv1(BaseModel):
     demographics: Demographics | None = None
     history_of_present_illness: str | None = None
     lab_results: list[DetailedLabResult] = Field(default_factory=list)
+    microbiology_events: list[MicrobiologyEvent] = Field(default_factory=list)
     radiology_reports: list[RadiologyReport] = Field(default_factory=list)
     physical_exams: list[PhysicalExam] = Field(default_factory=list)
     ground_truth: GroundTruth | None = None
