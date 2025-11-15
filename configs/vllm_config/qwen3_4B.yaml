@@ -1,6 +1,6 @@
 # vLLM serve configuration (for server startup)
 # uv run vllm serve --config configs/vllm_config/qwen3_4B.yaml
-model: "Qwen/Qwen3-4B-Instruct-2507" # Qwen/Qwen3-4B-Thinking-2507 for reasoning model
+model: "meta-llama/Llama-2-7b-chat-hf" # Qwen/Qwen3-4B-Thinking-2507 for reasoning model
 download_dir: /srv/llm-weights
 served-model-name: "default"
 host: "localhost"
@@ -10,6 +10,9 @@ enable-prefix-caching: true
 
 max-model-len: 2048 # allowed number of input and output tokens together
 tensor-parallel-size: 1 # number of gpus
+
+enable-auto-tool-choice: true
+tool-call-parser: "openai"
 
 # Reasoning parsing handled by server
 #reasoning-parser: "qwen3" <- remove when no thinking wanted
