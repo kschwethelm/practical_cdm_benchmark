@@ -81,19 +81,6 @@ class GroundTruth(BaseModel):
 
 
 class HadmCase(BaseModel):
-    """Complete case data for a single hospital admission"""
-
-    hadm_id: int
-    demographics: Demographics | None = None
-    first_lab_result: LabResult | None = None
-    first_microbiology_result: MicrobiologyResult | None = None
-    chief_complaints: list[str] = Field(default_factory=list)
-    diagnosis: str | None = None
-    past_medical_history: list[PastMedicalHistory] = Field(default_factory=list)
-    physical_exam: PhysicalExam | None = None
-
-
-class HadmCaseCDMv1(BaseModel):
     """Complete case data for a single hospital admission based on CDMv1 schema"""
 
     hadm_id: int
@@ -102,7 +89,7 @@ class HadmCaseCDMv1(BaseModel):
     lab_results: list[DetailedLabResult] = Field(default_factory=list)
     microbiology_events: list[MicrobiologyEvent] = Field(default_factory=list)
     radiology_reports: list[RadiologyReport] = Field(default_factory=list)
-    physical_exams: list[PhysicalExam] = Field(default_factory=list)
+    physical_exam_text: str | None = None
     ground_truth: GroundTruth | None = None
 
 
@@ -110,12 +97,6 @@ class BenchmarkDataset(BaseModel):
     """Root model for the complete benchmark dataset"""
 
     cases: list[HadmCase] = Field(default_factory=list)
-
-
-class BenchmarkDatasetCDMv1(BaseModel):
-    """Root model for the complete benchmark dataset based on CDMv1 schema"""
-
-    cases: list[HadmCaseCDMv1] = Field(default_factory=list)
 
 
 class DiagnosisOutput(BaseModel):

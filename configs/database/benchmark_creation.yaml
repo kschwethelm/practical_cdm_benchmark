@@ -8,6 +8,3 @@ hadm_id_file: hadm_id_list.txt
 
 # Output filename for the benchmark JSON
 output_filename: benchmark_data.json
-
-#Output filename for the benchmark JSON based on cdmmv1
-output_filename_cdmv1: benchmark_data_cdmv1.json

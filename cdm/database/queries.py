@@ -29,72 +29,6 @@ def get_demographics(cursor: psycopg.Cursor, hadm_id: int) -> dict | None:
     return None
 
 
-def get_first_lab_result(cursor: psycopg.Cursor, hadm_id: int) -> dict | None:
-    """
-    Get the first lab result (by charttime) for a given admission.
-
-    Args:
-        cursor: Database cursor
-        hadm_id: Hospital admission ID
-
-    Returns:
-        dict with lab result details, or None if not found
-    """
-    query = """
-        SELECT itemid, charttime, value, valuenum, valueuom
-        FROM cdm_hosp.labevents
-        WHERE hadm_id = %s
-        ORDER BY charttime ASC
-        LIMIT 1
-    """
-    cursor.execute(query, (hadm_id,))
-    result = cursor.fetchone()
-
-    if result:
-        return {
-            "itemid": result[0],
-            "charttime": result[1],
-            "value": result[2],
-            "valuenum": result[3],
-            "valueuom": result[4],
-        }
-    logger.debug(f"No lab results found for hadm_id={hadm_id}")
-    return None
-
-
-def get_first_microbiology_result(cursor: psycopg.Cursor, hadm_id: int) -> dict | None:
-    """
-    Get the first microbiology result (by charttime) for a given admission.
-
-    Args:
-        cursor: Database cursor
-        hadm_id: Hospital admission ID
-
-    Returns:
-        dict with microbiology result details, or None if not found
-    """
-    query = """
-        SELECT charttime, spec_type_desc, test_name, org_name, interpretation
-        FROM cdm_hosp.microbiologyevents
-        WHERE hadm_id = %s
-        ORDER BY charttime ASC
-        LIMIT 1
-    """
-    cursor.execute(query, (hadm_id,))
-    result = cursor.fetchone()
-
-    if result:
-        return {
-            "charttime": result[0],
-            "spec_type_desc": result[1],
-            "test_name": result[2],
-            "org_name": result[3],
-            "interpretation": result[4],
-        }
-    logger.debug(f"No microbiology results found for hadm_id={hadm_id}")
-    return None
-
-
 def get_presenting_chief_complaints(cursor: psycopg.Cursor, hadm_id: int) -> list[str]:
     """
     Get all chief complaints with category='chief_complaint' for a given admission.
@@ -237,50 +171,27 @@ def get_history_of_present_illness(cursor: psycopg.Cursor, hadm_id: int) -> str 
 
 def get_physical_examination(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     """
-    Get structured physical examination findings for a given admission.
+    Get physical examination findings for a given admission.
 
     Args:
         cursor: Database cursor
         hadm_id: Hospital admission ID
 
     Returns:
-        list of dicts with physical exam fields (may be empty)
+        Physical examination string, or None if not found
     """
     query = """
-        SELECT
-            temporal_context,
-            vital_signs,
-            general,
-            heent_neck,
-            cardiovascular,
-            pulmonary,
-            abdominal,
-            extremities,
-            neurological,
-            skin
-        FROM cdm_note_extract.physical_exam
+        SELECT physical_examination
+        FROM cdm_note_extract.discharge_free_text
         WHERE hadm_id = %s
     """
     cursor.execute(query, (hadm_id,))
-    results = cursor.fetchall()
+    result = cursor.fetchone()
 
-    exams = [
-        {
-            "temporal_context": row[0],
-            "vital_signs": row[1],
-            "general": row[2],
-            "heent_neck": row[3],
-            "cardiovascular": row[4],
-            "pulmonary": row[5],
-            "abdominal": row[6],
-            "extremities": row[7],
-            "neurological": row[8],
-            "skin": row[9],
-        }
-        for row in results
-    ]
-    logger.debug(f"Found {len(exams)} physical examination entries for hadm_id={hadm_id}")
-    return exams
+    if result:
+        return result[0]
+    logger.debug(f"No physical exam text found for hadm_id={hadm_id}")
+    return None
 
 
 def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
@@ -437,9 +348,8 @@ def get_ground_truth_diagnosis(cursor: psycopg.Cursor, hadm_id: int) -> str | No
         SELECT title AS primary_diagnosis
         FROM cdm_note_extract.discharge_diagnosis
         WHERE hadm_id = %s
-            AND is_primary = true
-        ORDER BY seq_num
-        LIMIT 1
+           AND is_primary = true
+           AND seq_num = 1
     """
     cursor.execute(query, (hadm_id,))
     result = cursor.fetchone()
