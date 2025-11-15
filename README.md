@@ -42,6 +42,9 @@ practical_cdm_benchmark/
 ├── scripts/                      # Executable scripts
 │   ├── demo_clinical_workflow.py # Educational demo of clinical reasoning
 │   └── vllm_test.py             # Test vLLM setup
+├── tests/                        # Test suite
+│   ├── integration/             # Integration tests (database, API)
+│   └── unit/                    # Unit tests
 └── slurm/                        # Cluster job scripts
 
 ```
@@ -53,6 +56,8 @@ practical_cdm_benchmark/
 - **[vLLM](https://docs.vllm.ai/)** - High-performance LLM serving
 - **[Loguru](https://loguru.readthedocs.io/)** - Simple, powerful logging
 - **[Ruff](https://docs.astral.sh/ruff/)** - Fast Python linter and formatter
+- **[pytest](https://docs.pytest.org/)** - Testing framework
+- **[pre-commit](https://pre-commit.com/)** - Git hooks for code quality
 - **[psycopg](https://www.psycopg.org/psycopg3/)** - PostgreSQL database adapter
 
 **Best Practices to Follow:**
@@ -61,6 +66,8 @@ practical_cdm_benchmark/
 3. **Use Hydra configs** - Store parameters in YAML files, not hardcoded
 4. **Log with Loguru** - Use `logger.info()`, `logger.error()`, etc.
 5. **Format with Ruff** - Run `uv run ruff format .` before committing
+6. **Test your code** - Run `uv run pytest` to verify changes
+7. **Use pre-commit hooks** - Install with `uv run pre-commit install` for automatic checks
 
 
 ## MIMIC Training
@@ -119,7 +126,7 @@ Register here: https://about.citiprogram.org
    DB_NAME="mimiciv_pract"
    DB_USER="student"
    DB_PWD="student"
-   ``` 
+   ```
 
 ## Quick Start Guide
 
@@ -192,9 +199,47 @@ cursor.execute("""
 labs = cursor.fetchall()
 ```
 
+## Testing
+
+This project uses **pytest** for automated testing:
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run only fast tests (excludes tests marked as slow)
+uv run pytest -m "not slow"
+
+# Run tests in parallel
+uv run pytest -n auto
+```
+
+**Test Organization:**
+- `tests/integration/` - Integration tests (database access, API calls)
+- `tests/unit/` - Unit tests for individual functions
+
+## Pre-commit Hooks
+
+This project uses **pre-commit** hooks to automatically check code quality:
+
+```bash
+# Install pre-commit hooks (one-time setup)
+uv run pre-commit install
+
+# Run hooks manually on all files
+uv run pre-commit run --all-files
+```
+
+**Configured hooks:**
+- Ruff linter/formatter - Auto-fixes code style
+- YAML checker, end-of-file fixer, trailing whitespace removal
+- Pytest (pre-push) - Runs fast tests before pushing
+
+Once installed, hooks run automatically on `git commit` and `git push`.
+
 ## Development Workflow
 
-This project uses a **branch → pull request → review → merge** workflow. Always format code with `uv run ruff format .` before committing.
+This project uses a **branch → pull request → review → merge** workflow. Pre-commit hooks handle formatting and testing automatically.
 
 **1. Create feature branch:**
 ```bash

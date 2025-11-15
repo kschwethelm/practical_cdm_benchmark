@@ -26,6 +26,15 @@ uv run ruff format .
 
 # Check for linting errors
 uv run ruff check .
+
+# Run tests
+uv run pytest                    # All tests
+uv run pytest -m "not slow"      # Fast tests only
+uv run pytest -n auto            # Parallel execution
+
+# Pre-commit hooks (auto-format, lint, test)
+uv run pre-commit install        # One-time setup
+uv run pre-commit run --all-files  # Manual check
 ```
 
 ### Database Operations
@@ -191,8 +200,20 @@ def main(cfg: DictConfig):
 2. **Define Pydantic models** - All data structures should be Pydantic models
 3. **Use Hydra configs** - Store parameters in YAML, never hardcode
 4. **Log with Loguru** - Use `logger.info()`, `logger.error()`, etc.
-5. **Format with Ruff** - Run `uv run ruff format .` before every commit
-6. **Never commit data** - Only commit code, never data/outputs/logs
+5. **Format with Ruff** - Run `uv run ruff format .` before every commit (or use pre-commit hooks)
+6. **Run tests** - Use `uv run pytest` to verify changes
+7. **Never commit data** - Only commit code, never data/outputs/logs
+
+### Testing
+
+Tests are located in `tests/integration/` and `tests/unit/`. Pre-commit hooks automatically run fast tests on push.
+
+### Pre-commit Hooks
+
+Once installed (`uv run pre-commit install`), hooks run automatically on commit/push:
+- Ruff formatter/linter - Auto-fixes code style
+- YAML checker, end-of-file fixer, trailing whitespace removal
+- Pytest (pre-push) - Runs fast tests before pushing
 
 ## Git Workflow
 

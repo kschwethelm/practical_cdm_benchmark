@@ -11,27 +11,27 @@ import hydra
 from loguru import logger
 from omegaconf import DictConfig
 from tqdm import tqdm
+
 from cdm.benchmark.models import (
+    BenchmarkDataset,
     Demographics,
-    PhysicalExam,
     DetailedLabResult,
-    MicrobiologyEvent,
-    RadiologyReport,
     GroundTruth,
     HadmCase,
-    BenchmarkDataset,
+    MicrobiologyEvent,
+    RadiologyReport,
 )
 from cdm.database.connection import get_db_connection
 from cdm.database.queries import (
     get_demographics,
-    get_history_of_present_illness,
-    get_physical_examination,
-    get_lab_tests,
-    get_microbiology_events,
-    get_radiology_reports,
     get_ground_truth_diagnosis,
     get_ground_truth_treatments_coded,
     get_ground_truth_treatments_freetext,
+    get_history_of_present_illness,
+    get_lab_tests,
+    get_microbiology_events,
+    get_physical_examination,
+    get_radiology_reports,
 )
 from cdm.database.utils import get_pathology_type_from_string, scrub_text
 

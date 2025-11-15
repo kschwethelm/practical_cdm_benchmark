@@ -1,5 +1,6 @@
 import psycopg
 from loguru import logger
+
 from cdm.database.utils import extract_findings_from_report
 
 

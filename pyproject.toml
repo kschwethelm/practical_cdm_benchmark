@@ -26,6 +26,8 @@ dependencies = [
 [dependency-groups]
 dev = [
     "hatchling>=1.27.0",
+    "pre-commit>=4.4.0",
+    "pytest>=9.0.1",
     "ruff>=0.13.2",
 ]
 

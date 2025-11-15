@@ -11,7 +11,7 @@
 SET search_path TO mimiciv_hosp;
 
 -- admissions
- 
+
 DROP INDEX IF EXISTS admissions_idx01;
 CREATE INDEX admissions_idx01
   ON admissions (admittime, dischtime, deathtime);
@@ -220,7 +220,7 @@ CREATE INDEX inputevents_idx02
 DROP INDEX IF EXISTS outputevents_idx01;
 CREATE INDEX outputevents_idx01
   ON outputevents (charttime, storetime);
-  
+
 -- procedureevents
 
 DROP INDEX IF EXISTS procedureevents_idx01;
