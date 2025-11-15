@@ -1,7 +1,7 @@
 from langchain.tools import tool
 
-
 CURRENT_CASE = None  # To be set when loading a case
+
 
 @tool
 def request_physical_exam(system: str) -> str:

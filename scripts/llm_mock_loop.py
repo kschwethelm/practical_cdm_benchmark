@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 import yaml
+import hydra
 from loguru import logger
 from omegaconf import DictConfig
 from pydantic import BaseModel
@@ -20,16 +21,14 @@ SYSTEM = (
     "If you need more info, also add:\n"
     "Action: physical examination | laboratory test | imaging\n"
     "Action input: <what exactly>\n\n"
-
     "STRICT RULES (you MUST follow these):\n\n"
-
     "1. You may ONLY use information that is explicitly written in the case text.\n"
     "2. If a symptom, sign, lab, or imaging result is NOT mentioned, you MUST treat it as UNKNOWN.\n"
     "3. You MUST NOT:\n"
-    "- Assume that any lab, imaging, or exam result is \"normal\" or \"abnormal\" if it is not given.\n"
-    "- Say that a test was \"done\", \"ordered\", \"pending\", or \"normal\" unless the input explicitly states it.\n"
-    "- State that a symptom is absent (e.g. \"no fever, no vomiting, no weight loss\") "
-    "unless the input explicitly says so (e.g. \"denies fever\").\n"
+    '- Assume that any lab, imaging, or exam result is "normal" or "abnormal" if it is not given.\n'
+    '- Say that a test was "done", "ordered", "pending", or "normal" unless the input explicitly states it.\n'
+    '- State that a symptom is absent (e.g. "no fever, no vomiting, no weight loss") '
+    'unless the input explicitly says so (e.g. "denies fever").\n'
     "4. When information is missing, you may ONLY:\n"
     "- Say that it is UNKNOWN.\n"
     "- Propose which tests or questions you would like to order/ask NEXT.\n"
@@ -43,15 +42,14 @@ def build_hpi(case: dict) -> str:
     cc = ", ".join(case.get("chief_complaints", [])) or "N/A"
     return (
         f"PATIENT DEMOGRAPHICS:\n"
-        f"- Age: {demo.get('age','?')}\n"
-        f"- Gender: {demo.get('gender','?')}\n\n"
-
+        f"- Age: {demo.get('age', '?')}\n"
+        f"- Gender: {demo.get('gender', '?')}\n\n"
         f"CHIEF COMPLAINT(S):\n- {cc}\n\n"
-
         f"Thought:\n"
         f"Action:\n"
-        #f"Action input:\n"
+        # f"Action input:\n"
     )
+
 
 def build_pe(case: dict) -> str:
     pe = case.get("physical_exam", {})
@@ -66,20 +64,15 @@ def build_pe(case: dict) -> str:
         f"EXTREMITIES: {pe.get('extremities', 'Not documented')}\n"
         f"NEUROLOGICAL: {pe.get('neurological', 'Not documented')}\n"
         f"SKIN: {pe.get('skin', 'Not documented')}\n\n"
-
         f"Thought:\n"
         f"Action:\n"
-        #f"Action input:\n"
+        # f"Action input:\n"
     )
+
 
 def build_final_prompt() -> str:
-    return (
-        f"Now provide your final output.\n\n"
+    return f"Now provide your final output.\n\nThought:\nFinal diagnosis:\nTreatment:\n"
 
-        f"Thought:\n"
-        f"Final diagnosis:\n"
-        f"Treatment:\n"
-    )
 
 # --- Load YAML manually --- TODO: Replace with Hydra
 config_path = Path(__file__).parent.parent / "configs/benchmark/demo.yaml"
@@ -88,6 +81,7 @@ with open(config_path, "r") as f:
 
 benchmark_data_path = cfg["benchmark_data_path"]
 case_index = cfg["case_index"]
+
 
 def load_case(benchmark_path: Path, case_index: int) -> dict:
     """Load a specific case from the benchmark dataset."""
@@ -101,6 +95,7 @@ def load_case(benchmark_path: Path, case_index: int) -> dict:
         raise ValueError(f"Case index {case_index} out of range (max: {len(cases) - 1})")
 
     return cases[case_index]
+
 
 async def main():
     # Load the case
@@ -125,11 +120,7 @@ async def main():
     print("")
 
     # Step 2: Physical Exam
-    pe_prompt = (
-        "Previous assistant reply:\n"
-        f"{r1.response_text}\n\n"
-        + build_pe(case)
-    )
+    pe_prompt = f"Previous assistant reply:\n{r1.response_text}\n\n" + build_pe(case)
     chat = Chat.create_single_turn_chat(user_message=pe_prompt, system_prompt=SYSTEM)
     r2 = await client.generate_content(chat)
     print("=== Physical Exam Response ===")
@@ -140,8 +131,7 @@ async def main():
     final_prompt = (
         "Previous assistant replies:\n"
         f"{r1.response_text}\n\n"
-        f"{r2.response_text}\n\n"
-        + build_final_prompt()
+        f"{r2.response_text}\n\n" + build_final_prompt()
     )
     chat = Chat.create_single_turn_chat(user_message=final_prompt, system_prompt=SYSTEM)
     r3 = await client.generate_content(chat)

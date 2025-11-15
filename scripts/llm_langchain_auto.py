@@ -30,9 +30,7 @@ def load_case(benchmark_path: Path, case_index: int) -> dict:
 
 
 def build_agent():
-    """
-    Build a LangChain agent with tools and memory (RunnableWithMessageHistory).
-    """
+    """Build a LangChain agent with tools and memory (RunnableWithMessageHistory)."""
     tools = [pe_tool.request_physical_exam, lab_tool.request_lab_test]
 
     llm = ChatOpenAI(
