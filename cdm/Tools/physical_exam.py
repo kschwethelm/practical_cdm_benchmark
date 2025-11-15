@@ -9,7 +9,7 @@ def request_physical_exam(system: str) -> str:
     if CURRENT_CASE is None:
         return "Error: no case loaded."
 
-    pe = CURRENT_CASE.get("physical_exam", {})
+    pe = CURRENT_CASE.get("physical_exam") or {}
 
     system = system.lower()
 
