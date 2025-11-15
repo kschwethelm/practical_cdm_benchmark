@@ -185,7 +185,7 @@ Physical examination findings at different time points.
 
 ### `discharge_free_text`
 Unchanged free-text sections from discharge notes.
-- **Key columns**: `hadm_id`, `history_of_present_illness`, `brief_hospital_course`, `discharge_instructions`
+- **Key columns**: `hadm_id`, `allergies`, `chief_complaint`, `discharge_diagnosis`, `discharge_condition`, `discharge_medications`, `major_procedure`, `medications_on_admission`, `pertinent_results`, `physical_examination`, `past_medical_history`, `history_of_present_illness`, `brief_hospital_course`, `discharge_instructions`
 - Unstructured text fields
 
 ---
