@@ -1,5 +1,5 @@
 """
-Create benchmark dataset from MIMIC-IV database.
+Create benchmark dataset from MIMIC-IV database based on the CDMv1 project.
 
 This script queries the database for each admission in hadm_id_list.txt and
 extracts relevant clinical data to create a structured JSON benchmark dataset.
@@ -11,26 +11,29 @@ import hydra
 from loguru import logger
 from omegaconf import DictConfig
 from tqdm import tqdm
-
 from cdm.benchmark.models import (
-    BenchmarkDataset,
     Demographics,
-    HadmCase,
-    LabResult,
-    MicrobiologyResult,
-    PastMedicalHistory,
     PhysicalExam,
+    DetailedLabResult,
+    MicrobiologyEvent,
+    RadiologyReport,
+    GroundTruth,
+    HadmCase,
+    BenchmarkDataset,
 )
 from cdm.database.connection import get_db_connection
 from cdm.database.queries import (
-    get_all_past_medical_history,
     get_demographics,
-    get_first_diagnosis,
-    get_first_lab_result,
-    get_first_microbiology_result,
-    get_first_physical_exam,
-    get_presenting_chief_complaints,
+    get_history_of_present_illness,
+    get_physical_examination,
+    get_lab_tests,
+    get_microbiology_events,
+    get_radiology_reports,
+    get_ground_truth_diagnosis,
+    get_ground_truth_treatments_coded,
+    get_ground_truth_treatments_freetext,
 )
+from cdm.database.utils import get_pathology_type_from_string, scrub_text
 
 
 def load_hadm_ids(filepath: Path) -> list[int]:
@@ -45,41 +48,44 @@ def load_hadm_ids(filepath: Path) -> list[int]:
 def create_hadm_case(cursor, hadm_id: int) -> HadmCase:
     """Create a HadmCase by querying all relevant data for a given admission."""
 
-    # Get demographics
     demographics_data = get_demographics(cursor, hadm_id)
     demographics = Demographics(**demographics_data) if demographics_data else None
 
-    # Get first lab result
-    lab_data = get_first_lab_result(cursor, hadm_id)
-    first_lab_result = LabResult(**lab_data) if lab_data else None
+    history_of_present_illness = get_history_of_present_illness(cursor, hadm_id)
 
-    # Get first microbiology result
-    micro_data = get_first_microbiology_result(cursor, hadm_id)
-    first_microbiology_result = MicrobiologyResult(**micro_data) if micro_data else None
+    physical_examination = get_physical_examination(cursor, hadm_id)
 
-    # Get all chief complaints from 'chief_complaint' category
-    chief_complaints = get_presenting_chief_complaints(cursor, hadm_id)
+    lab_data = get_lab_tests(cursor, hadm_id)
+    lab_results = [DetailedLabResult(**item) for item in lab_data]
 
-    # Get first primary diagnosis
-    diagnosis = get_first_diagnosis(cursor, hadm_id)
+    microbiology_data = get_microbiology_events(cursor, hadm_id)
+    microbiology_events = [MicrobiologyEvent(**item) for item in microbiology_data]
 
-    # Get all past medical history
-    pmh_data = get_all_past_medical_history(cursor, hadm_id)
-    past_medical_history = [PastMedicalHistory(**item) for item in pmh_data]
+    radiology_reports_data = get_radiology_reports(cursor, hadm_id)
+    radiology_reports = [RadiologyReport(**report) for report in radiology_reports_data]
 
-    # Get first physical exam
-    pe_data = get_first_physical_exam(cursor, hadm_id)
-    physical_exam = PhysicalExam(**pe_data) if pe_data else None
+    ground_truth_diagnosis = get_ground_truth_diagnosis(cursor, hadm_id)
+    ground_truth_treatments = get_ground_truth_treatments_coded(cursor, hadm_id)
+    ground_truth_treatments_free_text = get_ground_truth_treatments_freetext(cursor, hadm_id)
+    ground_truth_treatments.extend(ground_truth_treatments_free_text)
+    ground_truth = GroundTruth(
+        primary_diagnosis=ground_truth_diagnosis, treatments=ground_truth_treatments
+    )
+
+    # Data cleaning
+    pathology_type = get_pathology_type_from_string(ground_truth_diagnosis)
+    for report in radiology_reports:
+        report.findings = scrub_text(report.findings, pathology_type)
 
     return HadmCase(
         hadm_id=hadm_id,
         demographics=demographics,
-        first_lab_result=first_lab_result,
-        first_microbiology_result=first_microbiology_result,
-        chief_complaints=chief_complaints,
-        diagnosis=diagnosis,
-        past_medical_history=past_medical_history,
-        physical_exam=physical_exam,
+        history_of_present_illness=history_of_present_illness,
+        lab_results=lab_results,
+        microbiology_events=microbiology_events,
+        radiology_reports=radiology_reports,
+        physical_exam_text=physical_examination,
+        ground_truth=ground_truth,
     )
 
 
@@ -106,21 +112,47 @@ def main(cfg: DictConfig):
 
     try:
         cursor = conn.cursor()
-        cases = []
+        complete_case = None
 
-        # Process each admission
-        logger.info("Querying database for each admission...")
+        # Process each admission until we find one with complete data
+        logger.info("Querying database for admissions until finding one with complete data...")
         for hadm_id in tqdm(hadm_ids, desc="Processing admissions"):
             try:
                 case = create_hadm_case(cursor, hadm_id)
-                cases.append(case)
+
+                # Check if all required fields have data
+                has_complete_data = (
+                    case.demographics is not None
+                    and len(case.lab_results) > 0
+                    and case.physical_exam_text is not None
+                    and len(case.radiology_reports) > 0
+                    and len(case.microbiology_events) > 0
+                    and any(r.findings for r in case.radiology_reports)
+                    and case.ground_truth is not None
+                    and case.ground_truth.primary_diagnosis is not None
+                    and len(case.ground_truth.treatments) > 0
+                )
+
+                if has_complete_data:
+                    complete_case = case
+                    logger.success(f"Found complete case for hadm_id={hadm_id}")
+                    break
+                else:
+                    logger.debug(f"Incomplete data for hadm_id={hadm_id}, continuing search...")
+
             except Exception as e:
                 logger.error(f"Failed to process hadm_id={hadm_id}: {e}")
+                # Rollback the transaction to recover from error state
+                conn.rollback()
                 continue
 
-        # Create benchmark dataset
-        benchmark = BenchmarkDataset(cases=cases)
-        logger.success(f"Created benchmark with {len(cases)} cases")
+        if complete_case is None:
+            logger.error("No admission found with complete data for all parameters")
+            return
+
+        # Create benchmark dataset with single case
+        benchmark = BenchmarkDataset(cases=[complete_case])
+        logger.success(f"Created benchmark with 1 complete case (hadm_id={complete_case.hadm_id})")
 
         # Export to JSON
         logger.info(f"Writing benchmark to {output_file}")
@@ -130,7 +162,7 @@ def main(cfg: DictConfig):
             f.write(json_output)
 
         logger.success(f"Benchmark dataset saved to {output_file}")
-        logger.info(f"Total cases: {len(cases)}")
+        logger.info(f"Case hadm_id: {complete_case.hadm_id}")
 
     finally:
         cursor.close()

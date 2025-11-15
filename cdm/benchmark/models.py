@@ -16,12 +16,35 @@ class LabResult(BaseModel):
     valueuom: str | None = None
 
 
+class DetailedLabResult(BaseModel):
+    test_name: str
+    value: str | None = None
+    unit: str | None = None
+    ref_range_lower: float | None = None
+    ref_range_upper: float | None = None
+    flag: str | None = None
+
+
+class MicrobiologyEvent(BaseModel):
+    test_name: str | None = None
+    spec_type_desc: str | None = None
+    organism_name: str | None = None
+    interpretation: str | None = None
+    charttime: datetime | None = None
+
+
 class MicrobiologyResult(BaseModel):
     charttime: datetime
     spec_type_desc: str | None = None
     test_name: str | None = None
     org_name: str | None = None
     interpretation: str | None = None
+
+
+class RadiologyReport(BaseModel):
+    charttime: datetime
+    modality: str | None = None
+    findings: str | None = None
 
 
 class ChiefComplaint(BaseModel):
@@ -50,17 +73,24 @@ class PhysicalExam(BaseModel):
     skin: str | None = None
 
 
+class GroundTruth(BaseModel):
+    """The ground truth for evaluation."""
+
+    primary_diagnosis: str | None = None
+    treatments: list[str]
+
+
 class HadmCase(BaseModel):
-    """Complete case data for a single hospital admission"""
+    """Complete case data for a single hospital admission based on CDMv1 schema"""
 
     hadm_id: int
     demographics: Demographics | None = None
-    first_lab_result: LabResult | None = None
-    first_microbiology_result: MicrobiologyResult | None = None
-    chief_complaints: list[str] = Field(default_factory=list)
-    diagnosis: str | None = None
-    past_medical_history: list[PastMedicalHistory] = Field(default_factory=list)
-    physical_exam: PhysicalExam | None = None
+    history_of_present_illness: str | None = None
+    lab_results: list[DetailedLabResult] = Field(default_factory=list)
+    microbiology_events: list[MicrobiologyEvent] = Field(default_factory=list)
+    radiology_reports: list[RadiologyReport] = Field(default_factory=list)
+    physical_exam_text: str | None = None
+    ground_truth: GroundTruth | None = None
 
 
 class BenchmarkDataset(BaseModel):
