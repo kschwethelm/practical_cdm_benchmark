@@ -11,7 +11,7 @@ import cdm.Tools.physical_exam as pe_tool
 import cdm.Tools.labs as lab_tool
 import cdm.Tools.microbio_test as microbio_tool
 import cdm.Tools.pmh as pmh_tool
-import cdm.eval.acc_metrics as acc_metrics
+from cdm.eval.benchmark_evaluator import BenchmarkEvaluator
 
 
 def load_cases(benchmark_path: Path) -> dict:
@@ -112,16 +112,13 @@ def main(cfg: DictConfig):
         "}\n"
     )
 
-    total = len(cases)
-    correct = 0
-    unknown_count = 0
-    allowed_diagnoses = {"appendicitis", "cholecystitis", "diverticulitis", "pancreatitis"}
+    evaluator = BenchmarkEvaluator()
 
     for idx, case in enumerate(cases):
         hadm_id = case.get("hadm_id", "unknown")
         gt_dx = case.get("diagnosis", "")
 
-        logger.info(f"Processing case {idx+1}/{1000} (hadm_id: {hadm_id})")
+        logger.info(f"Processing case {idx+1}/{number_of_cases} (hadm_id: {hadm_id})")
             
         # Gather info from tools at once
         physical_exam_text, labs_text, microbio_text, pmh_text = gather_all_tool_info(case)
@@ -186,30 +183,32 @@ def main(cfg: DictConfig):
             pred_dx = ""
 
         # Ground truth
-        is_correct = acc_metrics.diagnoses_match(gt_dx, pred_dx)
-        if is_correct:
-            correct += 1
-
-        gt_dx = acc_metrics.normalize_diagnosis(gt_dx)
-
-        if pred_dx not in allowed_diagnoses:
-            unknown_count += 1
+        normalized_gt, is_correct = evaluator.record(gt_dx, pred_dx)
 
         print(f"\n=== CASE {idx+1}/{number_of_cases} (hadm_id={hadm_id}) ===")
-        print(f"Ground truth: {gt_dx}")
+        print(f"Ground truth: {normalized_gt}")
         print(f"Model diagnosis: {pred_dx}")
         print(f"Correct: {is_correct}")
 
         if idx == number_of_cases - 1:
             break
     
-    accuracy = correct / number_of_cases if total > 0 else 0.0
+    summary = evaluator.summary()
     print("\n============================")
-    print(f"Total cases: {number_of_cases}")
-    print(f"Correct: {correct}")
-    print(f"Unknown diagnoses: {unknown_count}")
-    print(f"Accuracy: {accuracy:.3f}")
+    print(f"Processed cases: {summary['processed_cases']}")
+    print(f"Correct: {summary['correct']}")
+    print(f"Unknown diagnoses: {summary['unknown']}")
+    print(f"Accuracy: {summary['accuracy']:.3f}")
     print("============================")
+
+    per_diagnosis = summary.get("per_diagnosis", {})
+    if per_diagnosis:
+        print("\nPer-diagnosis accuracy:")
+        for diag, stats in per_diagnosis.items():
+            print(
+                f"  - {diag.title()}: {stats['correct']}/{stats['cases']} "
+                f"({stats['accuracy']:.3f})"
+            )
 
 if __name__ == "__main__":
     main()
