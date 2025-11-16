@@ -19,6 +19,7 @@ dependencies = [
     "loguru>=0.7.3",
     "matplotlib>=3.10.6",
     "openai>=1.109.1",
+    "pandas>=2.3.3",
     "psycopg>=3.2.10",
     "pydantic>=2.11.9",
     "tqdm>=4.67.1",
@@ -28,6 +29,8 @@ dependencies = [
 [dependency-groups]
 dev = [
     "hatchling>=1.27.0",
+    "pre-commit>=4.4.0",
+    "pytest>=9.0.1",
     "ruff>=0.13.2",
 ]
 

@@ -93,6 +93,16 @@ CREATE TABLE cdm_note_extract.physical_exam (
 DROP TABLE IF EXISTS cdm_note_extract.discharge_free_text;
 CREATE TABLE cdm_note_extract.discharge_free_text (
     hadm_id INTEGER NOT NULL,
+    allergies TEXT,
+    chief_complaint TEXT,
+    discharge_diagnosis TEXT,
+    discharge_condition TEXT,
+    discharge_medications TEXT,
+    major_procedure TEXT,
+    medications_on_admission TEXT,
+    pertinent_results TEXT,
+    physical_examination TEXT,
+    past_medical_history TEXT,
     history_of_present_illness TEXT,
     brief_hospital_course TEXT,
     discharge_instructions TEXT,
