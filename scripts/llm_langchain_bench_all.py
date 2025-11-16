@@ -67,22 +67,26 @@ def gather_all_tool_info(case):
     return physical_exam_text, lab_text, microbio_text, pmh_text
 
 
-@hydra.main(version_base=None, config_path="../configs/benchmark", config_name="demo")
+@hydra.main(version_base=None, config_path="../configs/benchmark", config_name="benchmark")
 def main(cfg: DictConfig):
     """Run a full-information workflow: tools first, then single LLM call."""
 
     # Load all cases
     base_dir = Path(__file__).parent.parent
     benchmark_path = base_dir / cfg.benchmark_data_path
-    cases = load_cases(benchmark_path)
+    number_of_cases = cfg.number_of_cases
+    cases = load_cases(benchmark_path)[:number_of_cases]
+
 
     # Build LLM
     llm = build_llm()
 
     # System prompt
     system_prompt = (
-        "You are a clinical decision-making assistant for abdominal pain cases.\n"
-        "You are given ALL available diagnostic information at once:\n"
+        "You are a medical assistant. You directly diagnose patients based on the provided information to assist a doctor in his clinical duties. "
+        "Your goal is to correctly diagnose the patient. Based on the provided information you will provide a final diagnosis of the most severe pathology.\n"
+        
+        "You are given available diagnostic information at once, some might be not available:\n"
         "- Chief complain\n"
         "- Past medical history\n"
         "- microbiology results\n"
@@ -97,7 +101,7 @@ def main(cfg: DictConfig):
         "4) Propose an appropriate initial treatment plan.\n\n"
 
         "Important:\n"
-        "- Do NOT ask for more tests, you already have all relevant data.\n"
+        "- Do NOT ask for more tests, you already have all available data.\n"
         "- Be concise but clinically precise.\n"
         "- The diagnosis MUST be one of the following four classes only: appendicitis, cholecystitis, diverticulitis, pancreatitis\n"
         "- Return your answer in the following JSON format:\n"
@@ -110,6 +114,8 @@ def main(cfg: DictConfig):
 
     total = len(cases)
     correct = 0
+    unknown_count = 0
+    allowed_diagnoses = {"appendicitis", "cholecystitis", "diverticulitis", "pancreatitis"}
 
     for idx, case in enumerate(cases):
         hadm_id = case.get("hadm_id", "unknown")
@@ -186,18 +192,22 @@ def main(cfg: DictConfig):
 
         gt_dx = acc_metrics.normalize_diagnosis(gt_dx)
 
-        print(f"\n=== CASE {idx+1}/{1000} (hadm_id={hadm_id}) ===")
+        if pred_dx not in allowed_diagnoses:
+            unknown_count += 1
+
+        print(f"\n=== CASE {idx+1}/{number_of_cases} (hadm_id={hadm_id}) ===")
         print(f"Ground truth: {gt_dx}")
         print(f"Model diagnosis: {pred_dx}")
         print(f"Correct: {is_correct}")
 
-        if idx == 999:  # For quick testing
+        if idx == number_of_cases - 1:
             break
     
-    accuracy = correct / 1000 if total > 0 else 0.0
+    accuracy = correct / number_of_cases if total > 0 else 0.0
     print("\n============================")
-    print(f"Total cases: {1000}")
+    print(f"Total cases: {number_of_cases}")
     print(f"Correct: {correct}")
+    print(f"Unknown diagnoses: {unknown_count}")
     print(f"Accuracy: {accuracy:.3f}")
     print("============================")
 

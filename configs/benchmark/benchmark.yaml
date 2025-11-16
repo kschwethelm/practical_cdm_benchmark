@@ -1,0 +1,5 @@
+# Path to benchmark data JSON file
+benchmark_data_path: database/output/benchmark_data.json
+
+#number of cases to run from the benchmark
+number_of_cases: 100
