@@ -12,7 +12,8 @@ import cdm.Tools.labs as lab_tool
 import cdm.Tools.microbio_test as microbio_tool
 import cdm.Tools.pmh as pmh_tool
 
-from cdm.Prompts.all_info import parser, prompt_template
+from cdm.Prompts.all_info import prompt_template
+from cdm.Prompts.parser import parser 
 
 
 def load_case(benchmark_path: Path, case_index: int) -> dict:
