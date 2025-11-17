@@ -12,6 +12,8 @@ import cdm.Tools.labs as lab_tool
 import cdm.Tools.microbio_test as microbio_tool
 import cdm.Tools.pmh as pmh_tool
 
+from cdm.Prompts.all_info import parser, prompt_template
+
 
 def load_case(benchmark_path: Path, case_index: int) -> dict:
     """Load a specific case from the benchmark dataset."""
@@ -47,9 +49,19 @@ def gather_all_tool_info(case):
     lab_tool.CURRENT_CASE = case
     microbio_tool.CURRENT_CASE = case
     pmh_tool.CURRENT_CASE = case
-    
+
     # Gather physical exam findings
-    systems = ["general", "vitals", "abdominal", "cardiovascular", "pulmonary", "neurological", "heent", "extremities", "skin"]
+    systems = [
+        "general",
+        "vitals",
+        "abdominal",
+        "cardiovascular",
+        "pulmonary",
+        "neurological",
+        "heent",
+        "extremities",
+        "skin",
+    ]
     texts = []
 
     for s in systems:
@@ -67,7 +79,7 @@ def gather_all_tool_info(case):
 
     # Gather past medical history
     pmh_text = pmh_tool.request_past_medical_history.invoke({"test_name": "all"})
-    
+
     return physical_exam_text, lab_text, microbio_text, pmh_text
 
 
@@ -109,74 +121,25 @@ def main(cfg: DictConfig):
     if not isinstance(imaging, str):
         imaging = json.dumps(imaging, indent=2)
 
-    # System prompt
-    system_prompt = (
-        "You are a clinical decision-making assistant for abdominal pain cases.\n"
-        "You are given ALL available diagnostic information at once:\n"
-        "- Chief complain\n"
-        "- Past medical history\n"
-        "- microbiology results\n"
-        "- Physical examination\n"
-        "- Laboratory results\n"
-        "- Imaging reports\n\n"
-
-        "Your task:\n"
-        "1) Carefully read all information.\n"
-        "2) Provide the SINGLE most likely final diagnosis responsible for the patient's presentation.\n"
-        "3) Briefly justify your reasoning.\n"
-        "4) Propose an appropriate initial treatment plan.\n\n"
-
-        "Important:\n"
-        "- Do NOT ask for more tests, you already have all relevant data.\n"
-        "- Be concise but clinically precise.\n"
-        "- Return your answer in the following JSON format:\n"
-        '{\n'
-        '  "diagnosis": "<ONE word>",\n'
-        '  "justification": "<2-4 sentences>",\n'
-        '  "treatment_plan": "<2-4 sentences or short paragraphs>"\n'
-        "}\n"
+    prompt = prompt_template.format(
+        age=age,
+        gender=gender,
+        chief_complaints=chief_complaints_str,
+        pmh_text=pmh_text,
+        physical_exam_text=physical_exam_text,
+        labs_text=labs_text,
+        microbio_text=microbio_text,
     )
 
-    # User prompt
-    user_input = (
-        f"PATIENT DEMOGRAPHICS:\n"
-        f"- Age: {age}\n"
-        f"- Gender: {gender}\n\n"
-
-        f"CHIEF COMPLAINT(S):\n"
-        f"- {chief_complaints_str}\n\n"
-
-        f"PAST MEDICAL HISTROY:\n"
-        f"{pmh_text}\n\n"
-
-        f"PHYSICAL EXAMINATION:\n"
-        f"{physical_exam_text}\n\n"
-
-        f"LABORATORY RESULTS:\n"
-        f"{labs_text}\n\n"
-
-        f"MICROBIOLOGY RESULTS:\n"
-        f"{microbio_text}\n\n"
-
-        "Using ALL of the above information, follow the system instructions and return the JSON."
-    )
-
-    print("\n=== SYSTEM PROMPT ===\n")
-    print(system_prompt)
-
-    print("\n=== USER PROMPT ===\n")
-    print(user_input)
+    print("\n=== PROMPT ===\n")
+    print(prompt)
 
     # Single call, no tool calling
-    result_msg = llm.invoke(
-        [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_input},
-        ]
-    )
+    result_msg = llm.invoke([{"role": "user", "content": prompt}])
 
     print("\n=== MODEL OUTPUT ===\n")
-    print(result_msg.content)
+    result = parser.parse(result_msg.content)
+    print(result.model_dump_json(indent=2))
 
 
 if __name__ == "__main__":
