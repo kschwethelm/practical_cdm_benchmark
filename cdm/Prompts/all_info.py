@@ -1,15 +1,4 @@
-from pydantic import BaseModel, Field
-from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import PromptTemplate
-
-
-class FullInfoOutput(BaseModel):
-    diagnosis: str = Field(..., description="Single most likely diagnosis")
-    justification: str = Field(..., description="2–4 sentences of reasoning")
-    treatment_plan: str = Field(..., description="Initial treatment plan")
-
-
-parser = PydanticOutputParser(pydantic_object=FullInfoOutput)
 
 template = """
 You are a clinical decision-making assistant for abdominal pain cases.
@@ -22,10 +11,10 @@ You are given ALL available diagnostic information at once:
 - Imaging reports
 
 Your task:
-1) Carefully read all information.
-2) Provide the SINGLE most likely final diagnosis responsible for the patient's presentation.
-3) Briefly justify your reasoning.
-4) Propose an appropriate initial treatment plan.
+1. Carefully read all information.
+2. Provide the SINGLE most likely final diagnosis responsible for the patient's presentation.
+3. Briefly justify your reasoning.
+4. Propose an appropriate initial treatment plan.
 
 Important:
 - Do NOT ask for more tests, you already have all relevant data.
