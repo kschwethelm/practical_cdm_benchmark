@@ -13,6 +13,7 @@ from langchain_core.messages import BaseMessage
 
 import cdm.Tools.physical_exam as pe_tool
 import cdm.Tools.labs as lab_tool
+from cdm.Prompts.tool_agent import prompt_template
 
 
 def load_case(benchmark_path: Path, case_index: int) -> dict:
@@ -40,25 +41,11 @@ def build_agent():
         temperature=0.2,
     )
 
-    system_prompt = (
-        "You are a clinical decision-making assistant for abdominal pain cases.\n"
-        "You are connected to tools that can fetch:\n"
-        "- physical examination (request_physical_exam)\n"
-        "- laboratory results (request_lab_test)\n\n"
-        "Workflow:\n"
-        "1. Read the initial history of present illness.\n"
-        "2. Decide which information you still need.\n"
-        "3. Use the tools to gather physical exam and lab results.\n"
-        "4. Iterate if needed.\n"
-        "5. When you are confident, explain your reasoning briefly and give a final diagnosis and treatment plan.\n"
-        "Always use tools instead of guessing missing data."
-    )
-
     # Base agent graph (no explicit memory yet)
     base_agent = create_agent(
         model=llm,
         tools=tools,
-        system_prompt=system_prompt,
+        system_prompt=prompt_template.format(),
     )
 
     # --- Memory setup ---
