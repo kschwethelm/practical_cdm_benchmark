@@ -34,5 +34,5 @@ Do not include any extra text outside the JSON.
 prompt_template = PromptTemplate(
     template=template,
     input_variables=[], 
-    partial_variables={"format_instructions": format_instructions},
+    partial_variables={"format_instructions": format_instructions}
 )
