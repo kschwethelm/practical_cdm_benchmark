@@ -6,7 +6,7 @@ CURRENT_CASE = None  # To be set when loading a case
 @tool
 def request_past_medical_history(test_name: str) -> str:
     """Return the patient's past medical history."""
-    
+
     if CURRENT_CASE is None:
         return "Error: no case loaded."
 

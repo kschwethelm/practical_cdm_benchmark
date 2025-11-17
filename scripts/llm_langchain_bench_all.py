@@ -1,15 +1,14 @@
 import json
 from pathlib import Path
-import yaml
+
 import hydra
-from omegaconf import DictConfig
-from loguru import logger
-
 from langchain_openai import ChatOpenAI
+from loguru import logger
+from omegaconf import DictConfig
 
-import cdm.Tools.physical_exam as pe_tool
 import cdm.Tools.labs as lab_tool
 import cdm.Tools.microbio_test as microbio_tool
+import cdm.Tools.physical_exam as pe_tool
 import cdm.Tools.pmh as pmh_tool
 from cdm.eval.benchmark_evaluator import BenchmarkEvaluator
 
@@ -43,9 +42,19 @@ def gather_all_tool_info(case):
     lab_tool.CURRENT_CASE = case
     microbio_tool.CURRENT_CASE = case
     pmh_tool.CURRENT_CASE = case
-    
+
     # Gather physical exam findings
-    systems = ["general", "vitals", "abdominal", "cardiovascular", "pulmonary", "neurological", "heent", "extremities", "skin"]
+    systems = [
+        "general",
+        "vitals",
+        "abdominal",
+        "cardiovascular",
+        "pulmonary",
+        "neurological",
+        "heent",
+        "extremities",
+        "skin",
+    ]
     texts = []
 
     for s in systems:
@@ -63,7 +72,7 @@ def gather_all_tool_info(case):
 
     # Gather past medical history
     pmh_text = pmh_tool.request_past_medical_history.invoke({"test_name": "all"})
-    
+
     return physical_exam_text, lab_text, microbio_text, pmh_text
 
 
@@ -77,7 +86,6 @@ def main(cfg: DictConfig):
     number_of_cases = cfg.number_of_cases
     cases = load_cases(benchmark_path)[:number_of_cases]
 
-
     # Build LLM
     llm = build_llm()
 
@@ -85,7 +93,6 @@ def main(cfg: DictConfig):
     system_prompt = (
         "You are a medical assistant. You directly diagnose patients based on the provided information to assist a doctor in his clinical duties. "
         "Your goal is to correctly diagnose the patient. Based on the provided information you will provide a final diagnosis of the most severe pathology.\n"
-        
         "You are given available diagnostic information at once, some might be not available:\n"
         "- Chief complain\n"
         "- Past medical history\n"
@@ -93,19 +100,17 @@ def main(cfg: DictConfig):
         "- Physical examination\n"
         "- Laboratory results\n"
         "- Imaging reports\n\n"
-
         "Your task:\n"
         "1) Carefully read all information.\n"
         "2) Provide the SINGLE most likely final diagnosis responsible for the patient's presentation.\n"
         "3) Briefly justify your reasoning.\n"
         "4) Propose an appropriate initial treatment plan.\n\n"
-
         "Important:\n"
         "- Do NOT ask for more tests, you already have all available data.\n"
         "- Be concise but clinically precise.\n"
         "- The diagnosis MUST be one of the following four classes only: appendicitis, cholecystitis, diverticulitis, pancreatitis\n"
         "- Return your answer in the following JSON format:\n"
-        '{\n'
+        "{\n"
         '  "diagnosis": "<appendicitis | cholecystitis | diverticulitis | pancreatitis>",\n'
         #'  "justification": "<2-4 sentences>",\n'
         #'  "treatment_plan": "<2-4 sentences or short paragraphs>"\n'
@@ -118,8 +123,8 @@ def main(cfg: DictConfig):
         hadm_id = case.get("hadm_id", "unknown")
         gt_dx = case.get("diagnosis", "")
 
-        logger.info(f"Processing case {idx+1}/{number_of_cases} (hadm_id: {hadm_id})")
-            
+        logger.info(f"Processing case {idx + 1}/{number_of_cases} (hadm_id: {hadm_id})")
+
         # Gather info from tools at once
         physical_exam_text, labs_text, microbio_text, pmh_text = gather_all_tool_info(case)
 
@@ -147,22 +152,16 @@ def main(cfg: DictConfig):
             f"PATIENT DEMOGRAPHICS:\n"
             f"- Age: {age}\n"
             f"- Gender: {gender}\n\n"
-
             f"CHIEF COMPLAINT(S):\n"
             f"- {chief_complaints_str}\n\n"
-
             f"PAST MEDICAL HISTROY:\n"
             f"{pmh_text}\n\n"
-
             f"PHYSICAL EXAMINATION:\n"
             f"{physical_exam_text}\n\n"
-
             f"LABORATORY RESULTS:\n"
             f"{labs_text}\n\n"
-
             f"MICROBIOLOGY RESULTS:\n"
             f"{microbio_text}\n\n"
-
             "Using ALL of the above information, follow the system instructions and return the JSON."
         )
 
@@ -185,14 +184,14 @@ def main(cfg: DictConfig):
         # Ground truth
         normalized_gt, is_correct = evaluator.record(gt_dx, pred_dx)
 
-        print(f"\n=== CASE {idx+1}/{number_of_cases} (hadm_id={hadm_id}) ===")
+        print(f"\n=== CASE {idx + 1}/{number_of_cases} (hadm_id={hadm_id}) ===")
         print(f"Ground truth: {normalized_gt}")
         print(f"Model diagnosis: {pred_dx}")
         print(f"Correct: {is_correct}")
 
         if idx == number_of_cases - 1:
             break
-    
+
     summary = evaluator.summary()
     print("\n============================")
     print(f"Processed cases: {summary['processed_cases']}")
@@ -206,9 +205,9 @@ def main(cfg: DictConfig):
         print("\nPer-diagnosis accuracy:")
         for diag, stats in per_diagnosis.items():
             print(
-                f"  - {diag.title()}: {stats['correct']}/{stats['cases']} "
-                f"({stats['accuracy']:.3f})"
+                f"  - {diag.title()}: {stats['correct']}/{stats['cases']} ({stats['accuracy']:.3f})"
             )
+
 
 if __name__ == "__main__":
     main()

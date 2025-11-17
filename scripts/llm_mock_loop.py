@@ -3,16 +3,11 @@ import json
 from pathlib import Path
 
 import yaml
-import hydra
 from loguru import logger
-from omegaconf import DictConfig
-from pydantic import BaseModel
 
 from cdm.llms.data_models import Chat
 from cdm.llms.vllm_config import vLLM_Config
 from cdm.llms.vllm_inference import VLLMServeClient
-
-from cdm.benchmark.models import DiagnosisOutput
 
 SYSTEM = (
     "You are a clinical decision-making assistant.\n"
@@ -71,12 +66,12 @@ def build_pe(case: dict) -> str:
 
 
 def build_final_prompt() -> str:
-    return f"Now provide your final output.\n\nThought:\nFinal diagnosis:\nTreatment:\n"
+    return "Now provide your final output.\n\nThought:\nFinal diagnosis:\nTreatment:\n"
 
 
 # --- Load YAML manually --- TODO: Replace with Hydra
 config_path = Path(__file__).parent.parent / "configs/benchmark/demo.yaml"
-with open(config_path, "r") as f:
+with open(config_path) as f:
     cfg = yaml.safe_load(f)
 
 benchmark_data_path = cfg["benchmark_data_path"]

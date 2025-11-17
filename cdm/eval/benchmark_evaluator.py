@@ -6,6 +6,7 @@ import cdm.eval.acc_metrics as acc_metrics
 
 ALLOWED_DIAGNOSES = ("appendicitis", "cholecystitis", "diverticulitis", "pancreatitis")
 
+
 class BenchmarkEvaluator:
     def __init__(self):
         self.total = 0

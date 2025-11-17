@@ -1,18 +1,17 @@
 import json
 from pathlib import Path
-import yaml
-import hydra
-from omegaconf import DictConfig
-from loguru import logger
 
-from langchain_openai import ChatOpenAI
+import hydra
 from langchain.agents import create_agent
 from langchain_core.chat_history import InMemoryChatMessageHistory
-from langchain_core.runnables import RunnableWithMessageHistory
 from langchain_core.messages import BaseMessage
+from langchain_core.runnables import RunnableWithMessageHistory
+from langchain_openai import ChatOpenAI
+from loguru import logger
+from omegaconf import DictConfig
 
-import cdm.Tools.physical_exam as pe_tool
 import cdm.Tools.labs as lab_tool
+import cdm.Tools.physical_exam as pe_tool
 
 
 def load_case(benchmark_path: Path, case_index: int) -> dict:

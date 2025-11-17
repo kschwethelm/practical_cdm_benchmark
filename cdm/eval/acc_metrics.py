@@ -1,5 +1,3 @@
-import re
-
 def normalize_diagnosis(dx: str) -> str:
     """
     Simple normalization:
@@ -15,13 +13,13 @@ def normalize_diagnosis(dx: str) -> str:
     dx = dx.lower()
 
     # core keyword mapping
-    if "appendicit" in dx:      
+    if "appendicit" in dx:
         return "appendicitis"
-    if "cholecyst" in dx:       
+    if "cholecyst" in dx:
         return "cholecystitis"
-    if "diverticul" in dx:      
+    if "diverticul" in dx:
         return "diverticulitis"
-    if "pancreat" in dx:      
+    if "pancreat" in dx:
         return "pancreatitis"
 
     return "other"
