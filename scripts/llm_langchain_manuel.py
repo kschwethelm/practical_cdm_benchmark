@@ -7,10 +7,13 @@ from loguru import logger
 
 from langchain_openai import ChatOpenAI
 from langchain.agents import create_agent
+from langchain_core.messages import BaseMessage
 
 import cdm.Tools.physical_exam as pe_tool
 import cdm.Tools.labs as lab_tool
 from cdm.Prompts.tool_agent import prompt_template
+from cdm.Prompts.parser import retry_parse
+
 
 
 def load_case(benchmark_path: Path, case_index: int) -> dict:
@@ -42,7 +45,7 @@ def build_agent():
         tools=tools,
         system_prompt=prompt_template.format(),
     )
-    return agent
+    return llm, agent
 
 
 @hydra.main(version_base=None, config_path="../configs/benchmark", config_name="demo")
@@ -63,7 +66,7 @@ def main(cfg: DictConfig):
     lab_tool.CURRENT_CASE = case
 
     # Build the agent
-    agent = build_agent()
+    llm, agent = build_agent()
 
     # Initial message to the agent: give it the HPI
     user_input = (
@@ -78,7 +81,33 @@ def main(cfg: DictConfig):
     result = agent.invoke({"messages": [{"role": "user", "content": user_input}]})
 
     print("\n=== FINAL OUTPUT ===")
-    print(result["messages"][-1])
+
+    if isinstance(result, dict) and "messages" in result:
+        messages = result["messages"]
+        if messages:
+            last = messages[-1]
+            max_retries = 2
+            if isinstance(last, BaseMessage):
+                parsed = retry_parse(llm, last, max_retries)
+                if parsed:
+                    print(parsed.model_dump_json(indent=2))
+                else: 
+                    print(f"Unable to get correctly formatted output after {max_retries} retries")
+                    print(f"Raw model output: {last.content}")
+            elif isinstance(last, dict):
+                content = last.get('content', last)
+                parsed = retry_parse(llm, content, max_retries)
+                if parsed: 
+                    print(parsed.model_dump_json(indent=2))
+                else: 
+                    print(f"Unable to get correctly formatted output after {max_retries} retries")
+                    print(f"Unexpected message format (dict): {content}")
+            else:
+                print(f"Unexpected message format: {last}")
+        else:
+            print(f"No messages in result. Result returned: {result}")
+    else:
+        print(f"Unexpected result type: {result}")
 
 
 if __name__ == "__main__":

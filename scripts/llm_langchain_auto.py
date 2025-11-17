@@ -14,6 +14,7 @@ from langchain_core.messages import BaseMessage
 import cdm.Tools.physical_exam as pe_tool
 import cdm.Tools.labs as lab_tool
 from cdm.Prompts.tool_agent import prompt_template
+from cdm.Prompts.parser import retry_parse
 
 
 def load_case(benchmark_path: Path, case_index: int) -> dict:
@@ -38,7 +39,7 @@ def build_agent():
         model="default",
         base_url="http://localhost:8000/v1",
         api_key="EMPTY",
-        temperature=0.2,
+        temperature=0.2
     )
 
     # Base agent graph (no explicit memory yet)
@@ -66,7 +67,7 @@ def build_agent():
         # no separate history_messages_key because we pass all messages via "messages"
     )
 
-    return agent_with_memory
+    return llm, agent_with_memory
 
 
 @hydra.main(version_base=None, config_path="../configs/benchmark", config_name="demo")
@@ -86,7 +87,8 @@ def main(cfg: DictConfig):
     lab_tool.CURRENT_CASE = case
 
     # Build the agent (with memory)
-    agent = build_agent()
+    print(prompt_template.format())
+    llm, agent = build_agent()
 
     # Use hadm_id as a stable session id for memory
     session_id = str(case["hadm_id"])
@@ -119,16 +121,28 @@ def main(cfg: DictConfig):
         messages = result["messages"]
         if messages:
             last = messages[-1]
+            max_retries = 2
             if isinstance(last, BaseMessage):
-                print(last.content)
+                parsed = retry_parse(llm, last, max_retries)
+                if parsed:
+                    print(parsed.model_dump_json(indent=2))
+                else: 
+                    print(f"Unable to get correctly formatted output after {max_retries} retries")
+                    print(f"Raw model output: {last.content}")
             elif isinstance(last, dict):
-                print(last.get("content", last))
+                content = last.get('content', last)
+                parsed = retry_parse(llm, content, max_retries)
+                if parsed: 
+                    print(parsed.model_dump_json(indent=2))
+                else: 
+                    print(f"Unable to get correctly formatted output after {max_retries} retries")
+                    print(f"Unexpected message format (dict): {content}")
             else:
-                print(last)
+                print(f"Unexpected message format: {last}")
         else:
-            print(result)
+            print(f"No messages in result. Result returned: {result}")
     else:
-        print(result)
+        print(f"Unexpected result type: {result}")
 
 
 if __name__ == "__main__":
