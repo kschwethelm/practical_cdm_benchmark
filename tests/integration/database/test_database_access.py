@@ -6,6 +6,7 @@ to all tables defined in database/README.md across all schemas:
 - cdm_hosp: Hospital data tables
 - cdm_note: Clinical notes tables
 - cdm_note_extract: Extracted structured data tables
+- cdm_v1: CDM v1 dataset tables
 """
 
 import pytest
@@ -55,6 +56,18 @@ SCHEMA_TABLES = {
         "past_medical_history",
         "physical_exam",
         "discharge_free_text",
+    ],
+    "cdm_v1": [
+        "discharge_diagnosis",
+        "discharge_procedures",
+        "history_of_present_illness",
+        "icd_diagnosis",
+        "icd_procedures",
+        "laboratory_tests",
+        "lab_test_mapping",
+        "microbiology",
+        "physical_examination",
+        "radiology_reports",
     ],
 }
 
@@ -124,7 +137,7 @@ def test_all_schemas_exist():
         cur.execute("""
             SELECT schema_name
             FROM information_schema.schemata
-            WHERE schema_name IN ('cdm_hosp', 'cdm_note', 'cdm_note_extract')
+            WHERE schema_name IN ('cdm_hosp', 'cdm_note', 'cdm_note_extract', 'cdm_v1')
         """)
         existing_schemas = {row[0] for row in cur.fetchall()}
 
@@ -143,9 +156,9 @@ def test_table_row_counts():
     Verifies that primary tables are not empty (according to README.md counts).
     """
     expected_populated_tables = [
-        ("cdm_hosp", "admissions", 2333),  # Should have exactly 2,333 rows
-        ("cdm_hosp", "patients", 2320),  # Should have 2,320 unique patients
-        ("cdm_note", "discharge", 2333),  # One discharge note per admission
+        ("cdm_hosp", "admissions", 2400),  # Should have exactly 2,333 rows
+        ("cdm_hosp", "patients", 2383),  # Should have 2,320 unique patients
+        ("cdm_note", "discharge", 2400),  # One discharge note per admission
     ]
 
     with db_cursor() as cur:

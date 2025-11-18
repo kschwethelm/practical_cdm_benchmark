@@ -1,108 +1,109 @@
 # MIMIC-IV Database Overview
 
-This database contains a filtered subset of the MIMIC-IV clinical database, focusing on **2,333 hospital admissions** selected for the clinical decision-making benchmark.
+This database contains a filtered subset of the MIMIC-IV clinical database, focusing on **2,400 hospital admissions** selected for the clinical decision-making benchmark.
 
 ## Database Schemas
 
-The database is organized into three main schemas:
+The database is organized into four main schemas:
 
 1. **`cdm_hosp`** - Hospital data (demographics, diagnoses, medications, labs, etc.)
 2. **`cdm_note`** - Clinical notes (discharge summaries, radiology reports)
 3. **`cdm_note_extract`** - Structured extractions from discharge notes
+4. **`cdm_v1`** - Original CDM v1 dataset
 
 ---
 
 ## 1. Hospital Schema (`cdm_hosp`)
 
-Contains 22 tables with hospital admission data. All tables are filtered to only include data from the 2,333 selected admissions.
+Contains 22 tables with hospital admission data. All tables are filtered to only include data from the 2,400 selected admissions.
 
 ### Core Tables
 
-#### `admissions` (2,333 rows)
+#### `admissions` (2,400 rows)
 Primary admission records with demographic and administrative information.
 - **Key columns**: `hadm_id`, `subject_id`, `admittime`, `dischtime`, `deathtime`, `admission_type`, `discharge_location`, `insurance`, `race`, `hospital_expire_flag`
 - **Primary key**: `hadm_id` (hospital admission ID)
 
-#### `patients` (2,320 rows)
+#### `patients` (2,383 rows)
 Patient demographics. Note: fewer patients than admissions because some patients have multiple admissions.
 - **Key columns**: `subject_id`, `gender`, `anchor_age`, `anchor_year`, `dod` (date of death)
 - **Primary key**: `subject_id`
 
 ### Diagnosis & Procedure Tables
 
-#### `diagnoses_icd` (16,363 rows)
+#### `diagnoses_icd` (17,357 rows)
 ICD-coded diagnoses for each admission.
 - **Key columns**: `hadm_id`, `seq_num`, `icd_code`, `icd_version`
 - Use with `d_icd_diagnoses` dictionary table for descriptions
 
-#### `procedures_icd` (2,655 rows)
+#### `procedures_icd` (2,917 rows)
 ICD-coded procedures performed during admission.
 - **Key columns**: `hadm_id`, `seq_num`, `icd_code`, `icd_version`, `chartdate`
 - Use with `d_icd_procedures` dictionary table for descriptions
 
-#### `drgcodes` (3,131 rows)
+#### `drgcodes` (3,242 rows)
 Diagnosis-Related Group (DRG) codes for billing.
 - **Key columns**: `hadm_id`, `drg_code`, `description`, `drg_severity`, `drg_mortality`
 
 ### Laboratory & Microbiology Tables
 
-#### `labevents` (246,177 rows)
+#### `labevents` (293,394 rows)
 Laboratory test results (blood tests, chemistry, hematology, etc.).
 - **Key columns**: `hadm_id`, `itemid`, `charttime`, `value`, `valuenum`, `valueuom`, `flag`, `ref_range_lower`, `ref_range_upper`
 - Use with `d_labitems` dictionary table to decode `itemid`
 - **Note**: May include events assigned to admissions based on timing (see `assign_events.sql`)
 
-#### `microbiologyevents` (5,177 rows)
+#### `microbiologyevents` (6,666 rows)
 Microbiology cultures and antibiotic sensitivity results.
 - **Key columns**: `hadm_id`, `charttime`, `spec_type_desc`, `test_name`, `org_name`, `ab_name`, `interpretation`
 - **Note**: May include events assigned to admissions based on timing
 
 ### Medication Tables
 
-#### `prescriptions` (71,328 rows)
+#### `prescriptions` (79,448 rows)
 Medication prescriptions during admission.
 - **Key columns**: `hadm_id`, `drug`, `drug_type`, `starttime`, `stoptime`, `dose_val_rx`, `dose_unit_rx`, `route`
 
-#### `pharmacy` (62,066 rows)
+#### `pharmacy` (68,692 rows)
 Pharmacy orders and medication dispensing.
 - **Key columns**: `hadm_id`, `medication`, `starttime`, `stoptime`, `route`, `frequency`, `status`
 
-#### `emar` (100,759 rows)
+#### `emar` (120,190 rows)
 Electronic Medication Administration Records - when medications were actually given.
 - **Key columns**: `hadm_id`, `emar_id`, `charttime`, `medication`, `event_txt`
 
-#### `emar_detail` (198,997 rows)
+#### `emar_detail` (237,486 rows)
 Detailed administration information for each EMAR record.
 - **Key columns**: `emar_id`, `dose_given`, `dose_given_unit`, `route`, `site`, `infusion_rate`
 - **Foreign key**: Links to `emar` via `emar_id`
 
 ### Provider Orders
 
-#### `poe` (192,821 rows)
+#### `poe` (214,498 rows)
 Provider Order Entry - all orders placed by clinicians.
 - **Key columns**: `hadm_id`, `poe_id`, `ordertime`, `order_type`, `order_subtype`, `order_status`
 
-#### `poe_detail` (20,183 rows)
+#### `poe_detail` (21,331 rows)
 Detailed information about provider orders.
 - **Key columns**: `poe_id`, `field_name`, `field_value`
 - **Foreign key**: Links to `poe` via `poe_id`
 
 ### Other Clinical Tables
 
-#### `hcpcsevents` (1,010 rows)
+#### `hcpcsevents` (1,022 rows)
 HCPCS procedures (outpatient procedures, supplies, services).
 - **Key columns**: `hadm_id`, `hcpcs_cd`, `chartdate`, `short_description`
 - Use with `d_hcpcs` dictionary table
 
-#### `services` (2,546 rows)
+#### `services` (2,630 rows)
 Hospital service transfers (e.g., Medicine → Surgery).
 - **Key columns**: `hadm_id`, `transfertime`, `prev_service`, `curr_service`
 
-#### `transfers` (8,853 rows)
+#### `transfers` (9,193 rows)
 Physical location transfers within the hospital.
 - **Key columns**: `hadm_id`, `transfer_id`, `eventtype`, `careunit`, `intime`, `outtime`
 
-#### `omr` (116,823 rows)
+#### `omr` (124,940 rows)
 Outpatient Medical Records - measurements like height, weight, BMI.
 - **Key columns**: `subject_id`, `chartdate`, `result_name`, `result_value`
 - **Note**: Linked by `subject_id` only, not `hadm_id`
@@ -121,24 +122,24 @@ These tables contain full data (not filtered) to decode IDs and codes:
 
 ## 2. Note Schema (`cdm_note`)
 
-Contains clinical text notes for the 2,333 admissions.
+Contains clinical text notes for the 2,400 admissions.
 
-### `discharge` (2,333 rows)
+### `discharge` (2,400 rows)
 Discharge summaries - comprehensive narratives written when patients leave the hospital.
 - **Key columns**: `note_id`, `hadm_id`, `subject_id`, `note_type`, `charttime`, `text`
 - One discharge note per admission
 
-### `discharge_detail` (1,289 rows)
-Structured fields extracted from discharge notes.
+### `discharge_detail` (1,332 rows)
+No information in here. Only contains redacted author field.
 - **Key columns**: `note_id`, `field_name`, `field_value`, `field_ordinal`
 - **Foreign key**: Links to `discharge` via `note_id`
 
-### `radiology` (5,411 rows)
+### `radiology` (6,223 rows)
 Radiology reports (X-rays, CT scans, MRIs, ultrasounds, etc.).
 - **Key columns**: `note_id`, `hadm_id`, `subject_id`, `note_type`, `charttime`, `text`
-- Multiple radiology reports per admission (average ~2.3 per admission)
+- Multiple radiology reports per admission (average ~2.6 per admission)
 
-### `radiology_detail` (13,156 rows)
+### `radiology_detail` (15,420 rows)
 Structured fields from radiology reports.
 - **Key columns**: `note_id`, `field_name`, `field_value`, `field_ordinal`
 - **Foreign key**: Links to `radiology` via `note_id`
@@ -147,7 +148,9 @@ Structured fields from radiology reports.
 
 ## 3. Note Extract Schema (`cdm_note_extract`)
 
-Structured information extracted from discharge notes using LLMs (work in progress).
+> :warning: We are currently working on this, so the data in here will change.
+
+Structured information extracted from discharge notes using LLMs.
 
 ### `admissions` (Primary table)
 Core admission information from discharge notes.
@@ -190,6 +193,76 @@ Unchanged free-text sections from discharge notes.
 
 ---
 
+## 4. CDM v1 Schema (`cdm_v1`)
+
+Dataset from the original CDMv1 benchmark. The source data consists of .csv files downloaded from [PhysioNet](https://physionet.org/content/mimic-iv-ext-cdm/1.1/), which were processed by the [CDMv1 Dataset code](https://github.com/paulhager/MIMIC-Clinical-Decision-Making-Dataset) to generate .pkl files used in the [CDMv1 benchmarking framework](https://github.com/paulhager/MIMIC-Clinical-Decision-Making-Framework?tab=readme-ov-file). For easier exploration, these .pkl files have been converted to .json format using [database/utils/cdm_v1_pkl_json.py](database/utils/cdm_v1_pkl_json.py) and are available in the shared folder `/srv/student/cdm_v1`.
+
+### `discharge_diagnosis` (2,400 rows)
+Primary discharge diagnosis as free text.
+- **Key columns**: `hadm_id`, `discharge_diagnosis`
+- **Primary key**: `hadm_id`
+- One diagnosis text per admission
+
+### `discharge_procedures` (2,122 rows)
+Procedures performed during hospitalization as free text.
+- **Key columns**: `hadm_id`, `discharge_procedure`
+- Multiple procedures possible per admission
+- Examples: "Laparoscopic appendectomy", "Cholecystectomy"
+
+### `history_of_present_illness` (2,400 rows)
+History of present illness narrative.
+- **Key columns**: `hadm_id`, `hpi`
+- **Primary key**: `hadm_id`
+- Free-text description of patient's presenting symptoms and timeline
+
+### `icd_diagnosis` (17,357 rows)
+ICD diagnosis descriptions as free text (not codes).
+- **Key columns**: `hadm_id`, `icd_diagnosis`
+- Multiple diagnoses per admission
+- Human-readable diagnosis descriptions
+
+### `icd_procedures` (2,917 rows)
+ICD procedure codes with structured metadata.
+- **Key columns**: `hadm_id`, `icd_code`, `icd_title`, `icd_version`
+- Links procedures to standard ICD coding system
+- Multiple procedures per admission
+
+### `laboratory_tests` (138,788 rows)
+Laboratory test results with reference ranges.
+- **Key columns**: `hadm_id`, `itemid`, `valuestr`, `ref_range_lower`, `ref_range_upper`
+- Use with `lab_test_mapping` to decode `itemid`
+- Values stored as strings to preserve formatting (e.g., "NEGATIVE", "<10", "12.5")
+- Multiple tests per admission
+
+### `lab_test_mapping` (1,209 rows)
+Dictionary table for laboratory test metadata.
+- **Key columns**: `itemid`, `label`, `fluid`, `category`, `count`, `corresponding_ids`
+- Maps test IDs to human-readable names
+- **Categories**: Blood Gas, Chemistry, Hematology, etc.
+- **Fluid types**: Blood, Urine, etc.
+
+### `microbiology` (4,403 rows)
+Microbiology culture results and specimen information.
+- **Key columns**: `hadm_id`, `test_itemid`, `valuestr`, `spec_itemid`
+- Multiple tests per admission
+- Examples: "NO GROWTH", "<10,000 organisms/ml"
+
+### `physical_examination` (2,400 rows)
+Physical examination findings as free text.
+- **Key columns**: `hadm_id`, `pe`
+- **Primary key**: `hadm_id`
+- Unstructured physical exam documentation
+
+### `radiology_reports` (5,960 rows)
+Radiology reports with structured metadata.
+- **Key columns**: `hadm_id`, `note_id`, `modality`, `region`, `exam_name`, `text`
+- **Primary key**: `(hadm_id, note_id)`
+- Multiple reports per admission (average ~2.5 per admission)
+- **Modalities**: CT, X-ray, Ultrasound, MRI
+- **Regions**: Abdomen, Chest, Pelvis, etc.
+
+---
+
 ## Key Relationships
 
 The main table relationships are:
@@ -217,7 +290,7 @@ poe (poe_id) --> poe_detail
 - All `cdm_hosp` and `cdm_note` tables are filtered to only include data from admissions in `database/hadm_id_list.txt`
 - Lab and microbiology events may have been assigned to admissions based on timing (see `assign_events.sql`)
 - Dictionary tables (prefix `d_`) contain complete reference data for code lookups
-- Total admissions: **2,333** across **2,320** unique patients
+- Total admissions: **2,400** across **2,383** unique patients
 
 ---
 
@@ -301,6 +374,8 @@ Steps for Ubuntu:
       GRANT SELECT ON ALL TABLES IN SCHEMA cdm_note TO student;
       GRANT USAGE ON SCHEMA cdm_note_extract TO student;
       GRANT SELECT ON ALL TABLES IN SCHEMA cdm_note_extract TO student;
+      GRANT USAGE ON SCHEMA cdm_v1 TO student;
+      GRANT SELECT ON ALL TABLES IN SCHEMA cdm_v1 TO student;
       ```
 
 3. Test access:
@@ -351,7 +426,15 @@ Steps for Ubuntu:
 4. Load note extractions:
 
    ```bash
-   EXTRACT_DIR=/home/$USER/practical_cdm_benchmark/database/data
+   EXTRACT_DIR=/srv/mimic/mimic-iv-note-extract
    psql -d mimiciv_pract -f database/sql/note_extract/create.sql
    psql -d mimiciv_pract -v ON_ERROR_STOP=1 -v mimic_data_dir=$EXTRACT_DIR -f database/sql/note_extract/load_csv.sql
+   ```
+
+5. Load CDMv1 data:
+
+   ```bash
+   CDM_V1_DIR=/srv/mimic/cdm_v1
+   psql -d mimiciv_pract -f database/sql/cdm_v1/create.sql
+   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -v mimic_data_dir=$CDM_V1_DIR -f database/sql/cdm_v1/load_csv.sql
    ```
