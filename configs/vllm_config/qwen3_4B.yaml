@@ -11,5 +11,8 @@ enable-prefix-caching: true
 max-model-len: 2048 # allowed number of input and output tokens together
 tensor-parallel-size: 1 # number of gpus
 
+enable-auto-tool-choice: true
+tool-call-parser: "hermes"
+
 # Reasoning parsing handled by server
 #reasoning-parser: "qwen3" <- remove when no thinking wanted

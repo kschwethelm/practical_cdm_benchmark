@@ -4,6 +4,6 @@
 benchmark_data_path: database/output/benchmark_data.json
 
 # Which case to use from the benchmark (index in the cases array)
-case_index: 6  # Uses second case (index 1): 59M with abdominal pain -> pancreatitis
+case_index: 0  # Uses second case (index 1): 59M with abdominal pain -> pancreatitis
 
 show_tool_calls: true

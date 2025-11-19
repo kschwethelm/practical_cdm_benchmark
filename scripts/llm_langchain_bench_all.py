@@ -181,6 +181,9 @@ def main(cfg: DictConfig):
             logger.error(f"Failed to parse JSON for case {hadm_id}. Raw: {result_msg.content}")
             pred_dx = ""
 
+        # Normalize GT
+        gt_dx = acc_metrics.normalize_diagnosis(gt_dx)
+
         # Ground truth
         normalized_gt, is_correct = evaluator.record(gt_dx, pred_dx)
 
