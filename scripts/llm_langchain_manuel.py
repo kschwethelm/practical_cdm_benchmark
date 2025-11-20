@@ -3,12 +3,17 @@ from pathlib import Path
 
 import hydra
 from langchain.agents import create_agent
+from langchain_core.messages import BaseMessage
 from langchain_openai import ChatOpenAI
 from loguru import logger
 from omegaconf import DictConfig
 
 import cdm.Tools.labs as lab_tool
 import cdm.Tools.physical_exam as pe_tool
+from cdm.Prompts.tool_agent import prompt_template, initial_info_template
+from cdm.Prompts.parser import retry_parse
+from scripts.util import get_msg_content
+
 
 
 def load_case(benchmark_path: Path, case_index: int) -> dict:
@@ -38,21 +43,9 @@ def build_agent():
     agent = create_agent(
         model=llm,
         tools=tools,
-        system_prompt=(
-            "You are a clinical decision-making assistant for abdominal pain cases.\n"
-            "You are connected to tools that can fetch:\n"
-            "- physical examination (request_physical_exam)\n"
-            "- laboratory results (request_labs)\n\n"
-            "Workflow:\n"
-            "1. Read the initial history of present illness.\n"
-            "2. Decide which information you still need.\n"
-            "3. Use the tools to gather physical exam and lab results.\n"
-            "4. Iterate if needed.\n"
-            "5. When you are confident, explain your reasoning briefly and give a final diagnosis and treatment plan.\n"
-            "Always use tools instead of guessing missing data."
-        ),
+        system_prompt=prompt_template.format(),
     )
-    return agent
+    return llm, agent
 
 
 @hydra.main(version_base=None, config_path="../configs/benchmark", config_name="demo")
@@ -73,23 +66,25 @@ def main(cfg: DictConfig):
     lab_tool.CURRENT_CASE = case
 
     # Build the agent
-    agent = build_agent()
+    llm, agent = build_agent()
 
     # Initial message to the agent: give it the HPI
-    user_input = (
-        f"PATIENT DEMOGRAPHICS:\n"
-        f"- Age: {case.get('demographics', {}).get('age', 'unknown')}\n"
-        f"- Gender: {case.get('demographics', {}).get('gender', 'unknown')}\n\n"
-        f"CHIEF COMPLAINT(S):\n"
-        f"- {case.get('chief_complaints', [])}\n\n"
-        "Start the clinical decision-making process."
-    )
+    age = case.get('demographics', {}).get('age', 'unknown')
+    gender = case.get('demographics', {}).get('gender', 'unknown')
+    chief_complaint = case.get('chief_complaints', [])
+    initial_prompt = initial_info_template.format(age=age, gender=gender, chief_complaint=chief_complaint)
 
-    result = agent.invoke({"messages": [{"role": "user", "content": user_input}]})
+    result = agent.invoke({"messages": [{"role": "user", "content": initial_prompt}]})
 
     print("\n=== FINAL OUTPUT ===")
-    print(result["messages"][-1])
-
+    content = get_msg_content(result)
+    max_retries = 2
+    parsed = retry_parse(llm, content, max_retries)
+    if parsed: 
+        print(parsed.model_dump_json(indent=2))
+    else: 
+        print(f"Unable to get correctly formatted output after {max_retries} retries")
+        print(f"Raw model output: {content}")
 
 if __name__ == "__main__":
     main()

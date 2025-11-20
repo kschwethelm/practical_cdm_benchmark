@@ -18,6 +18,11 @@ import cdm.Tools.pmh as pmh_tool
 # Import evaluation metrics
 import cdm.eval.acc_metrics as acc_metrics
 
+# Import prompts & parser
+from cdm.Prompts.tool_agent import prompt_template, initial_info_template
+from cdm.Prompts.parser import retry_parse
+from scripts.util import get_msg_content, print_trace
+
 
 def load_cases(benchmark_path: Path) -> dict:
     """Load all cases from the benchmark dataset."""
@@ -41,40 +46,14 @@ def build_agent():
         temperature=0.2,
     )
 
-    system_prompt = (
-        "You are a clinical decision-making assistant for abdominal pain cases.\n"
-        "You are connected to tools that can fetch:\n"
-        "- physical examination (request_physical_exam)\n"
-        "- laboratory results (request_lab_test)\n"
-        "- microbiology results (request_microbio_test)\n"
-        "- past medical history (request_past_medical_history)\n\n"
-
-        "Workflow:\n"
-        "1. Read the initial chief complain.\n"
-        "2. Decide which information you still need.\n"
-        "3. Use the tools to gather information.\n"
-        "4. Iterate if needed.\n\n"
-
-        "Important:\n"
-        "- Be concise but clinically precise.\n"
-        "- The diagnosis MUST be one of the following four classes only: appendicitis, cholecystitis, diverticulitis, pancreatitis.\n"
-        "- Your FINAL answer MUST be in the following JSON format and you MUST output ONLY this JSON, with no extra text, no markdown, no commentary:\n"
-        "{\n"
-        '  "diagnosis": "<appendicitis | cholecystitis | diverticulitis | pancreatitis>",\n'
-        #'  "justification": "<2-4 sentences>",\n'
-        #'  "treatment_plan": "<2-4 sentences or short paragraphs>"\n'
-        '  "confidence": "<low | medium | high> — <1 short sentence explaining why>"\n'
-        "}\n"
-    )
-
     # Build the agent with the specified tools and system prompt
     base_agent = create_agent(
         model=llm,
         tools=tools,
-        system_prompt=system_prompt,
+        system_prompt=prompt_template.format(),
     )
 
-    return base_agent
+    return llm, base_agent
 
 
 @hydra.main(version_base=None, config_path="../configs/benchmark", config_name="demo")
@@ -86,7 +65,7 @@ def main(cfg: DictConfig):
     cases = load_cases(benchmark_path)
 
     # Build the agent
-    agent = build_agent()
+    llm, agent = build_agent()
 
     total = len(cases)
     correct = 0
@@ -104,54 +83,42 @@ def main(cfg: DictConfig):
         pmh_tool.CURRENT_CASE = case
 
         # Initial message to the agent: patient demographics and chief complaint
-        user_input = (
-            f"PATIENT DEMOGRAPHICS:\n"
-            f"- Age: {case.get('demographics', {}).get('age', 'unknown')}\n"
-            f"- Gender: {case.get('demographics', {}).get('gender', 'unknown')}\n\n"
+        age = case.get('demographics', {}).get('age', 'unknown')
+        gender = case.get('demographics', {}).get('gender', 'unknown')
+        chief_complaint = case.get('chief_complaints', [])
+        initial_prompt = initial_info_template.format(age=age, gender=gender, chief_complaint=chief_complaint)
 
-            f"CHIEF COMPLAINT(S):\n"
-            f"- {case.get('chief_complaints', [])}\n\n"
-            
-            "Start the clinical decision-making process."
-        )
 
         # Invoke; inside this, the agent can call tools multiple times.
         result = agent.invoke(
             {
                 "messages": [
-                    {"role": "user", "content": user_input},
+                    {"role": "user", "content": initial_prompt},
                 ]
             }
         )
 
         # Get final message
-        if isinstance(result, dict) and "messages" in result and result["messages"]:
-            last = result["messages"][-1]
-            if isinstance(last, BaseMessage):
-                result_msg = last
-                raw_content = last.content
-            elif isinstance(last, dict):
-                result_msg = last
-                raw_content = last.get("content", "")
-            else:
-                result_msg = last
-                raw_content = str(last)
-        else:
-            logger.error(f"No messages returned for case {hadm_id}")
-            raw_content = ""
+        raw_content = get_msg_content(result)
+        max_retries = 2
+        parsed = retry_parse(llm, raw_content, max_retries)
+        if parsed: 
+            pred_dx = parsed.diagnosis
+        else: 
+            try:
+                pred = json.loads(raw_content)
+                pred_dx = pred.get("diagnosis", "other")
+            except:
+                pred_dx = "other"
+            
+            
+        # Final output of the agent for this case -> detailed trace with tools 
+        print_trace(result, verbose=True)
         
-        # Parse model JSON
-        try:
-            pred = json.loads(raw_content)
-            pred_dx = pred.get("diagnosis", "")
-        except json.JSONDecodeError:
-            logger.error(f"Failed to parse JSON for case {hadm_id}. Raw: {raw_content}")
-            pred_dx = ""
-
-        # Normalize GT
-        gt_dx = acc_metrics.normalize_diagnosis(gt_dx)
-
-        # Ground truth
+        # Final output of the agent for this case -> detailed trace without tools
+        # print_trace(result)
+         
+        # Evaluate model diagnosis against ground truth
         is_correct = acc_metrics.diagnoses_match(gt_dx, pred_dx)
         if is_correct:
             correct += 1
@@ -164,20 +131,7 @@ def main(cfg: DictConfig):
 
         if idx == 99:  # For quick testing
             break
-
-        # Final output of the agent for this case -> detailed trace
-        """print("\n=== FINAL OUTPUT ===")
-        if isinstance(result, dict) and "messages" in result and result["messages"]:
-            last = result["messages"][-1]
-            if isinstance(last, BaseMessage):
-                print(last.content)
-            elif isinstance(last, dict):
-                print(last.get("content", last))
-            else:
-                print(last)
-        else:
-            print(result)"""
-
+        
     accuracy = correct / 100 if total > 0 else 0.0
     print("\n============================")
     print(f"Total cases: {100}")
