@@ -1,6 +1,6 @@
 # MIMIC-IV Database Overview
 
-This database contains a filtered subset of the MIMIC-IV clinical database, focusing on **2,400 hospital admissions** selected for the clinical decision-making benchmark.
+This database contains a filtered subset of the MIMIC-IV clinical database, focusing on **2,399 hospital admissions** selected for the clinical decision-making benchmark.
 
 ## Database Schemas
 
@@ -15,16 +15,16 @@ The database is organized into four main schemas:
 
 ## 1. Hospital Schema (`cdm_hosp`)
 
-Contains 22 tables with hospital admission data. All tables are filtered to only include data from the 2,400 selected admissions.
+Contains 22 tables with hospital admission data. All tables are filtered to only include data from the 2,399 selected admissions.
 
 ### Core Tables
 
-#### `admissions` (2,400 rows)
+#### `admissions` (2,399 rows)
 Primary admission records with demographic and administrative information.
 - **Key columns**: `hadm_id`, `subject_id`, `admittime`, `dischtime`, `deathtime`, `admission_type`, `discharge_location`, `insurance`, `race`, `hospital_expire_flag`
 - **Primary key**: `hadm_id` (hospital admission ID)
 
-#### `patients` (2,383 rows)
+#### `patients` (2,382 rows)
 Patient demographics. Note: fewer patients than admissions because some patients have multiple admissions.
 - **Key columns**: `subject_id`, `gender`, `anchor_age`, `anchor_year`, `dod` (date of death)
 - **Primary key**: `subject_id`
@@ -122,9 +122,9 @@ These tables contain full data (not filtered) to decode IDs and codes:
 
 ## 2. Note Schema (`cdm_note`)
 
-Contains clinical text notes for the 2,400 admissions.
+Contains clinical text notes for the 2,399 admissions.
 
-### `discharge` (2,400 rows)
+### `discharge` (2,399 rows)
 Discharge summaries - comprehensive narratives written when patients leave the hospital.
 - **Key columns**: `note_id`, `hadm_id`, `subject_id`, `note_type`, `charttime`, `text`
 - One discharge note per admission
@@ -178,13 +178,11 @@ Procedures performed during hospitalization.
 
 ### `past_medical_history`
 Patient's medical history before admission.
-- **Key columns**: `hadm_id`, `title`, `category`, `seq_num`
-- **Categories**: `medical`, `surgical`, `cardiac`, `oncologic`, `psychiatric`, `gynecologic`, `family`, `social`, `other`
+**COMING SOON**
 
 ### `physical_exam`
 Physical examination findings at different time points.
-- **Key columns**: `hadm_id`, `temporal_context`, `vital_signs`, `general`, `heent_neck`, `cardiovascular`, `pulmonary`, `abdominal`, `extremities`, `neurological`, `skin`, etc.
-- Organized by body system
+**COMING SOON**
 
 ### `discharge_free_text`
 Unchanged free-text sections from discharge notes.
@@ -197,7 +195,7 @@ Unchanged free-text sections from discharge notes.
 
 Dataset from the original CDMv1 benchmark. The source data consists of .csv files downloaded from [PhysioNet](https://physionet.org/content/mimic-iv-ext-cdm/1.1/), which were processed by the [CDMv1 Dataset code](https://github.com/paulhager/MIMIC-Clinical-Decision-Making-Dataset) to generate .pkl files used in the [CDMv1 benchmarking framework](https://github.com/paulhager/MIMIC-Clinical-Decision-Making-Framework?tab=readme-ov-file). For easier exploration, these .pkl files have been converted to .json format using [database/utils/cdm_v1_pkl_json.py](database/utils/cdm_v1_pkl_json.py) and are available in the shared folder `/srv/student/cdm_v1`.
 
-### `discharge_diagnosis` (2,400 rows)
+### `discharge_diagnosis` (2,399 rows)
 Primary discharge diagnosis as free text.
 - **Key columns**: `hadm_id`, `discharge_diagnosis`
 - **Primary key**: `hadm_id`
@@ -209,7 +207,7 @@ Procedures performed during hospitalization as free text.
 - Multiple procedures possible per admission
 - Examples: "Laparoscopic appendectomy", "Cholecystectomy"
 
-### `history_of_present_illness` (2,400 rows)
+### `history_of_present_illness` (2,399 rows)
 History of present illness narrative.
 - **Key columns**: `hadm_id`, `hpi`
 - **Primary key**: `hadm_id`
@@ -247,7 +245,7 @@ Microbiology culture results and specimen information.
 - Multiple tests per admission
 - Examples: "NO GROWTH", "<10,000 organisms/ml"
 
-### `physical_examination` (2,400 rows)
+### `physical_examination` (2,399 rows)
 Physical examination findings as free text.
 - **Key columns**: `hadm_id`, `pe`
 - **Primary key**: `hadm_id`
@@ -290,7 +288,7 @@ poe (poe_id) --> poe_detail
 - All `cdm_hosp` and `cdm_note` tables are filtered to only include data from admissions in `database/hadm_id_list.txt`
 - Lab and microbiology events may have been assigned to admissions based on timing (see `assign_events.sql`)
 - Dictionary tables (prefix `d_`) contain complete reference data for code lookups
-- Total admissions: **2,400** across **2,383** unique patients
+- Total admissions: **2,399** across **2,383** unique patients
 
 ---
 
