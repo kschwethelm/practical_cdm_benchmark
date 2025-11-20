@@ -28,4 +28,4 @@ def normalize_diagnosis(dx: str) -> str:
 def diagnoses_match(gt: str, pred: str) -> bool:
     """Return True if ground truth and prediction match after normalization."""
 
-    return normalize_diagnosis(gt) == pred
+    return normalize_diagnosis(gt) == normalize_diagnosis(pred)
