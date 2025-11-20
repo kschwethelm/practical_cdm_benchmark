@@ -10,7 +10,7 @@ import cdm.Tools.labs as lab_tool
 import cdm.Tools.microbio_test as microbio_tool
 import cdm.Tools.physical_exam as pe_tool
 import cdm.Tools.pmh as pmh_tool
-from cdm.eval.benchmark_evaluator import BenchmarkEvaluator
+from cdm.eval.benchmark_evaluator import BenchmarkEvaluator, acc_metrics
 
 
 def load_cases(benchmark_path: Path) -> dict:
