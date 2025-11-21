@@ -71,7 +71,7 @@ def load_case(benchmark_path: Path, case_index: int) -> dict:
 def format_initial_prompt(case: dict) -> str:
     """Format initial patient information for LLM."""
     demographics = case["demographics"]
-    complaints = ", ".join(case["chief_complaints"])
+    hpi = case.get("history_of_present_illness", "Not available")
 
     prompt = f"""You are an AI clinical decision support system. A patient has arrived with the following information:
 
@@ -79,8 +79,8 @@ PATIENT DEMOGRAPHICS:
 - Age: {demographics["age"]} years old
 - Gender: {demographics["gender"]}
 
-CHIEF COMPLAINT:
-- {complaints}
+HISTORY OF PRESENT ILLNESS:
+{hpi}
 
 AVAILABLE TOOLS:
 - request_lab_test(test_name: str) -> Get laboratory test results
@@ -107,7 +107,7 @@ def main(cfg: DictConfig):
 
     logger.info(f"Loaded case: hadm_id={case['hadm_id']}")
     print(f"Using case: hadm_id={case['hadm_id']}")
-    print(f"Ground truth diagnosis: {case['diagnosis']}\n")
+    print(f"Ground Truth Diagnosis: {case['ground_truth']['primary_diagnosis']}\n")    
 
     # =================================================================
     # TURN 1: Initial patient presentation
@@ -142,13 +142,13 @@ def main(cfg: DictConfig):
     print("SYSTEM → LLM:")
 
     # Provide simulated lab results based on actual case data
-    lab_result = case.get("first_lab_result")
-    if lab_result:
-        lab_info = f"""Lab Test Result (itemid={lab_result["itemid"]}):
-- Value: {lab_result.get("value", "N/A")}
-- Numeric Value: {lab_result.get("valuenum", "N/A")}
-- Unit: {lab_result.get("valueuom", "N/A")}
-- Time: {lab_result["charttime"]}"""
+    lab_results = case.get("lab_results", [])
+    if lab_results:
+        first_lab = lab_results[0]
+        lab_info = f"""Lab Test Result:
+- Test: {first_lab.get("test_name", "N/A")}
+- Value: {first_lab.get("value", "N/A")}
+- Unit: {first_lab.get("unit", "N/A")}"""
     else:
         lab_info = "No lab results available for this case."
 
@@ -176,12 +176,10 @@ def main(cfg: DictConfig):
     print("SYSTEM → LLM:")
 
     # Provide physical exam findings
-    physical_exam = case.get("physical_exam", {})
+    physical_exam_text = case.get("physical_exam_text", "")
     exam_info = f"""Physical Examination Findings:
 
-VITAL SIGNS: {physical_exam.get("vital_signs", "Not documented")}
-GENERAL: {physical_exam.get("general", "Not documented")}
-ABDOMINAL: {physical_exam.get("abdominal", "Not documented")}
+    {physical_exam_text if physical_exam_text else "Not documented"}
 """
 
     simulate_tool_result("request_physical_exam", exam_info, show_tags=cfg.show_tool_calls)
@@ -224,10 +222,10 @@ ABDOMINAL: {physical_exam.get("abdominal", "Not documented")}
     # =================================================================
     print_separator("WORKFLOW SUMMARY")
 
-    print(f"Ground Truth Diagnosis: {case['diagnosis']}")
+    print(f"Ground Truth Diagnosis: {case['ground_truth']['primary_diagnosis']}")
     print(f"LLM Predicted Diagnosis: {diagnosis_output.diagnosis}")
     print(
-        f"Match: {'✓ YES' if case['diagnosis'].lower() in diagnosis_output.diagnosis.lower() else '✗ NO'}"
+        f"Match: {'✓ YES' if case['ground_truth']['primary_diagnosis'].lower() in diagnosis_output.diagnosis.lower() else '✗ NO'}"    
     )
 
     print("\nWorkflow Steps Completed:")
