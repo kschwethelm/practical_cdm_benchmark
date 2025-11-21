@@ -27,7 +27,7 @@ CREATE TABLE cdm_note_extract.admissions (
 DROP TABLE IF EXISTS cdm_note_extract.discharge_diagnosis;
 CREATE TABLE cdm_note_extract.discharge_diagnosis (
     hadm_id INTEGER NOT NULL,
-    title VARCHAR(255) NOT NULL,
+    title TEXT NOT NULL,
     is_primary BOOLEAN NOT NULL,
     seq_num INTEGER NOT NULL,
     PRIMARY KEY (hadm_id, seq_num)
@@ -36,14 +36,14 @@ CREATE TABLE cdm_note_extract.discharge_diagnosis (
 DROP TABLE IF EXISTS cdm_note_extract.allergies;
 CREATE TABLE cdm_note_extract.allergies (
     hadm_id INTEGER NOT NULL,
-    title VARCHAR(255) NOT NULL
-    --PRIMARY KEY (hadm_id, title)
+    title VARCHAR(255) NOT NULL,
+    PRIMARY KEY (hadm_id, title)
 );
 
 DROP TABLE IF EXISTS cdm_note_extract.chief_complaint;
 CREATE TABLE cdm_note_extract.chief_complaint (
     hadm_id INTEGER NOT NULL,
-    category VARCHAR(20) NOT NULL, -- 'chief_complaint', 'circumstances', 'patient_quote'
+    category VARCHAR(20) NOT NULL, -- 'chief_complaint', 'circumstances'
     complaint TEXT NOT NULL,
     seq_num INTEGER NOT NULL,
     PRIMARY KEY (hadm_id, category, seq_num)
@@ -58,37 +58,37 @@ CREATE TABLE cdm_note_extract.procedures (
     PRIMARY KEY (hadm_id, seq_num)
 );
 
-DROP TABLE IF EXISTS cdm_note_extract.past_medical_history;
-CREATE TABLE cdm_note_extract.past_medical_history (
-    hadm_id INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    category VARCHAR(20) NOT NULL, -- 'medical', 'surgical', 'cardiac', 'oncologic', 'psychiatric', 'gynecologic', 'family', 'social', 'other'
-    seq_num INTEGER NOT NULL,
-    PRIMARY KEY (hadm_id, category, seq_num)
-);
+--DROP TABLE IF EXISTS cdm_note_extract.past_medical_history;
+--CREATE TABLE cdm_note_extract.past_medical_history (
+--    hadm_id INTEGER NOT NULL,
+--    title TEXT NOT NULL,
+--    category VARCHAR(20) NOT NULL, -- 'medical', 'surgical', 'cardiac', 'oncologic', 'psychiatric', 'gynecologic', 'family', 'social', 'other'
+--    seq_num INTEGER NOT NULL,
+--    PRIMARY KEY (hadm_id, category, seq_num)
+--);
 
-DROP TABLE IF EXISTS cdm_note_extract.physical_exam;
-CREATE TABLE cdm_note_extract.physical_exam (
-    hadm_id INTEGER NOT NULL,
-    temporal_context VARCHAR(20),
-    vital_signs TEXT,
-    general TEXT,
-    heent_neck TEXT,
-    cardiovascular TEXT,
-    pulmonary TEXT,
-    abdominal TEXT,
-    extremities TEXT,
-    skin TEXT,
-    neurological TEXT,
-    musculoskeletal TEXT,
-    genitourinary TEXT,
-    lymphatic TEXT,
-    access TEXT,
-    psychiatric TEXT,
-    pain TEXT,
-    orthostatics TEXT,
-    other TEXT
-);
+--DROP TABLE IF EXISTS cdm_note_extract.physical_exam;
+--CREATE TABLE cdm_note_extract.physical_exam (
+--    hadm_id INTEGER NOT NULL,
+--    temporal_context VARCHAR(20),
+--    vital_signs TEXT,
+--    general TEXT,
+--    heent_neck TEXT,
+--    cardiovascular TEXT,
+--    pulmonary TEXT,
+--    abdominal TEXT,
+--    extremities TEXT,
+--    skin TEXT,
+--    neurological TEXT,
+--    musculoskeletal TEXT,
+--    genitourinary TEXT,
+--    lymphatic TEXT,
+--    access TEXT,
+--    psychiatric TEXT,
+--    pain TEXT,
+--    orthostatics TEXT,
+--    other TEXT
+--);
 
 DROP TABLE IF EXISTS cdm_note_extract.discharge_free_text;
 CREATE TABLE cdm_note_extract.discharge_free_text (
