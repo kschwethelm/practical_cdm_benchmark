@@ -8,7 +8,7 @@ port: 8000
 
 enable-prefix-caching: true
 
-max-model-len: 2048 # allowed number of input and output tokens together
+max-model-len: 4096 # allowed number of input and output tokens together
 tensor-parallel-size: 1 # number of gpus
 
 enable-auto-tool-choice: true

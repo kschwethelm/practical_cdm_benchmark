@@ -121,7 +121,7 @@ def main(cfg: DictConfig):
 
     for idx, case in enumerate(cases):
         hadm_id = case.get("hadm_id", "unknown")
-        gt_dx = case.get("diagnosis", "")
+        gt_dx = case.get("ground_truth", {}).get("primary_diagnosis", "other")
 
         logger.info(f"Processing case {idx + 1}/{number_of_cases} (hadm_id: {hadm_id})")
 
