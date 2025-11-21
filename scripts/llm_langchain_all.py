@@ -67,7 +67,7 @@ def main(cfg: DictConfig):
     logger.info(f"Loaded case: hadm_id={case['hadm_id']}")
     print(f"Using case: hadm_id={case['hadm_id']}")
     print(case)
-    print(f"Ground truth diagnosis: {case['diagnosis']}\n")
+    print(f"Ground truth diagnosis: {case['ground_truth']['primary_diagnosis']}\n")
 
     # Build LLM
     llm = build_llm()

@@ -100,7 +100,7 @@ async def main():
 
     logger.info(f"Loaded case: hadm_id={case['hadm_id']}")
     print(f"Using case: hadm_id={case['hadm_id']}")
-    print(f"Ground truth diagnosis: {case['diagnosis']}\n")
+    print(f"Ground truth diagnosis: {case['ground_truth']['primary_diagnosis']}\n")
 
     # Configure vLLM client
     config = vLLM_Config(temperature=0.0)
