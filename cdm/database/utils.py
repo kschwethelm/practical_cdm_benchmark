@@ -1,45 +1,24 @@
 import re
+from pathlib import Path
 
-# Define the keywords to scrub from all text
-# Currently limited to 4 acute abdominal conditions from CDMv1 paper
-DIAGNOSIS_SCRUB_KEYWORDS = {
-    "appendicitis": ["acute appendicitis", "appendicitis", "appendectomy", "tip appendicitis"],
-    "cholecystitis": ["acute cholecystitis", "cholecystitis", "cholecystostomy"],
-    "pancreatitis": [
-        "acute pancreatitis",
-        "pancreatitis",
-        "pancreatectomy",
-        "autoimmune pancreatitis",
-        "uncomplicated pancreatitis",
-    ],
-    "diverticulitis": [
-        "acute diverticulitis",
-        "diverticulitis",
-        "perforated diverticulitis",
-        "complicated diverticulitis",
-    ],
-}
+import yaml
 
-# Adapted from CDMv1, might need to be expanded with more keywords for complete dataset
-MODALITY_KEYWORDS = {
-    "CT": ["CT", "CTA", "COMPUTED TOMOGRAPHY"],
-    "MR": ["MR", "MRI", "MRA", "MAGNETIC RESONANCE"],
-    "US": ["US", "ULTRASOUND", "SONOGRAM", "DUPLEX"],
-    "XR": ["XR", "X-RAY", "RADIOGRAPH", "CHEST (", "ABDOMEN (", "PELVIS ("],
-    "NM": ["NM", "NUCLEAR", "SCINTIGRAPHY"],
-    "FL": ["FLUORO", "SWALLOW", "ENEMA"],
-    "ERCP": ["ERCP"],
-}
+# Load text processing configuration
+_CONFIG_PATH = Path(__file__).parent.parent.parent / "configs" / "database" / "text_processing.yaml"
 
-REGION_KEYWORDS = {
-    "Abdomen": ["ABDOMEN", "ABD", "LIVER", "GALLBLADDER", "PANCREAS", "SPLEEN", "RENAL", "KIDNEY"],
-    "Chest": ["CHEST", "THORAX", "LUNG"],
-    "Pelvis": ["PELVIS", "PELVIC"],
-    "Head": ["HEAD", "BRAIN", "CRANIUM", "SINUS"],
-    "Neck": ["NECK", "CERVICAL"],
-    "Spine": ["SPINE", "LUMBAR", "THORACIC"],
-    "Extremity": ["KNEE", "SHOULDER", "HIP", "ARM", "LEG", "FOOT", "HAND"],
-}
+
+def _load_config() -> dict:
+    """Load text processing configuration from YAML file."""
+    with open(_CONFIG_PATH) as f:
+        return yaml.safe_load(f)
+
+
+_config = _load_config()
+
+# Keywords loaded from configuration
+DIAGNOSIS_SCRUB_KEYWORDS = _config["diagnosis_scrub_keywords"]
+MODALITY_KEYWORDS = _config["modality_keywords"]
+REGION_KEYWORDS = _config["region_keywords"]
 
 
 def get_pathology_type_from_string(ground_truth_diagnosis: str) -> str | None:
@@ -86,7 +65,7 @@ def scrub_text(text: str, pathology_type: str | None) -> str:
     return pattern.sub("___", text)
 
 
-def parse_report(report):
+def parse_report(report: str) -> dict:
     """
     Splits the report into a dictionary of {SECTION_HEADER: Content}.
     Replicates logic from CDMv1 repo.
@@ -97,7 +76,7 @@ def parse_report(report):
     report_dict = {}
 
     # Check if the first line ends with a colon
-    if lines and lines[0].isupper() and lines[0].strip()[-1] != ":":
+    if lines and lines[0].strip() and lines[0].isupper() and not lines[0].strip().endswith(":"):
         lines[0] = lines[0].strip() + ":"
 
     # Check for other header lines (ALL CAPS)
@@ -164,14 +143,18 @@ def extract_findings_from_report(raw_report_text: str) -> str:
 
 
 def derive_modality(exam_name: str, text: str) -> str:
+    """
+    Uses modality keywords to derive test modality mentioned in exam_name and text
+    """
     if not exam_name:
-        return "Unknown", "Unknown"
+        return "Unknown"
     exam_upper = exam_name.upper()
 
     # Derive Modality from exam_name
     modality = "Unknown"
     for mod, keywords in MODALITY_KEYWORDS.items():
-        if any(kw in exam_upper for kw in keywords):
+        pattern = r"\b(" + "|".join(re.escape(kw) for kw in keywords) + r")\b"
+        if re.search(pattern, exam_upper):
             modality = mod
             break
     if modality == "Unknown" and exam_upper.startswith("CHEST"):
@@ -181,7 +164,8 @@ def derive_modality(exam_name: str, text: str) -> str:
     if modality == "Unknown" and text:
         text_upper = text.upper()
         for mod, keywords in MODALITY_KEYWORDS.items():
-            if any(kw in text_upper for kw in keywords):
+            pattern = r"\b(" + "|".join(re.escape(kw) for kw in keywords) + r")\b"
+            if re.search(pattern, text_upper):
                 modality = mod
                 break
 
@@ -189,6 +173,9 @@ def derive_modality(exam_name: str, text: str) -> str:
 
 
 def derive_region(exam_name: str, text: str) -> str:
+    """
+    Uses region keywords to derive test region mentioned in exam_name and text
+    """
     if not exam_name:
         return "Unknown"
     exam_upper = exam_name.upper()
@@ -196,7 +183,8 @@ def derive_region(exam_name: str, text: str) -> str:
     # Derive Region from exam_name
     region = "Unknown"
     for reg, keywords in REGION_KEYWORDS.items():
-        if any(kw in exam_upper for kw in keywords):
+        pattern = r"\b(" + "|".join(re.escape(kw) for kw in keywords) + r")\b"
+        if re.search(pattern, exam_upper):
             region = reg
             break
 
@@ -204,7 +192,8 @@ def derive_region(exam_name: str, text: str) -> str:
     if region == "Unknown" and text:
         text_upper = text.upper()
         for reg, keywords in REGION_KEYWORDS.items():
-            if any(kw in text_upper for kw in keywords):
+            pattern = r"\b(" + "|".join(re.escape(kw) for kw in keywords) + r")\b"
+            if re.search(pattern, text_upper):
                 region = reg
                 break
 

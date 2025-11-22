@@ -1,0 +1,100 @@
+# Text processing configuration for medical reports
+# Keywords used for diagnosis scrubbing, modality detection, and region detection
+
+# Keywords to scrub from all text
+# Currently limited to 4 acute abdominal conditions from CDMv1 paper
+diagnosis_scrub_keywords:
+  appendicitis:
+    - acute appendicitis
+    - appendicitis
+    - appendectomy
+    - tip appendicitis
+  cholecystitis:
+    - acute cholecystitis
+    - cholecystitis
+    - cholecystostomy
+  pancreatitis:
+    - acute pancreatitis
+    - pancreatitis
+    - pancreatectomy
+    - autoimmune pancreatitis
+    - uncomplicated pancreatitis
+  diverticulitis:
+    - acute diverticulitis
+    - diverticulitis
+    - perforated diverticulitis
+    - complicated diverticulitis
+
+# Keywords for detecting imaging modality
+# Adapted from CDMv1, can be expanded with more keywords for complete dataset
+modality_keywords:
+  CT:
+    - CT
+    - CTA
+    - COMPUTED TOMOGRAPHY
+  MR:
+    - MR
+    - MRI
+    - MRA
+    - MAGNETIC RESONANCE
+  US:
+    - US
+    - ULTRASOUND
+    - SONOGRAM
+    - DUPLEX
+  XR:
+    - XR
+    - X-RAY
+    - RADIOGRAPH
+    - CHEST (
+    - ABDOMEN (
+    - PELVIS (
+  NM:
+    - NM
+    - NUCLEAR
+    - SCINTIGRAPHY
+  FL:
+    - FLUORO
+    - SWALLOW
+    - ENEMA
+  ERCP:
+    - ERCP
+
+# Keywords for detecting anatomical region
+region_keywords:
+  Abdomen:
+    - ABDOMEN
+    - ABD
+    - LIVER
+    - GALLBLADDER
+    - PANCREAS
+    - SPLEEN
+    - RENAL
+    - KIDNEY
+  Chest:
+    - CHEST
+    - THORAX
+    - LUNG
+  Pelvis:
+    - PELVIS
+    - PELVIC
+  Head:
+    - HEAD
+    - BRAIN
+    - CRANIUM
+    - SINUS
+  Neck:
+    - NECK
+    - CERVICAL
+  Spine:
+    - SPINE
+    - LUMBAR
+    - THORACIC
+  Extremity:
+    - KNEE
+    - SHOULDER
+    - HIP
+    - ARM
+    - LEG
+    - FOOT
+    - HAND

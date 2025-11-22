@@ -1,6 +1,6 @@
 # CDM Benchmark Dataset Specification
 
-This document describes the specifications for the replication of our benchmark dataset of **CDMv1. The dataset provides a baseline for evaluating clinical decision-making pipelines
+This document describes the specifications for the replication of our benchmark dataset of **CDMv1**. The dataset provides a baseline for evaluating clinical decision-making pipelines
 
 ---
 
