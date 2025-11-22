@@ -107,7 +107,7 @@ def main(cfg: DictConfig):
 
     logger.info(f"Loaded case: hadm_id={case['hadm_id']}")
     print(f"Using case: hadm_id={case['hadm_id']}")
-    print(f"Ground Truth Diagnosis: {case['ground_truth']['primary_diagnosis']}\n")    
+    print(f"Ground Truth Diagnosis: {case['ground_truth']['primary_diagnosis']}\n")
 
     # =================================================================
     # TURN 1: Initial patient presentation
@@ -225,7 +225,7 @@ def main(cfg: DictConfig):
     print(f"Ground Truth Diagnosis: {case['ground_truth']['primary_diagnosis']}")
     print(f"LLM Predicted Diagnosis: {diagnosis_output.diagnosis}")
     print(
-        f"Match: {'✓ YES' if case['ground_truth']['primary_diagnosis'].lower() in diagnosis_output.diagnosis.lower() else '✗ NO'}"    
+        f"Match: {'✓ YES' if case['ground_truth']['primary_diagnosis'].lower() in diagnosis_output.diagnosis.lower() else '✗ NO'}"
     )
 
     print("\nWorkflow Steps Completed:")
