@@ -1,10 +1,10 @@
-# 🏥 CDM Benchmark Dataset Specification (v2 – Replication Phase)
+# CDM Benchmark Dataset Specification
 
 This document describes the specifications for the replication of our benchmark dataset of **CDMv1. The dataset provides a baseline for evaluating clinical decision-making pipelines
 
 ---
 
-## 📊 Data Overview
+## Data Overview
 
 | Data Field               | Source Table                                   | Purpose in Benchmark                   |
 |--------------------------|-------------------------------------------------|-----------------------------------------|
@@ -19,10 +19,10 @@ This document describes the specifications for the replication of our benchmark 
 
 ---
 
-## 📝 Detailed Field Specifications
+## Detailed Field Specifications
 
 ### 1. Case Identification
-**Data Field:** `hadm_id`
+**Data Field:** `hadm_id`\
 **Source:** `cdm_hosp.admissions.hadm_id`
 
 **Why?:**
@@ -31,8 +31,8 @@ Primary key linking all tables (notes, labs, imaging). Ensures each case is trac
 ---
 
 ### 2. Initial Patient Context (Prompt Input)
-**Data Field:** `history_of_present_illness`
-**Source:** `cdm_note_extract.discharge_free_text.history_of_present_illness`
+**Data Field:** `history_of_present_illness`\
+**Source:** `cdm_note_extract.discharge_free_text.history_of_present_illness`\
 **Processing:**
 - Apply `utils.scrub_text` to remove diagnostic leakage.
 
@@ -42,8 +42,8 @@ Simulates the initial patient presentation. Provides context **without revealing
 ---
 
 ### 3. Physical Examination
-**Data Field:** `physical_exams`
-**Source:** `cdm_note_extract.discharge_free_text`
+**Data Field:** `physical_exams`\
+**Source:** `cdm_note_extract.discharge_free_text`\
 **Processing:**
 - Scrub diagnostic terms.
 
@@ -54,8 +54,7 @@ part of the diagnostic process (preferably first action).
 ---
 
 ### 4. Laboratory & Microbiology Results
-**Data Field:** `lab_results`, `microbiology_event`
-
+**Data Field:** `lab_results`, `microbiology_event`\
 **Sources:**
 - **Labs:** `cdm_hosp.labevents`, `cdm_hosp.d_labitems`
   (test_name, value, unit, ref_range_lower, ref_range_upper, flag)
@@ -72,8 +71,8 @@ Lab values capture inflammation/organ dysfunction; cultures reveal infectious ca
 ---
 
 ### 5. Radiology Reports
-**Data Field:** `radiology_reports`
-**Source:** `cdm_note.radiology`, `cdm_note.radiology_detail`
+**Data Field:** `radiology_reports`\
+**Source:** `cdm_note.radiology`, `cdm_note.radiology_detail`\
 **Metadata:**
 - Modality & Region derived from `cdm_note.radiology_detail.exam_name`
 
