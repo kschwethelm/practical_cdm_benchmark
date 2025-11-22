@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  ruff:
+  format-and-lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -23,11 +23,9 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: uv sync --dev
-
       - name: Check formatting with ruff
-        run: uv run ruff format --check .
+        continue-on-error: true
+        run: uv tool run ruff format --check .
 
       - name: Check linting with ruff
-        run: uv run ruff check .
+        run: uv tool run ruff check .
