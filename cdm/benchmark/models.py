@@ -43,6 +43,8 @@ class MicrobiologyResult(BaseModel):
 
 class RadiologyReport(BaseModel):
     charttime: datetime
+    exam_name: str | None = None
+    region: str | None = None
     modality: str | None = None
     findings: str | None = None
 
