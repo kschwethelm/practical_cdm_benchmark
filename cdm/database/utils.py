@@ -3,8 +3,8 @@ from pathlib import Path
 
 import yaml
 
-# Load text processing configuration
-_CONFIG_PATH = Path(__file__).parent.parent.parent / "configs" / "database" / "text_processing.yaml"
+# Load text processing configuration from library data directory
+_CONFIG_PATH = Path(__file__).parent / "config_data" / "text_processing.yaml"
 
 
 def _load_config() -> dict:
@@ -19,6 +19,7 @@ _config = _load_config()
 DIAGNOSIS_SCRUB_KEYWORDS = _config["diagnosis_scrub_keywords"]
 MODALITY_KEYWORDS = _config["modality_keywords"]
 REGION_KEYWORDS = _config["region_keywords"]
+BAD_RAD_FIELDS = _config["bad_rad_fields"]
 
 
 def get_pathology_type_from_string(ground_truth_diagnosis: str) -> str | None:
@@ -101,24 +102,6 @@ def extract_findings_from_report(raw_report_text: str) -> str:
     """
     if not raw_report_text:
         return ""
-
-    BAD_RAD_FIELDS = [
-        "CLINICAL HISTORY",
-        "MEDICAL HISTORY",
-        "CLINICAL INFORMATION",
-        "COMPARISON",
-        "COMPARISONS",
-        "COMMENT",
-        "CONCLUSION",
-        "HISTORY",
-        "IMPRESSION",
-        "CLINICAL INDICATION",
-        "INDICATION",
-        "OPERATORS",
-        "REASON",
-        "REFERENCE",
-        "DATE",
-    ]
 
     sections = parse_report(raw_report_text)
 

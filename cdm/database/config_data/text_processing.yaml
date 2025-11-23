@@ -98,3 +98,22 @@ region_keywords:
     - LEG
     - FOOT
     - HAND
+
+# Radiology report sections to exclude when extracting findings
+# These sections typically contain information that should not be used for diagnosis
+bad_rad_fields:
+  - CLINICAL HISTORY
+  - MEDICAL HISTORY
+  - CLINICAL INFORMATION
+  - COMPARISON
+  - COMPARISONS
+  - COMMENT
+  - CONCLUSION
+  - HISTORY
+  - IMPRESSION
+  - CLINICAL INDICATION
+  - INDICATION
+  - OPERATORS
+  - REASON
+  - REFERENCE
+  - DATE
