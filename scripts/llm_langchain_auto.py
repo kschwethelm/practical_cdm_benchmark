@@ -15,7 +15,6 @@ import cdm.Tools.microbio_test as micro_tool
 import cdm.Tools.pmh as pmh_tool
 from cdm.Prompts.tool_agent import prompt_template, initial_info_template
 from cdm.Prompts.parser import retry_parse
-from scripts.util import get_msg_content, print_trace
 
 
 def load_case(benchmark_path: Path, case_index: int) -> dict:
@@ -92,7 +91,7 @@ def main(cfg: DictConfig):
     # print_trace(result, verbose=True)
 
     print("\n=== FINAL OUTPUT ===")
-    content = get_msg_content(result)
+    content = result["messages"][-1].content
     max_retries = 2
     parsed = retry_parse(llm, content, max_retries)
     if parsed:
