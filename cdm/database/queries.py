@@ -1,7 +1,7 @@
 import psycopg
 from loguru import logger
 
-from cdm.database.utils import extract_findings_from_report
+from cdm.database.utils import derive_modality, derive_region, extract_findings_from_report
 
 
 def get_demographics(cursor: psycopg.Cursor, hadm_id: int) -> dict | None:
@@ -308,13 +308,16 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     query = """
         SELECT
             charttime,
-            note_type AS modality,
+            field_value AS exam_name,
             text AS findings
         FROM
-            cdm_note.radiology
+            cdm_note.radiology rad
+        JOIN cdm_note.radiology_detail det
+            ON rad.note_id = det.note_id
         WHERE
             hadm_id = %s
             AND text IS NOT NULL
+            AND field_name = 'exam_name'
         ORDER BY
             charttime;
     """
@@ -324,7 +327,9 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     reports = [
         {
             "charttime": row[0],
-            "modality": row[1],
+            "exam_name": row[1],
+            "modality": derive_modality(row[1], row[2]),
+            "region": derive_region(row[1], row[2]),
             "findings": extract_findings_from_report(row[2]),
         }
         for row in results

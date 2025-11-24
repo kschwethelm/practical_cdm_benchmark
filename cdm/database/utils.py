@@ -1,24 +1,25 @@
 import re
+from pathlib import Path
 
-# Define the keywords to scrub from all text
-# Currently limited to 4 acute abdominal conditions from CDMv1 paper
-DIAGNOSIS_SCRUB_KEYWORDS = {
-    "appendicitis": ["acute appendicitis", "appendicitis", "appendectomy", "tip appendicitis"],
-    "cholecystitis": ["acute cholecystitis", "cholecystitis", "cholecystostomy"],
-    "pancreatitis": [
-        "acute pancreatitis",
-        "pancreatitis",
-        "pancreatectomy",
-        "autoimmune pancreatitis",
-        "uncomplicated pancreatitis",
-    ],
-    "diverticulitis": [
-        "acute diverticulitis",
-        "diverticulitis",
-        "perforated diverticulitis",
-        "complicated diverticulitis",
-    ],
-}
+import yaml
+
+# Load text processing configuration from library data directory
+_CONFIG_PATH = Path(__file__).parent / "config_data" / "text_processing.yaml"
+
+
+def _load_config() -> dict:
+    """Load text processing configuration from YAML file."""
+    with open(_CONFIG_PATH) as f:
+        return yaml.safe_load(f)
+
+
+_config = _load_config()
+
+# Keywords loaded from configuration
+DIAGNOSIS_SCRUB_KEYWORDS = _config["diagnosis_scrub_keywords"]
+MODALITY_KEYWORDS = _config["modality_keywords"]
+REGION_KEYWORDS = _config["region_keywords"]
+BAD_RAD_FIELDS = _config["bad_rad_fields"]
 
 
 def get_pathology_type_from_string(ground_truth_diagnosis: str) -> str | None:
@@ -65,39 +66,118 @@ def scrub_text(text: str, pathology_type: str | None) -> str:
     return pattern.sub("___", text)
 
 
+def parse_report(report: str) -> dict:
+    """
+    Splits the report into a dictionary of {SECTION_HEADER: Content}.
+    Replicates logic from CDMv1 repo.
+    """
+    if not report:
+        return {}
+    lines = report.strip().split("\n")
+    report_dict = {}
+
+    # Check if the first line ends with a colon
+    if lines and lines[0].strip() and lines[0].isupper() and not lines[0].strip().endswith(":"):
+        lines[0] = lines[0].strip() + ":"
+
+    # Check for other header lines (ALL CAPS)
+    for i, line in enumerate(lines):
+        if line.isupper() and ":" not in line:
+            lines[i] = line.strip() + ":"
+
+    report = "\n".join(lines)
+    pattern = r"(?m)^([A-Z \t,._-]+):((?:(?!^[A-Z \t,._-]+:).)*)"
+    sections = re.findall(pattern, report, re.DOTALL)
+
+    for section in sections:
+        report_dict[section[0].strip()] = section[1].strip()
+
+    return report_dict
+
+
 def extract_findings_from_report(raw_report_text: str) -> str:
     """
-    Extracts only the 'findings' section from a raw radiology report
-    and discards the rest
-
-    This is the core method from the CDMv1 paper (page 11).
+    Extracts relevant sections for reasoning.
+    Prioritizes 'FINDINGS' section, falls back to removing 'bad' sections.
     """
     if not raw_report_text:
         return ""
 
-    # Use re.DOTALL so '.' matches newline characters
-    # Use re.IGNORECASE to match "FINDINGS:", "Findings:", etc.
-    # This regex captures all text between "FINDINGS:" and "IMPRESSION:"
-    match = re.search(
-        r"FINDINGS?:(.*?)(IMPRESSION:|CONCLUSIONS?:|RECOMMENDATION:|NOTIFICATION:|SUMMARY:)",
-        raw_report_text,
-        re.DOTALL | re.IGNORECASE,
-    )
+    sections = parse_report(raw_report_text)
 
-    findings_text = ""
-    if match:
-        # We found both markers, get the text in between
-        findings_text = match.group(1).strip()
-    else:
-        # If "IMPRESSION:" isn't found, try to just get the "FINDINGS:"
-        # section and hope for the best.
-        match_findings_only = re.search(
-            r"FINDINGS?:(.*?)(?:\n\s*\n[A-Z_ ]+:|\Z)", raw_report_text, re.DOTALL | re.IGNORECASE
-        )
-        if match_findings_only:
-            findings_text = match_findings_only.group(1).strip()
-        else:
-            # Could not find a "FINDINGS:" section, return empty
-            return ""
+    # Explicitly look for "FINDINGS"
+    for header, content in sections.items():
+        if "FINDINGS" in header and "SUMMARY" not in header:
+            # e.g. "FINDINGS", "CT ABDOMEN FINDINGS"
+            return content.strip()
 
-    return findings_text
+    # Fallback to Negative Filtering (CDMv1 Logic)
+    # If no explicit findings section, we construct text from all non-bad sections.
+    text_clean = ""
+
+    for field, content in sections.items():
+        # Check if field starts with any bad field string
+        is_bad = any(field.startswith(bad) for bad in BAD_RAD_FIELDS)
+
+        if not is_bad and content.strip():
+            text_clean += f"{field}:\n{content}\n\n"
+
+    return text_clean.strip()
+
+
+def derive_modality(exam_name: str, text: str) -> str:
+    """
+    Uses modality keywords to derive test modality mentioned in exam_name and text
+    """
+    if not exam_name:
+        return "Unknown"
+    exam_upper = exam_name.upper()
+
+    # Derive Modality from exam_name
+    modality = "Unknown"
+    for mod, keywords in MODALITY_KEYWORDS.items():
+        pattern = r"\b(" + "|".join(re.escape(kw) for kw in keywords) + r")\b"
+        if re.search(pattern, exam_upper):
+            modality = mod
+            break
+    if modality == "Unknown" and exam_upper.startswith("CHEST"):
+        modality = "XR"
+
+    # Further check text if modality is still unknown
+    if modality == "Unknown" and text:
+        text_upper = text.upper()
+        for mod, keywords in MODALITY_KEYWORDS.items():
+            pattern = r"\b(" + "|".join(re.escape(kw) for kw in keywords) + r")\b"
+            if re.search(pattern, text_upper):
+                modality = mod
+                break
+
+    return modality
+
+
+def derive_region(exam_name: str, text: str) -> str:
+    """
+    Uses region keywords to derive test region mentioned in exam_name and text
+    """
+    if not exam_name:
+        return "Unknown"
+    exam_upper = exam_name.upper()
+
+    # Derive Region from exam_name
+    region = "Unknown"
+    for reg, keywords in REGION_KEYWORDS.items():
+        pattern = r"\b(" + "|".join(re.escape(kw) for kw in keywords) + r")\b"
+        if re.search(pattern, exam_upper):
+            region = reg
+            break
+
+    # Further check text if region is still unknown
+    if region == "Unknown" and text:
+        text_upper = text.upper()
+        for reg, keywords in REGION_KEYWORDS.items():
+            pattern = r"\b(" + "|".join(re.escape(kw) for kw in keywords) + r")\b"
+            if re.search(pattern, text_upper):
+                region = reg
+                break
+
+    return region
