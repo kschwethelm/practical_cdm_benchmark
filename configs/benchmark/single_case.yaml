@@ -1,9 +1,10 @@
 # Path to benchmark data JSON file
 benchmark_data_path: database/output/benchmark_data.json
 
-#number of cases to run from the benchmark
-number_of_cases: 100
+# Index of the single case to run
+case_index: 0 
 
 # Mode of operation for the benchmark -> full gives full structured output with all available data,
 # tool_calling uses tool calls
 mode: "tool_calling"  # Options: "tool_calling", "full"
+
