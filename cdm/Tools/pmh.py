@@ -1,8 +1,9 @@
+from typing import Any
+
 from langchain.tools import tool
-from typing import Dict, Any
 
 
-def create_pmh_tool(case: Dict[str, Any]):
+def create_pmh_tool(case: dict[str, Any]):
     @tool
     def request_past_medical_history(test_name: str) -> str:
         """Return the patient's past medical history."""

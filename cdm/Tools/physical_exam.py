@@ -1,8 +1,9 @@
+from typing import Any
+
 from langchain.tools import tool
-from typing import Dict, Any
 
 
-def create_physical_exam_tool(case: Dict[str, Any]):
+def create_physical_exam_tool(case: dict[str, Any]):
     @tool
     def request_physical_exam(system: str) -> str:
         """Return physical exam findings for the requested body system."""

@@ -1,8 +1,9 @@
+from typing import Any
+
 from langchain.tools import tool
-from typing import Dict, Any
 
 
-def create_microbio_tool(case: Dict[str, Any]):
+def create_microbio_tool(case: dict[str, Any]):
     @tool
     def request_microbio_test(test_name: str) -> str:
         """Return microbiology results for the patient (blood/urine cultures, etc.)."""

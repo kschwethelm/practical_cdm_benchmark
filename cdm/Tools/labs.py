@@ -1,8 +1,9 @@
+from typing import Any
+
 from langchain.tools import tool
-from typing import Dict, Any
 
 
-def create_lab_tool(case: Dict[str, Any]):
+def create_lab_tool(case: dict[str, Any]):
     @tool
     def request_lab_test(test_name: str) -> str:
         """Return lab results based on the patient case."""

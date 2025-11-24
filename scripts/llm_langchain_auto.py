@@ -3,18 +3,18 @@ from pathlib import Path
 
 import hydra
 from langchain.agents import create_agent
-from langchain_core.messages import BaseMessage
-from omegaconf import DictConfig
 from langchain_openai import ChatOpenAI
 from loguru import logger
+from omegaconf import DictConfig
+
+import cdm.Tools.labs as lab_tool
+import cdm.Tools.microbio_test as micro_tool
 
 # Import tools
 import cdm.Tools.physical_exam as pe_tool
-import cdm.Tools.labs as lab_tool
-import cdm.Tools.microbio_test as micro_tool
 import cdm.Tools.pmh as pmh_tool
-from cdm.Prompts.tool_agent import prompt_template, initial_info_template
 from cdm.Prompts.parser import retry_parse
+from cdm.Prompts.tool_agent import initial_info_template, prompt_template
 
 
 def load_case(benchmark_path: Path, case_index: int) -> dict:
