@@ -7,6 +7,7 @@ from langchain_core.messages import BaseMessage
 from omegaconf import DictConfig
 from langchain_openai import ChatOpenAI
 from loguru import logger
+
 # Import tools
 import cdm.Tools.physical_exam as pe_tool
 import cdm.Tools.labs as lab_tool
@@ -37,14 +38,11 @@ def build_agent(case: dict):
         pe_tool.create_physical_exam_tool(case),
         lab_tool.create_lab_tool(case),
         micro_tool.create_microbio_tool(case),
-        pmh_tool.create_pmh_tool(case)
+        pmh_tool.create_pmh_tool(case),
     ]
 
     llm = ChatOpenAI(
-        model="default",
-        base_url="http://localhost:8000/v1",
-        api_key="EMPTY",
-        temperature=0.2
+        model="default", base_url="http://localhost:8000/v1", api_key="EMPTY", temperature=0.2
     )
 
     # Build the agent with the specified tools and system prompt
@@ -74,10 +72,12 @@ def main(cfg: DictConfig):
     llm, agent = build_agent(case)
 
     # Initial message to the agent: patient demographics and chief complaint
-    age = case.get('demographics', {}).get('age', 'unknown')
-    gender = case.get('demographics', {}).get('gender', 'unknown')
-    chief_complaint = case.get('chief_complaints', [])
-    initial_prompt = initial_info_template.format(age=age, gender=gender, chief_complaint=chief_complaint)
+    age = case.get("demographics", {}).get("age", "unknown")
+    gender = case.get("demographics", {}).get("gender", "unknown")
+    chief_complaint = case.get("chief_complaints", [])
+    initial_prompt = initial_info_template.format(
+        age=age, gender=gender, chief_complaint=chief_complaint
+    )
 
     # Invoke; inside this, the agent can call tools multiple times.
     result = agent.invoke(
@@ -95,9 +95,9 @@ def main(cfg: DictConfig):
     content = get_msg_content(result)
     max_retries = 2
     parsed = retry_parse(llm, content, max_retries)
-    if parsed: 
+    if parsed:
         print(parsed.model_dump_json(indent=2))
-    else: 
+    else:
         print(f"Unable to get correctly formatted output after {max_retries} retries")
         print(f"Raw model output: {content}")
 

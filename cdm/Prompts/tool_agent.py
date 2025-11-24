@@ -47,14 +47,10 @@ Start the clinical decision-making process.
 
 prompt_template = PromptTemplate(
     template=template,
-    input_variables=[], 
-    partial_variables={"format_instructions": format_instructions}
+    input_variables=[],
+    partial_variables={"format_instructions": format_instructions},
 )
 
 initial_prompt_template = PromptTemplate(
-  template = initial_info_template, 
-  input_variables = [
-    "age", 
-    "gender",
-    "chief_complaint"]
+    template=initial_info_template, input_variables=["age", "gender", "chief_complaint"]
 )

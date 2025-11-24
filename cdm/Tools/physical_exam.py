@@ -3,7 +3,6 @@ from typing import Dict, Any
 
 
 def create_physical_exam_tool(case: Dict[str, Any]):
-    
     @tool
     def request_physical_exam(system: str) -> str:
         """Return physical exam findings for the requested body system."""
@@ -31,5 +30,5 @@ def create_physical_exam_tool(case: Dict[str, Any]):
             return pe.get("skin", "Not documented")
         else:
             return "No such physical exam system documented."
-    
+
     return request_physical_exam

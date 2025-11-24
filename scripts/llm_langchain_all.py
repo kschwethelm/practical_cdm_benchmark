@@ -7,7 +7,7 @@ from loguru import logger
 from omegaconf import DictConfig
 
 from cdm.Prompts.all_info import prompt_template
-from cdm.Prompts.parser import parser 
+from cdm.Prompts.parser import parser
 
 
 def load_case(benchmark_path: Path, case_index: int) -> dict:
@@ -39,20 +39,24 @@ def build_llm():
 
 def gather_all_info_from_case(case):
     """Extract all lab and microbiology data directly from the case."""
-    
+
     lab_results = case.get("lab_results", [])
-    lab_text = "\n".join([
-        f"- {lab['test_name']}: {lab['value']} {lab.get('unit', '')} "
-        f"(Ref: {lab.get('ref_range_lower', 'N/A')}-{lab.get('ref_range_upper', 'N/A')})"
-        for lab in lab_results
-    ])
-    
+    lab_text = "\n".join(
+        [
+            f"- {lab['test_name']}: {lab['value']} {lab.get('unit', '')} "
+            f"(Ref: {lab.get('ref_range_lower', 'N/A')}-{lab.get('ref_range_upper', 'N/A')})"
+            for lab in lab_results
+        ]
+    )
+
     microbio_events = case.get("microbiology_events", [])
-    microbio_text = "\n".join([
-        f"- {event['test_name']}: {event['organism_name']} ({event['interpretation']})"
-        for event in microbio_events
-    ])
-    
+    microbio_text = "\n".join(
+        [
+            f"- {event['test_name']}: {event['organism_name']} ({event['interpretation']})"
+            for event in microbio_events
+        ]
+    )
+
     return lab_text, microbio_text
 
 
@@ -110,12 +114,13 @@ def main(cfg: DictConfig):
     result = llm.invoke([{"role": "user", "content": prompt}])
 
     print("\n=== MODEL OUTPUT ===\n")
-    try: 
-        parsed = parser.parse(result.content) 
+    try:
+        parsed = parser.parse(result.content)
         print(parsed.model_dump_json(indent=2))
-    except: 
+    except:
         print("Unable to get correctly formatted output")
         print(f"Raw model output: {result.content}")
+
 
 if __name__ == "__main__":
     main()

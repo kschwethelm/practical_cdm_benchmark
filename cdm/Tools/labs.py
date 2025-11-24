@@ -3,7 +3,6 @@ from typing import Dict, Any
 
 
 def create_lab_tool(case: Dict[str, Any]):
-    
     @tool
     def request_lab_test(test_name: str) -> str:
         """Return lab results based on the patient case."""
@@ -33,8 +32,13 @@ def create_lab_tool(case: Dict[str, Any]):
                     test_line += f" {lab.get('unit')}"
                 if lab.get("flag"):
                     test_line += f" [{lab.get('flag')}]"
-                if lab.get("ref_range_lower") is not None and lab.get("ref_range_upper") is not None:
-                    test_line += f" (ref: {lab.get('ref_range_lower')}-{lab.get('ref_range_upper')})"
+                if (
+                    lab.get("ref_range_lower") is not None
+                    and lab.get("ref_range_upper") is not None
+                ):
+                    test_line += (
+                        f" (ref: {lab.get('ref_range_lower')}-{lab.get('ref_range_upper')})"
+                    )
                 result_lines.append(test_line)
             return "\n".join(result_lines)
 
@@ -50,5 +54,5 @@ def create_lab_tool(case: Dict[str, Any]):
                 return result
 
         return f"No lab result found for test: {test_name}"
-    
+
     return request_lab_test

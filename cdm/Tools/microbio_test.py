@@ -3,7 +3,6 @@ from typing import Dict, Any
 
 
 def create_microbio_tool(case: Dict[str, Any]):
-    
     @tool
     def request_microbio_test(test_name: str) -> str:
         """Return microbiology results for the patient (blood/urine cultures, etc.)."""
@@ -52,5 +51,5 @@ def create_microbio_tool(case: Dict[str, Any]):
                 return result
 
         return f"No microbiology result found for test: {test_name}"
-    
+
     return request_microbio_test

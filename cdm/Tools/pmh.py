@@ -3,7 +3,6 @@ from typing import Dict, Any
 
 
 def create_pmh_tool(case: Dict[str, Any]):
-    
     @tool
     def request_past_medical_history(test_name: str) -> str:
         """Return the patient's past medical history."""
@@ -18,5 +17,5 @@ def create_pmh_tool(case: Dict[str, Any]):
             result += f"- Category: {category}\n  Note: {note}\n"
 
         return result
-    
+
     return request_past_medical_history
