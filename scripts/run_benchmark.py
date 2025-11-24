@@ -6,10 +6,10 @@ from langchain_openai import ChatOpenAI
 from loguru import logger
 from omegaconf import DictConfig
 
-import cdm.Tools.labs as lab_tool
-import cdm.Tools.microbio_test as microbio_tool
-import cdm.Tools.physical_exam as pe_tool
-import cdm.Tools.pmh as pmh_tool
+import cdm.tools.labs as lab_tool
+import cdm.tools.microbio_test as microbio_tool
+import cdm.tools.physical_exam as pe_tool
+import cdm.tools.pmh as pmh_tool
 from cdm.eval.benchmark_evaluator import BenchmarkEvaluator, acc_metrics
 
 

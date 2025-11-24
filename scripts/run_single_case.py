@@ -7,12 +7,12 @@ from langchain_openai import ChatOpenAI
 from loguru import logger
 from omegaconf import DictConfig
 
-import cdm.Tools.labs as lab_tool
-import cdm.Tools.microbio_test as micro_tool
-import cdm.Tools.physical_exam as pe_tool
-import cdm.Tools.pmh as pmh_tool
-from cdm.Prompts.parser import retry_parse
-from cdm.Prompts.tool_agent import initial_info_template, prompt_template
+import cdm.tools.labs as lab_tool
+import cdm.tools.microbio_test as micro_tool
+import cdm.tools.physical_exam as pe_tool
+import cdm.tools.pmh as pmh_tool
+from cdm.prompts.parser import retry_parse
+from cdm.prompts.tool_agent import initial_info_template, prompt_template
 
 
 def load_case(benchmark_path: Path, case_index: int) -> dict:

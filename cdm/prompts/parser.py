@@ -3,7 +3,7 @@ from typing import Literal
 from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 
-from cdm.Prompts.retry import retry_prompt_template
+from cdm.prompts.retry import retry_prompt_template
 
 
 class FullInfoOutput(BaseModel):
