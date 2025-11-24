@@ -38,10 +38,10 @@ def build_llm():
 def gather_all_tool_info(case):
     """Gather all physical exam systems and lab results using the tools."""
 
-    pe_tool.CURRENT_CASE = case
-    lab_tool.CURRENT_CASE = case
-    microbio_tool.CURRENT_CASE = case
-    pmh_tool.CURRENT_CASE = case
+    pe_tool_instance = pe_tool.create_physical_exam_tool(case)
+    lab_tool_instance = lab_tool.create_lab_tool(case)
+    microbio_tool_instance = microbio_tool.create_microbio_tool(case)
+    pmh_tool_instance = pmh_tool.create_pmh_tool(case)
 
     # Gather physical exam findings
     systems = [
@@ -58,20 +58,19 @@ def gather_all_tool_info(case):
     texts = []
 
     for s in systems:
-        # pe_tool is a StructuredTool -> use invoke()
-        result = pe_tool.request_physical_exam.invoke({"system": s})
+        result = pe_tool_instance.invoke({"system": s})
         texts.append(f"- {s}: {result}")
 
     physical_exam_text = "\n\n".join(texts)
 
     # Gather lab results
-    lab_text = lab_tool.request_lab_test.invoke({"test_name": "all"})
+    lab_text = lab_tool_instance.invoke({"test_name": "all"})
 
     # Gather microbiology results
-    microbio_text = microbio_tool.request_microbio_test.invoke({"test_name": "all"})
+    microbio_text = microbio_tool_instance.invoke({"test_name": "all"})
 
     # Gather past medical history
-    pmh_text = pmh_tool.request_past_medical_history.invoke({"test_name": "all"})
+    pmh_text = pmh_tool_instance.invoke({"test_name": "all"})
 
     return physical_exam_text, lab_text, microbio_text, pmh_text
 

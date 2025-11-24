@@ -43,14 +43,15 @@ def build_llm():
 def gather_all_tool_info(case):
     """Gather all physical exam systems and lab results using the tools."""
 
-    lab_tool.CURRENT_CASE = case
-    microbio_tool.CURRENT_CASE = case
+    # Create tools with case context
+    lab_test_tool = lab_tool.create_lab_tool(case)
+    microbio_test_tool = microbio_tool.create_microbio_tool(case)
 
     # Gather lab results (e.g Barbiturate Screen because of token limit)
-    lab_text = lab_tool.request_lab_test.invoke({"test_name": "Barbiturate Screen"})
+    lab_text = lab_test_tool.invoke({"test_name": "Barbiturate Screen"})
 
     # Gather microbiology results
-    microbio_text = microbio_tool.request_microbio_test.invoke({"test_name": "all"})
+    microbio_text = microbio_test_tool.invoke({"test_name": "all"})
 
     return lab_text, microbio_text
 

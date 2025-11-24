@@ -31,9 +31,14 @@ def load_case(benchmark_path: Path, case_index: int) -> dict:
     return cases[case_index]
 
 
-def build_agent():
+def build_agent(case: dict):
     """Build a LangChain agent with tool calling capabilities."""
-    tools = [pe_tool.request_physical_exam, lab_tool.request_lab_test, micro_tool.request_microbio_test, pmh_tool.request_past_medical_history]
+    tools = [
+        pe_tool.create_physical_exam_tool(case),
+        lab_tool.create_lab_tool(case),
+        micro_tool.create_microbio_tool(case),
+        pmh_tool.create_pmh_tool(case)
+    ]
 
     llm = ChatOpenAI(
         model="default",
@@ -64,22 +69,15 @@ def main(cfg: DictConfig):
     print(f"Using case: hadm_id={case['hadm_id']}")
     print(f"Ground truth diagnosis: {case['ground_truth']['primary_diagnosis']}\n")
 
-    # Set the CURRENT_CASE for tools
-    pe_tool.CURRENT_CASE = case
-    lab_tool.CURRENT_CASE = case
-    micro_tool.CURRENT_CASE = case
-    pmh_tool.CURRENT_CASE = case
-
-    # Build the agent (with memory)
+    # Build the agent (with memory) - pass case to build_agent
     print(prompt_template.format())
-    llm, agent = build_agent()
+    llm, agent = build_agent(case)
 
     # Initial message to the agent: patient demographics and chief complaint
     age = case.get('demographics', {}).get('age', 'unknown')
     gender = case.get('demographics', {}).get('gender', 'unknown')
     chief_complaint = case.get('chief_complaints', [])
     initial_prompt = initial_info_template.format(age=age, gender=gender, chief_complaint=chief_complaint)
-
 
     # Invoke; inside this, the agent can call tools multiple times.
     result = agent.invoke(
