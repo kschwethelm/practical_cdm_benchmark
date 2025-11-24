@@ -64,14 +64,21 @@ def gather_all_tool_info(case):
 
     # Gather physical exam findings
     systems = [
-        "general", "vitals", "abdominal", "cardiovascular", 
-        "pulmonary", "neurological", "heent", "extremities", "skin"
+        "general",
+        "vitals",
+        "abdominal",
+        "cardiovascular",
+        "pulmonary",
+        "neurological",
+        "heent",
+        "extremities",
+        "skin",
     ]
     texts = []
     for s in systems:
         result = pe_tool_instance.invoke({"system": s})
         texts.append(f"- {s}: {result}")
-    
+
     physical_exam_text = "\n\n".join(texts)
     lab_text = lab_tool_instance.invoke({"test_name": "all"})
     microbio_text = microbio_tool_instance.invoke({"test_name": "all"})
@@ -83,9 +90,9 @@ def gather_all_tool_info(case):
 def run_tool_calling_mode(case: dict, llm: ChatOpenAI):
     """Run with tool calling: agent decides which tools to call."""
     logger.info("Running in tool_calling mode (agent with tools)")
-    
+
     agent = build_agent(case, llm)
-    
+
     # Initial message to the agent
     age = case.get("demographics", {}).get("age", "unknown")
     gender = case.get("demographics", {}).get("gender", "unknown")
@@ -94,35 +101,33 @@ def run_tool_calling_mode(case: dict, llm: ChatOpenAI):
         age=age, gender=gender, chief_complaint=chief_complaint
     )
 
-    result = agent.invoke({
-        "messages": [{"role": "user", "content": initial_prompt}]
-    })
+    result = agent.invoke({"messages": [{"role": "user", "content": initial_prompt}]})
 
     content = result["messages"][-1].content
     parsed = retry_parse(llm, content, max_retries=2)
-    
+
     return parsed, content
 
 
 def run_full_mode(case: dict, llm: ChatOpenAI):
     """Run with full information provided upfront."""
     logger.info("Running in full mode (all data upfront)")
-    
+
     # Gather all info
     physical_exam_text, labs_text, microbio_text, pmh_text = gather_all_tool_info(case)
-    
+
     # Extract demographics
     demographics = case.get("demographics", {})
     age = demographics.get("age", "unknown")
     gender = demographics.get("gender", "unknown")
-    
+
     # Extract chief complaints
     chief_complaints = case.get("chief_complaints", [])
     if isinstance(chief_complaints, list):
         chief_complaints_str = ", ".join(chief_complaints)
     else:
         chief_complaints_str = str(chief_complaints)
-    
+
     # System prompt
     system_prompt = (
         "You are a medical assistant. You directly diagnose patients based on the provided information.\n"
@@ -146,7 +151,7 @@ def run_full_mode(case: dict, llm: ChatOpenAI):
         '  "treatment_plan": "<2-4 sentences>"\n'
         "}\n"
     )
-    
+
     user_input = (
         f"PATIENT DEMOGRAPHICS:\n"
         f"- Age: {age}\n"
@@ -163,29 +168,28 @@ def run_full_mode(case: dict, llm: ChatOpenAI):
         f"{microbio_text}\n\n"
         "Using ALL of the above information, return the JSON."
     )
-    
-    result_msg = llm.invoke([
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_input}
-    ])
-    
+
+    result_msg = llm.invoke(
+        [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_input}]
+    )
+
     content = result_msg.content
-    
+
     try:
         parsed = json.loads(content)
     except json.JSONDecodeError:
         parsed = None
-    
+
     return parsed, content
 
 
 @hydra.main(version_base=None, config_path="../configs/benchmark", config_name="single_case")
 def main(cfg: DictConfig):
     """Debug script to run a single case with either tool_calling or full mode."""
-    
+
     # Get mode from config (default to 'tool_calling')
     mode = cfg.get("mode", "tool_calling")  # 'tool_calling' or 'full'
-    
+
     # Load the case
     base_dir = Path(__file__).parent.parent
     benchmark_path = base_dir / cfg.benchmark_data_path
@@ -198,7 +202,7 @@ def main(cfg: DictConfig):
 
     # Build LLM
     llm = build_llm()
-    
+
     # Run appropriate mode
     if mode == "tool_calling":
         parsed, content = run_tool_calling_mode(case, llm)
