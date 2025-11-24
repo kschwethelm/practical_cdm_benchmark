@@ -6,9 +6,6 @@ from langchain_openai import ChatOpenAI
 from loguru import logger
 from omegaconf import DictConfig
 
-import cdm.Tools.labs as lab_tool
-import cdm.Tools.microbio_test as microbio_tool
-
 from cdm.Prompts.all_info import prompt_template
 from cdm.Prompts.parser import parser 
 
@@ -40,19 +37,22 @@ def build_llm():
     )
 
 
-def gather_all_tool_info(case):
-    """Gather all physical exam systems and lab results using the tools."""
-
-    # Create tools with case context
-    lab_test_tool = lab_tool.create_lab_tool(case)
-    microbio_test_tool = microbio_tool.create_microbio_tool(case)
-
-    # Gather lab results (e.g Barbiturate Screen because of token limit)
-    lab_text = lab_test_tool.invoke({"test_name": "Barbiturate Screen"})
-
-    # Gather microbiology results
-    microbio_text = microbio_test_tool.invoke({"test_name": "all"})
-
+def gather_all_info_from_case(case):
+    """Extract all lab and microbiology data directly from the case."""
+    
+    lab_results = case.get("lab_results", [])
+    lab_text = "\n".join([
+        f"- {lab['test_name']}: {lab['value']} {lab.get('unit', '')} "
+        f"(Ref: {lab.get('ref_range_lower', 'N/A')}-{lab.get('ref_range_upper', 'N/A')})"
+        for lab in lab_results
+    ])
+    
+    microbio_events = case.get("microbiology_events", [])
+    microbio_text = "\n".join([
+        f"- {event['test_name']}: {event['organism_name']} ({event['interpretation']})"
+        for event in microbio_events
+    ])
+    
     return lab_text, microbio_text
 
 
@@ -74,7 +74,7 @@ def main(cfg: DictConfig):
     llm = build_llm()
 
     # Gather info from tools at once
-    labs_text, microbio_text = gather_all_tool_info(case)
+    labs_text, microbio_text = gather_all_info_from_case(case)
 
     # Extract demographics
     demographics = case.get("demographics", {})
