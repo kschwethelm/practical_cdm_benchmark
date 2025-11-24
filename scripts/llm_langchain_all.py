@@ -117,8 +117,8 @@ def main(cfg: DictConfig):
     try:
         parsed = parser.parse(result.content)
         print(parsed.model_dump_json(indent=2))
-    except:
-        print("Unable to get correctly formatted output")
+    except Exception as e:
+        print(f"Unable to get correctly formatted output: {e}")
         print(f"Raw model output: {result.content}")
 
 
