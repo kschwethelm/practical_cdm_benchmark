@@ -6,5 +6,5 @@ case_index: 0
 
 # Mode of operation for the benchmark -> full gives full structured output with all available data,
 # tool_calling uses tool calls
-mode: "tool_calling"  # Options: "tool_calling", "full"
+mode: "full"  # Options: "tool_calling", "full"
 
