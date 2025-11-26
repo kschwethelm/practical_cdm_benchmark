@@ -12,7 +12,7 @@ from loguru import logger
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from cdm.benchmark.models import (
+from cdm.benchmark.data_models import (
     BenchmarkDataset,
     Demographics,
     DetailedLabResult,

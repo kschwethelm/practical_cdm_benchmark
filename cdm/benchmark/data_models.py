@@ -101,8 +101,17 @@ class BenchmarkDataset(BaseModel):
     cases: list[HadmCase] = Field(default_factory=list)
 
 
-class DiagnosisOutput(BaseModel):
+class BenchmarkOutputCDM(BaseModel):
     """Structured output from LLM clinical decision-making"""
 
+    thought: str = Field(
+        description="Reflect on the gathered information and explain the reasoning for the final diagnosis"
+    )
+    final_diagnosis: str = Field(description="The final diagnosis to the original case")
+    treatment: list[str] = Field(description="The treatment for the given diagnosis")
+
+
+class BenchmarkOutputFullInfo(BaseModel):
+    """Structured output from LLM clinical decision-making with full information"""
+
     diagnosis: str
-    treatment: list[str]

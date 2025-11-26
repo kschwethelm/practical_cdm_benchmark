@@ -22,45 +22,31 @@ This repository follows industry best practices for Python ML projects:
 ```
 practical_cdm_benchmark/
 ├── cdm/                          # Main library (reusable components)
-│   ├── benchmark/                # Benchmark data models and utilities
-│   │   ├── data_models.py       # Pydantic models for cases
-│   │   └── utils.py             # Benchmark utility functions
+│   ├── benchmark/                # Benchmark data models
+│   │   └── models.py            # Pydantic models for cases, diagnoses
 │   ├── database/                 # Database utilities
 │   │   ├── connection.py        # DB connection management
-│   │   ├── queries.py           # Reusable SQL queries
-│   │   └── utils.py             # Database helper functions
-│   ├── llms/                     # LLM agents and inference
-│   │   └── agent.py             # LLM agent implementation
-│   ├── prompts/                  # Prompt templates
-│   │   ├── cdm.py               # Clinical decision-making prompts
-│   │   └── full_info.py         # Full information baseline prompts
-│   └── tools/                    # Clinical tools for LLM agents
-│       ├── labs.py              # Laboratory test queries
-│       ├── microbiology.py      # Microbiology test queries
-│       └── physical_exam.py     # Physical examination queries
+│   │   └── queries.py           # Reusable SQL queries
+│   └── llms/                     # LLM inference utilities
+│       ├── vllm_config.py       # vLLM configuration
+│       ├── vllm_inference.py    # vLLM client wrapper
+│       └── data_models.py       # Pydantic models for LLM I/O
 ├── configs/                      # Hydra configuration files
-│   ├── benchmark/               # Benchmark configs
-│   │   ├── base.yaml            # Base configuration
-│   │   ├── cdm.yaml             # CDM workflow config
-│   │   └── full_info.yaml       # Full information baseline config
-│   ├── database/                # Database configs
-│   │   └── benchmark_creation.yaml
-│   └── vllm_config/             # vLLM model configs
-│       └── qwen3_4B.yaml
+│   ├── benchmark/               # Benchmark configs (demo.yaml)
+│   ├── database/                # Database configs (benchmark_creation.yaml)
+│   └── vllm_config/             # vLLM model configs (qwen3_4B.yaml)
 ├── database/                     # Database setup and creation
 │   ├── sql/                     # SQL scripts for DB creation
 │   ├── create_benchmark.py      # Script to create benchmark JSON
 │   └── README.md                # Database schema documentation
 ├── scripts/                      # Executable scripts
-│   ├── run_benchmark_cdm.py     # Run CDM benchmark
-│   └── run_benchmark_full_info.py # Run full information baseline
+│   ├── demo_clinical_workflow.py # Educational demo of clinical reasoning
+│   └── vllm_test.py             # Test vLLM setup
 ├── tests/                        # Test suite
 │   ├── integration/             # Integration tests (database, API)
-│   │   └── database/            # Database connection tests
 │   └── unit/                    # Unit tests
-│       └── llms/                # LLM agent tests
-│           └── test_agent.py
 └── slurm/                        # Cluster job scripts
+
 ```
 
 **Key Technologies:**
@@ -141,6 +127,77 @@ Register here: https://about.citiprogram.org
    DB_USER="student"
    DB_PWD="student"
    ```
+
+## Quick Start Guide
+
+### 1. vLLM Setup
+
+vLLM uses a **server-client architecture**: the server loads the model into GPU memory once and exposes an OpenAI-compatible API at `http://localhost:8000`. Your scripts act as clients sending requests to this server.
+
+**Local PC/Workstation:**
+
+```bash
+# Terminal 1: Start server (wait for "Application startup complete")
+uv run vllm serve --config configs/vllm_config/qwen3_4B.yaml
+
+# Terminal 2: Run test script
+uv run scripts/vllm_test.py
+```
+
+**Cluster (Slurm):**
+
+```bash
+# Update download_dir in configs/vllm_config/qwen3_4B.yaml to /vol/miltank/projects/LLMs
+sbatch slurm/vllm_test.sbatch
+```
+
+**Note:** Model weights are stored in `/srv/llm-weights` (workstation) or `/vol/miltank/projects/LLMs` (cluster). See `download_dir` in config files.
+
+The test script demonstrates structured JSON output with Pydantic models and OpenAI API integration.
+
+### 2. Create Benchmark Dataset
+
+Generate a structured JSON benchmark from database cases:
+
+```bash
+uv run database/create_benchmark.py
+```
+
+Reads admission IDs from [database/hadm_id_list.txt](database/hadm_id_list.txt), queries the database, and saves structured data to `database/output/benchmark_data.json`. Using JSON enables version control, reproducibility, and faster ML iteration.
+
+### 3. Run Clinical Workflow Demo
+
+Demonstrates LLM-based clinical reasoning (information gathering → diagnosis → treatment):
+
+```bash
+uv run scripts/demo_clinical_workflow.py  # Requires benchmark JSON from step 2
+```
+
+### 4. Explore the Database
+
+The dataset contains **2,333 hospital admissions** with demographics, diagnoses, labs, medications, and clinical notes. See [database/README.md](database/README.md) for complete schema documentation.
+
+**Query examples:**
+
+```python
+from cdm.database import get_db_connection, get_demographics, get_first_diagnosis
+
+conn = get_db_connection()  # Uses .env configuration
+cursor = conn.cursor()
+
+# Helper functions
+demographics = get_demographics(cursor, hadm_id=20001800)
+diagnosis = get_first_diagnosis(cursor, hadm_id=20001800)
+
+# Raw SQL
+cursor.execute("""
+    SELECT charttime, itemid, valuenum, valueuom
+    FROM cdm_hosp.labevents
+    WHERE hadm_id = %s
+    ORDER BY charttime
+""", (20001800,))
+labs = cursor.fetchall()
+```
 
 ## Testing
 

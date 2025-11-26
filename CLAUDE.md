@@ -47,13 +47,15 @@ uv run database/create_benchmark.py
 # Admission IDs: database/hadm_id_list.txt (2,333 cases)
 ```
 
-### Running Scripts
+### Running Benchmarks
 ```bash
-# Demo clinical workflow with LLM
-uv run scripts/demo_clinical_workflow.py
+# Run CDM benchmark with tool calling (requires vLLM server + benchmark JSON)
+uv run scripts/run_benchmark_cdm.py
 
-# Test vLLM setup (requires server running)
-uv run scripts/vllm_test.py
+# Run full information baseline (requires vLLM server + benchmark JSON)
+uv run scripts/run_benchmark_full_info.py
+
+# Configuration files: configs/benchmark/cdm.yaml and configs/benchmark/full_info.yaml
 ```
 
 ### vLLM Server/Client
@@ -81,16 +83,28 @@ sbatch slurm/vllm_test.sbatch
 The project uses a **library + scripts** pattern:
 
 - **`cdm/`** - Reusable library code (import from here, don't duplicate)
-  - `benchmark/models.py` - Pydantic models for clinical cases and LLM outputs
+  - `benchmark/data_models.py` - Pydantic models for LLM outputs (BenchmarkOutputCDM, BenchmarkOutputFullInfo)
+  - `benchmark/utils.py` - Benchmark utility functions (load_cases, etc.)
   - `database/connection.py` - Database connection utilities
   - `database/queries.py` - Reusable SQL query functions
-  - `llms/vllm_inference.py` - vLLM client wrapper
-  - `llms/vllm_config.py` - vLLM configuration management
-  - `llms/data_models.py` - Pydantic models for LLM I/O
+  - `database/utils.py` - Database helper functions
+  - `llms/agent.py` - LangChain agent with tool calling (build_agent, run_agent, build_llm)
+  - `prompts/cdm.py` - Clinical decision-making prompts (tool-calling workflow)
+  - `prompts/full_info.py` - Full information baseline prompts
+  - `tools/` - Clinical information tools for agent
+    - `physical_exam.py` - Physical examination queries
+    - `labs.py` - Laboratory test queries
+    - `microbiology.py` - Microbiology test queries
+    - `__init__.py` - AVAILABLE_TOOLS registry
 
 - **`scripts/`** - Executable scripts (use `cdm/` library)
+  - `run_benchmark_cdm.py` - Run CDM benchmark with tool calling
+  - `run_benchmark_full_info.py` - Run full information baseline
 - **`database/`** - Database setup and benchmark creation
 - **`configs/`** - Hydra YAML configurations (never hardcode parameters)
+  - `benchmark/base.yaml` - Base configuration (shared settings)
+  - `benchmark/cdm.yaml` - CDM workflow configuration
+  - `benchmark/full_info.yaml` - Full information baseline configuration
 - **`slurm/`** - Cluster job submission scripts
 
 ### Key Technologies
@@ -98,6 +112,7 @@ The project uses a **library + scripts** pattern:
 - **uv** - Python package manager (replaces pip/conda)
 - **Hydra** - Configuration management via YAML files
 - **Pydantic** - Data validation and structured outputs (ALL data structures should be Pydantic models)
+- **LangChain** - Agent framework with tool calling for clinical decision-making workflows
 - **vLLM** - High-performance LLM serving (server-client architecture)
 - **psycopg** - PostgreSQL adapter for database queries
 - **Loguru** - Logging (`from loguru import logger`)
@@ -148,37 +163,42 @@ DB_USER="postgres"
 All data structures use Pydantic for validation:
 
 ```python
-from cdm.benchmark.models import HadmCase, Demographics, LabResult, DiagnosisOutput
+from cdm.benchmark.data_models import BenchmarkOutputCDM, BenchmarkOutputFullInfo
 
-# Example case structure
-case = HadmCase(
-    hadm_id=12345,
-    demographics=Demographics(age=65, gender="M"),
-    chief_complaints=["chest pain", "shortness of breath"],
-    diagnosis="Acute myocardial infarction"
+# CDM workflow output (with tool calling)
+output = BenchmarkOutputCDM(
+    thought="Based on fever, cough, and chest X-ray findings...",
+    final_diagnosis="Community-acquired pneumonia",
+    treatment=["Antibiotics", "Oxygen therapy", "IV fluids"]
 )
 
-# LLM structured output
-output = DiagnosisOutput(
-    diagnosis="Community-acquired pneumonia",
-    treatment=["Antibiotics", "Oxygen therapy", "IV fluids"]
+# Full information baseline output
+output = BenchmarkOutputFullInfo(
+    diagnosis="Community-acquired pneumonia"
 )
 ```
 
-### vLLM Server/Client Architecture
+### LLM Architecture
 
-vLLM uses a **server-client model**:
+**vLLM Server-Client Model:**
 - **Server** loads model into GPU memory once, exposes OpenAI-compatible API at `http://localhost:8000`
-- **Client** sends requests via OpenAI API (see `cdm/llms/vllm_inference.py`)
+- **Client** uses LangChain's ChatOpenAI to communicate with server (see `cdm/llms/agent.py`)
 
 Benefits:
 - Load model once, use many times (efficient GPU usage)
 - Supports concurrent requests and batching
 - Multiple scripts can share same server
 
-Configuration: `configs/vllm_config/qwen3_4B.yaml`
+**Agent-Based Clinical Decision Making:**
+- **Agent** (`build_agent`) - LangChain agent with tool calling capabilities
+- **Tools** - Clinical information retrieval (physical exam, labs, microbiology)
+- **Prompts** - System and user prompts for CDM workflow (`cdm/prompts/cdm.py`)
+- Tool registry in `cdm/tools/__init__.py` allows dynamic tool selection via config
+
+Configuration:
+- vLLM: `configs/vllm_config/qwen3_4B.yaml`
+- Benchmark: `configs/benchmark/cdm.yaml` (tools, temperature, etc.)
 - Model download directory: `/vol/miltank/projects/LLMs` (cluster)
-- Supports prefix caching and speculative decoding
 
 ### Hydra Configuration
 
@@ -188,21 +208,28 @@ All parameters stored in `configs/` YAML files, loaded via Hydra:
 import hydra
 from omegaconf import DictConfig
 
-@hydra.main(config_path="../configs/benchmark", config_name="demo", version_base="1.3")
+@hydra.main(version_base=None, config_path="../configs/benchmark", config_name="cdm")
 def main(cfg: DictConfig):
-    # Access config: cfg.parameter_name
-    pass
+    # Access config parameters
+    cases = load_cases(cfg.benchmark_data_path, cfg.num_cases)
+    llm = build_llm(cfg.base_url, cfg.temperature)
+    agent = build_agent(case, llm, cfg.enabled_tools)
 ```
+
+**Configuration inheritance:**
+- `configs/benchmark/cdm.yaml` inherits from `base.yaml` using `defaults: [base, _self_]`
+- Override configs on command line: `uv run scripts/run_benchmark_cdm.py num_cases=5 temperature=0.7`
 
 ## Development Guidelines
 
 1. **Import from `cdm/` library** - Never duplicate code, always reuse from library
-2. **Define Pydantic models** - All data structures should be Pydantic models
-3. **Use Hydra configs** - Store parameters in YAML, never hardcode
-4. **Log with Loguru** - Use `logger.info()`, `logger.error()`, etc.
-5. **Format with Ruff** - Run `uv run ruff format .` before every commit (or use pre-commit hooks)
-6. **Run tests** - Use `uv run pytest` to verify changes
-7. **Never commit data** - Only commit code, never data/outputs/logs
+2. **Define Pydantic models** - All data structures should be Pydantic models (see `cdm/benchmark/data_models.py`)
+3. **Use Hydra configs** - Store parameters in YAML, never hardcode (see `configs/benchmark/`)
+4. **Register new tools** - Add to `AVAILABLE_TOOLS` in `cdm/tools/__init__.py`
+5. **Log with Loguru** - Use `logger.info()`, `logger.error()`, etc.
+6. **Format with Ruff** - Run `uv run ruff format .` before every commit (or use pre-commit hooks)
+7. **Run tests** - Use `uv run pytest` to verify changes
+8. **Never commit data** - Only commit code, never data/outputs/logs
 
 ### Testing
 
@@ -264,35 +291,57 @@ cursor.execute("""
 """, (hadm_id,))
 ```
 
-### LLM Inference
+### Building and Running LLM Agent
 ```python
-from cdm.llms import VLLMServeClient, vLLM_Config
-from cdm.llms.data_models import Chat
+from cdm.llms.agent import build_llm, build_agent, run_agent
+from cdm.benchmark.data_models import BenchmarkOutputCDM
 
-# Initialize client
-config = vLLM_Config(...)
-client = VLLMServeClient(config)
+# Build LLM client (connects to vLLM server)
+llm = build_llm(base_url="http://localhost:8000/v1", temperature=0.0)
 
-# Create chat
-chat = Chat()
-chat.add_user_message("What is the diagnosis?")
+# Build agent with tools
+agent = build_agent(
+    case=case_dict,
+    llm=llm,
+    enabled_tools=["physical_exam", "lab", "microbiology"]
+)
 
-# Get response (async)
-response = await client.generate_content(chat)
+# Run agent with patient information
+output: BenchmarkOutputCDM = run_agent(agent, patient_info)
+print(output.final_diagnosis, output.treatment)
+```
+
+### Creating Custom Clinical Tools
+```python
+from langchain_core.tools import tool
+
+@tool
+def create_my_tool(case: dict):
+    """Query custom clinical information."""
+    hadm_id = case["hadm_id"]
+
+    def tool_function(query: str) -> str:
+        """Tool description for LLM."""
+        # Query database or perform computation
+        return result
+
+    return tool_function
+
+# Register in cdm/tools/__init__.py
+AVAILABLE_TOOLS["my_tool"] = create_my_tool
 ```
 
 ### Loading Benchmark Data
 ```python
-from cdm.benchmark.models import BenchmarkDataset
+from cdm.benchmark.utils import load_cases
 
-# Load from JSON
-dataset = BenchmarkDataset.model_validate_json(
-    Path("database/output/benchmark_data.json").read_text()
-)
+# Load cases from JSON
+cases = load_cases("database/output/benchmark_data.json", num_cases=10)
 
-# Access cases
-for case in dataset.cases:
-    print(case.hadm_id, case.demographics)
+# Access case data
+for case in cases:
+    print(case["hadm_id"], case["history_of_present_illness"])
+    print(case["ground_truth"]["primary_diagnosis"])
 ```
 
 ## Important Reminders
@@ -300,5 +349,7 @@ for case in dataset.cases:
 - **MIMIC data is protected** - Complete training at https://physionet.org/content/mimiciv/view-required-training/3.1/#1
 - **Never commit patient data** - Only commit code
 - **Always format before commit** - `uv run ruff format .`
-- **Use Pydantic models** - For all data structures
-- **vLLM is server-client** - Start server first, then run client scripts
+- **Use Pydantic models** - For all data structures (see `cdm/benchmark/data_models.py`)
+- **vLLM is server-client** - Start server first (`uv run vllm serve --config ...`), then run benchmark scripts
+- **Agent architecture** - Use LangChain agents with tool calling for CDM workflows
+- **Register new tools** - Add to `AVAILABLE_TOOLS` in `cdm/tools/__init__.py`
