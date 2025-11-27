@@ -93,5 +93,9 @@ def run_agent(agent, patient_info: str) -> BenchmarkOutputCDM:
         }
     )
 
-    # Parse model output
-    return BenchmarkOutputCDM.model_validate_json(response["messages"][-1].content)
+    try:
+        return BenchmarkOutputCDM.model_validate_json(response["messages"][-1].content)
+    except Exception as e:
+        logger.error(f"Failed to parse agent response: {e}")
+        logger.error(f"Response: {response['messages'][-1].content}")
+        raise
