@@ -11,7 +11,7 @@ Provide the most likely final diagnosis of the following patient.
 You are given ALL available diagnostic information at once.
 
 Return your answer in the following format:
-{format_instructions}"""
+{{ format_instructions }}"""
 
 format_instructions = """
 Return your answer as a JSON object with exactly these fields:
@@ -24,14 +24,14 @@ Do not include any extra text outside the JSON.
 full_info = """Diagnose the patient based on the following information.
 
 PATIENT DEMOGRAPHICS:
-- Age: {age}
-- Gender: {gender}
+- Age: {{ age }}
+- Gender: {{ gender }}
 
 HISTORY OF PRESENT ILLNESS:
-{history_of_present_illness}
+{{ history_of_present_illness }}
 
 PHYSICAL EXAMINATION:
-{physical_examination}
+{{ physical_examination }}
 
 Use ALL information above and return in JSON format.
 """
@@ -39,6 +39,7 @@ Use ALL information above and return in JSON format.
 
 full_info_prompt_template = PromptTemplate(
     template=full_info,
+    template_format="jinja2",
     input_variables=[
         "age",
         "gender",
@@ -46,4 +47,4 @@ full_info_prompt_template = PromptTemplate(
         "physical_examination",
     ],
 )
-system_prompt_template = system_prompt.format(format_instructions=format_instructions)
+system_prompt_template = system_prompt.replace("{{ format_instructions }}", format_instructions)
