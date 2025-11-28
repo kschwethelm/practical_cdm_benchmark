@@ -12,12 +12,9 @@ Use the tools to gather physical exam and lab results.
 format_instructions = """
 Give your final response in JSON using this schema:
 {
-  // Reflect on the gathered information and explain the reasoning for the final diagnosis
-  thought: str
-  // The  final diagnosis based on the case information
-  final_diagnosis: str
-  // The treatment for the given diagnosis
-  treatment: list[str]
+  "thought": "<string: Reflect on the gathered information and explain the reasoning>",
+  "final_diagnosis": "<string: The final diagnosis based on the case information>",
+  "treatment": ["<array of strings: Treatment recommendations>"]
 }"""
 
 user_prompt = """Consider the following case and come to a final diagnosis and treatment by thinking, planning, and using the aforementioned tools and format.

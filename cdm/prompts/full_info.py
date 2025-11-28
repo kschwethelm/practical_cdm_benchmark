@@ -1,6 +1,5 @@
 from langchain_core.prompts import PromptTemplate
 
-
 system_prompt = """You are a medical artificial intelligence assistant. 
 You directly diagnose patients based on the provided information to assist a doctor in his clinical duties.
 Your goal is to correctly diagnose the patient.
@@ -16,7 +15,7 @@ Return your answer in the following format:
 format_instructions = """
 Return your answer as a JSON object with exactly these fields:
 {
-  "diagnosis": "your diagnosis here"
+  "diagnosis": "<string: The final diagnosis based on the case information>"
 }
 Do not include any extra text outside the JSON.
 """
@@ -36,7 +35,6 @@ PHYSICAL EXAMINATION:
 Use ALL information above and return in JSON format.
 """
 
-
 full_info_prompt_template = PromptTemplate(
     template=full_info,
     template_format="jinja2",
@@ -47,4 +45,9 @@ full_info_prompt_template = PromptTemplate(
         "physical_examination",
     ],
 )
-system_prompt_template = system_prompt.replace("{{ format_instructions }}", format_instructions)
+
+system_prompt_template = PromptTemplate(
+    template=system_prompt,
+    template_format="jinja2",
+    partial_variables={"format_instructions": format_instructions},
+)
