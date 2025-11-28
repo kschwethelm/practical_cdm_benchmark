@@ -1,19 +1,14 @@
 from langchain_core.prompts import PromptTemplate
 
-system_prompt = """You are a medical expert.
 
-You are given ALL available diagnostic information at once:
-- Chief complaint
-- History of present illness
-- Microbiology results
-- Physical examination
-- Laboratory results
-- Imaging reports
+system_prompt = """You are a medical artificial intelligence assistant. 
+You directly diagnose patients based on the provided information to assist a doctor in his clinical duties.
+Your goal is to correctly diagnose the patient.
+Based on the provided information you will provide a final diagnosis of the most severe pathology.
+Don't write any further information. Give only a single diagnosis. 
+Provide the most likely final diagnosis of the following patient.
 
-Your task:
-1. Carefully read all information.
-2. Provide the SINGLE most likely final diagnosis responsible for the patient's presentation.
-3. Briefly justify your reasoning.
+You are given ALL available diagnostic information at once.
 
 Return your answer in the following format:
 {format_instructions}"""
@@ -21,7 +16,7 @@ Return your answer in the following format:
 format_instructions = """
 Return your answer as a JSON object with exactly these fields:
 {
-  diagnosis
+  "diagnosis": "your diagnosis here"
 }
 Do not include any extra text outside the JSON.
 """
