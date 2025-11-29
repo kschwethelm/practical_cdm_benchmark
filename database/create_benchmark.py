@@ -109,52 +109,78 @@ def main(cfg: DictConfig):
     # Load admission IDs
     hadm_ids = load_hadm_ids(hadm_id_file)
 
+    # Check if --all flag is set
+    process_all = cfg.get("all", False)
+
     # Connect to database
     conn = get_db_connection()
 
     try:
         cursor = conn.cursor()
-        complete_case = None
+        complete_cases = []
 
-        # Process each admission until we find one with complete data
-        logger.info("Querying database for admissions until finding one with complete data...")
-        for hadm_id in tqdm(hadm_ids, desc="Processing admissions"):
-            try:
-                case = create_hadm_case(cursor, hadm_id)
+        if process_all:
+            # Process all admissions
+            logger.info(f"Processing all {len(hadm_ids)} admissions...")
+            for hadm_id in tqdm(hadm_ids, desc="Processing admissions"):
+                try:
+                    case = create_hadm_case(cursor, hadm_id)
+                    complete_cases.append(case)
+                    logger.success(f"Added case for hadm_id={hadm_id}")
 
-                # Check if all required fields have data
-                has_complete_data = (
-                    case.demographics is not None
-                    and len(case.lab_results) > 0
-                    and case.physical_exam_text is not None
-                    and len(case.radiology_reports) > 0
-                    and len(case.microbiology_events) > 0
-                    and any(r.findings for r in case.radiology_reports)
-                    and case.ground_truth is not None
-                    and case.ground_truth.primary_diagnosis is not None
-                    and len(case.ground_truth.treatments) > 0
-                )
+                except Exception as e:
+                    logger.error(f"Failed to process hadm_id={hadm_id}: {e}")
+                    # Rollback the transaction to recover from error state
+                    conn.rollback()
+                    continue
 
-                if has_complete_data:
-                    complete_case = case
-                    logger.success(f"Found complete case for hadm_id={hadm_id}")
-                    break
-                else:
-                    logger.debug(f"Incomplete data for hadm_id={hadm_id}, continuing search...")
+            if not complete_cases:
+                logger.error("No admissions were successfully processed")
+                return
 
-            except Exception as e:
-                logger.error(f"Failed to process hadm_id={hadm_id}: {e}")
-                # Rollback the transaction to recover from error state
-                conn.rollback()
-                continue
+            logger.success(
+                f"Processed {len(complete_cases)} cases out of {len(hadm_ids)} admissions"
+            )
+        else:
+            # Process each admission until we find one with complete data
+            logger.info("Querying database for admissions until finding one with complete data...")
+            for hadm_id in tqdm(hadm_ids, desc="Processing admissions"):
+                try:
+                    case = create_hadm_case(cursor, hadm_id)
 
-        if complete_case is None:
-            logger.error("No admission found with complete data for all parameters")
-            return
+                    # Check if all required fields have data
+                    has_complete_data = (
+                        case.demographics is not None
+                        and len(case.lab_results) > 0
+                        and case.physical_exam_text is not None
+                        and len(case.radiology_reports) > 0
+                        and len(case.microbiology_events) > 0
+                        and any(r.findings for r in case.radiology_reports)
+                        and case.ground_truth is not None
+                        and case.ground_truth.primary_diagnosis is not None
+                        and len(case.ground_truth.treatments) > 0
+                    )
 
-        # Create benchmark dataset with single case
-        benchmark = BenchmarkDataset(cases=[complete_case])
-        logger.success(f"Created benchmark with 1 complete case (hadm_id={complete_case.hadm_id})")
+                    if has_complete_data:
+                        complete_cases.append(case)
+                        logger.success(f"Found complete case for hadm_id={hadm_id}")
+                        break
+                    else:
+                        logger.debug(f"Incomplete data for hadm_id={hadm_id}, continuing search...")
+
+                except Exception as e:
+                    logger.error(f"Failed to process hadm_id={hadm_id}: {e}")
+                    # Rollback the transaction to recover from error state
+                    conn.rollback()
+                    continue
+
+            if not complete_cases:
+                logger.error("No admission found with complete data for all parameters")
+                return
+
+        # Create benchmark dataset
+        benchmark = BenchmarkDataset(cases=complete_cases)
+        logger.success(f"Created benchmark with {len(complete_cases)} complete case(s)")
 
         # Export to JSON
         logger.info(f"Writing benchmark to {output_file}")
@@ -164,7 +190,10 @@ def main(cfg: DictConfig):
             f.write(json_output)
 
         logger.success(f"Benchmark dataset saved to {output_file}")
-        logger.info(f"Case hadm_id: {complete_case.hadm_id}")
+        if len(complete_cases) == 1:
+            logger.info(f"Case hadm_id: {complete_cases[0].hadm_id}")
+        else:
+            logger.info(f"Cases hadm_ids: {[case.hadm_id for case in complete_cases]}")
 
     finally:
         cursor.close()

@@ -2,6 +2,18 @@
 
 This document describes the specifications for the replication of our benchmark dataset of **CDMv1**. The dataset provides a baseline for evaluating clinical decision-making pipelines
 
+## Create Benchmark Dataset
+
+For one complete admission:
+   ```bash
+   uv run database/create_benchmark.py
+   ```
+
+For all admissions:
+   ```bash
+   uv run database/create_benchmark.py all=true
+   ```
+
 ---
 
 ## Data Overview
