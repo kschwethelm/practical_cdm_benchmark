@@ -2,7 +2,6 @@ import hydra
 from loguru import logger
 from omegaconf import DictConfig
 
-from cdm.benchmark.data_models import BenchmarkOutputFullInfo
 from cdm.benchmark.utils import load_cases
 from cdm.llms.agent import build_llm, run_llm
 from cdm.prompts.full_info import full_info_prompt_template, system_prompt_template
@@ -23,7 +22,7 @@ def gather_all_info(case):
 def main(cfg: DictConfig):
     """Run benchmark LLM by providing all information upfront (LLM as second reader)."""
     cases = load_cases(cfg.benchmark_data_path, cfg.num_cases)
-    llm = build_llm(cfg.base_url, cfg.temperature).with_structured_output(BenchmarkOutputFullInfo)
+    llm = build_llm(cfg.base_url, cfg.temperature)
 
     for idx, case in enumerate(cases):
         hadm_id = case["hadm_id"]
