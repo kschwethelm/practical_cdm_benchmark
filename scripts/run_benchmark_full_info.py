@@ -23,7 +23,7 @@ def gather_all_info(case):
 def main(cfg: DictConfig):
     """Run benchmark LLM by providing all information upfront (LLM as second reader)."""
     cases = load_cases(cfg.benchmark_data_path, cfg.num_cases)
-    llm = build_llm(cfg.base_url, cfg.temperature)
+    llm = build_llm(cfg.base_url, cfg.temperature).with_structured_output(BenchmarkOutputFullInfo)
 
     for idx, case in enumerate(cases):
         hadm_id = case["hadm_id"]
@@ -34,13 +34,12 @@ def main(cfg: DictConfig):
 
         response = run_llm(llm, system_prompt_template, patient_info)
 
-        prediction = BenchmarkOutputFullInfo.model_validate_json(response)
-        final_diagnosis = prediction.diagnosis
+        final_diagnosis = response.diagnosis
 
         print(f"\n=== CASE {idx + 1}/{len(cases)} (hadm_id={hadm_id}) ===")
         print(f"Ground truth: {gt_diagnosis}")
         print(f"Predicted: {final_diagnosis}")
-        print(f"Full output: {prediction.model_dump_json(indent=2)}\n")
+        print(f"Full output: {response.model_dump_json(indent=2)}\n")
 
 
 if __name__ == "__main__":

@@ -31,7 +31,7 @@ def run_llm(llm: ChatOpenAI, system_prompt: str, user_prompt: str) -> str:
         user_prompt: User prompt string
 
     Returns:
-        Model response as a string
+        Model response as a parsed Pydantic model
     """
     response = llm.invoke(
         [
@@ -39,7 +39,7 @@ def run_llm(llm: ChatOpenAI, system_prompt: str, user_prompt: str) -> str:
             {"role": "user", "content": user_prompt},
         ]
     )
-    return response.content
+    return response
 
 
 def build_agent(case: dict, llm: ChatOpenAI, enabled_tools: list[str]):
