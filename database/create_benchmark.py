@@ -119,36 +119,19 @@ def main(cfg: DictConfig):
         cursor = conn.cursor()
         complete_cases = []
 
+        # Set up processing mode
         if process_all:
-            # Process all admissions
             logger.info(f"Processing all {len(hadm_ids)} admissions...")
-            for hadm_id in tqdm(hadm_ids, desc="Processing admissions"):
-                try:
-                    case = create_hadm_case(cursor, hadm_id)
-                    complete_cases.append(case)
-                    logger.success(f"Added case for hadm_id={hadm_id}")
-
-                except Exception as e:
-                    logger.error(f"Failed to process hadm_id={hadm_id}: {e}")
-                    # Rollback the transaction to recover from error state
-                    conn.rollback()
-                    continue
-
-            if not complete_cases:
-                logger.error("No admissions were successfully processed")
-                return
-
-            logger.success(
-                f"Processed {len(complete_cases)} cases out of {len(hadm_ids)} admissions"
-            )
         else:
-            # Process each admission until we find one with complete data
             logger.info("Querying database for admissions until finding one with complete data...")
-            for hadm_id in tqdm(hadm_ids, desc="Processing admissions"):
-                try:
-                    case = create_hadm_case(cursor, hadm_id)
 
-                    # Check if all required fields have data
+        # Process admissions
+        for hadm_id in tqdm(hadm_ids, desc="Processing admissions"):
+            try:
+                case = create_hadm_case(cursor, hadm_id)
+
+                # Check if case meets requirements (only for single-case mode)
+                if not process_all:
                     has_complete_data = (
                         case.demographics is not None
                         and len(case.lab_results) > 0
@@ -161,22 +144,40 @@ def main(cfg: DictConfig):
                         and len(case.ground_truth.treatments) > 0
                     )
 
-                    if has_complete_data:
-                        complete_cases.append(case)
-                        logger.success(f"Found complete case for hadm_id={hadm_id}")
-                        break
-                    else:
+                    if not has_complete_data:
                         logger.debug(f"Incomplete data for hadm_id={hadm_id}, continuing search...")
+                        continue
 
-                except Exception as e:
-                    logger.error(f"Failed to process hadm_id={hadm_id}: {e}")
-                    # Rollback the transaction to recover from error state
-                    conn.rollback()
-                    continue
+                # Add case and log success
+                complete_cases.append(case)
+                log_msg = "Added case" if process_all else "Found complete case"
+                logger.success(f"{log_msg} for hadm_id={hadm_id}")
 
-            if not complete_cases:
-                logger.error("No admission found with complete data for all parameters")
-                return
+                # Break if we only need one case
+                if not process_all:
+                    break
+
+            except Exception as e:
+                logger.error(f"Failed to process hadm_id={hadm_id}: {e}")
+                # Rollback the transaction to recover from error state
+                conn.rollback()
+                continue
+
+        # Check if we found any cases
+        if not complete_cases:
+            error_msg = (
+                "No admissions were successfully processed"
+                if process_all
+                else "No admission found with complete data for all parameters"
+            )
+            logger.error(error_msg)
+            return
+
+        # Log summary
+        if process_all:
+            logger.success(
+                f"Processed {len(complete_cases)} cases out of {len(hadm_ids)} admissions"
+            )
 
         # Create benchmark dataset
         benchmark = BenchmarkDataset(cases=complete_cases)
@@ -193,7 +194,7 @@ def main(cfg: DictConfig):
         if len(complete_cases) == 1:
             logger.info(f"Case hadm_id: {complete_cases[0].hadm_id}")
         else:
-            logger.info(f"Cases hadm_ids: {[case.hadm_id for case in complete_cases]}")
+            logger.info(f"Processed {len(complete_cases)} cases. See {output_file} for details.")
 
     finally:
         cursor.close()
