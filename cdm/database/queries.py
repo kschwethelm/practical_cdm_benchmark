@@ -220,7 +220,7 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
                         END
                     WHEN le.value IS NOT NULL AND le.value != '___' THEN
                         CASE
-                            WHEN le.valueuom IS NOT NULL THEN le.value || ' ' || le. valueuom
+                            WHEN le.valueuom IS NOT NULL THEN le.value || ' ' || le.valueuom
                             ELSE le.value
                         END
                     WHEN le.flag IS NOT NULL THEN le.flag
@@ -356,7 +356,6 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
                 AND field_name = 'exam_name'
         )
         SELECT
-            charttime,
             exam_name,
             findings,
             note_id
@@ -369,12 +368,11 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
 
     reports = [
         {
-            "charttime": row[0],
-            "exam_name": row[1],
-            "modality": derive_modality(row[1], row[2]),
-            "region": derive_region(row[1], row[2]),
-            "findings": extract_findings_from_report(row[2]),
-            "note_id": row[3],
+            "exam_name": row[0],
+            "modality": derive_modality(row[0], row[1]),
+            "region": derive_region(row[0], row[1]),
+            "findings": extract_findings_from_report(row[1]),
+            "note_id": row[2],
         }
         for row in results
     ]
