@@ -110,7 +110,7 @@ def main(cfg: DictConfig):
     hadm_ids = load_hadm_ids(hadm_id_file)
 
     # Check if --num_cases flag is set
-    num_cases = cfg.get("num_cases", len(hadm_ids))
+    num_cases = cfg.get("num_cases", None) or len(hadm_ids)
 
     if num_cases > len(hadm_ids):
         logger.warning(
@@ -133,10 +133,8 @@ def main(cfg: DictConfig):
             try:
                 case = create_hadm_case(cursor, hadm_id)
 
-                # Add case and log success
+                # Add case
                 cases.append(case)
-                log_msg = "Added case"
-                logger.success(f"{log_msg} for hadm_id={hadm_id}")
 
             except Exception as e:
                 logger.error(f"Failed to process hadm_id={hadm_id}: {e}")
@@ -146,8 +144,7 @@ def main(cfg: DictConfig):
 
         # Check if we found any cases
         if not cases:
-            logger.error("No admissions were successfully processed")
-            return
+            raise RuntimeError("No admissions were successfully processed")
 
         logger.success(f"Processed {len(cases)} cases out of {len(hadm_ids)} admissions")
 
