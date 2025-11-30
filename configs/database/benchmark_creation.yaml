@@ -8,3 +8,6 @@ hadm_id_file: hadm_id_list.txt
 
 # Output filename for the benchmark JSON
 output_filename: benchmark_data.json
+
+# Process number of admissions to include in the benchmark
+num_cases: null
