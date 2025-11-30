@@ -112,6 +112,13 @@ def main(cfg: DictConfig):
     # Check if --num_cases flag is set
     num_cases = cfg.get("num_cases", len(hadm_ids))
 
+    if num_cases > len(hadm_ids):
+        logger.warning(
+            f"Requested num_cases ({num_cases}) exceeds available hadm_ids ({len(hadm_ids)}). "
+            f"Processing all available admissions."
+        )
+        num_cases = len(hadm_ids)
+
     # Connect to database
     conn = get_db_connection()
 
