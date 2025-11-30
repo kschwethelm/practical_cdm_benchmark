@@ -17,48 +17,65 @@ def gather_all_info(case, include_all_labs=False):
 
     # Format lab results
     abnormal_labs = ""
+    normal_labs_with_values = ""
     normal_test_names = ""
 
     for lab in case.get("lab_results", []):
         value = lab.get("value", "Unknown")
-        unit = lab.get("unit", "")
-        flag = lab.get("flag")
-        ref_range = lab.get("ref_range_lower", ""), lab.get("ref_range_upper", "")
+        ref_range_lower = lab.get("ref_range_lower")
+        ref_range_upper = lab.get("ref_range_upper")
+
+        # Determine if abnormal by comparing value to reference ranges
+        is_abnormal = False
+        try:
+            # Handle values like "12 mEq/L" -> take first token
+            val_str = str(value).replace(",", "").split()[0]
+            val_float = float(val_str)
+
+            if ref_range_lower is not None and val_float < ref_range_lower:
+                is_abnormal = True
+            elif ref_range_upper is not None and val_float > ref_range_upper:
+                is_abnormal = True
+        except (ValueError, TypeError, IndexError):
+            # If can't convert to float, skip comparison
+            pass
 
         # Format reference range if available
         ref_str = ""
-        if ref_range[0] or ref_range[1]:
-            ref_str = f" (ref: {ref_range[0]}-{ref_range[1]})"
+        if ref_range_lower is not None or ref_range_upper is not None:
+            ref_str = f" (ref: {ref_range_lower}-{ref_range_upper})"
 
-        lab_line = f"- {lab.get('test_name')}: {value} {unit}{ref_str}\n"
+        # Format category and fluid info
+        category = lab.get("category", "")
+        fluid = lab.get("fluid", "")
+        category_str = ""
+        if category or fluid:
+            parts = []
+            if category:
+                parts.append(category)
+            if fluid:
+                parts.append(fluid)
+            category_str = f" [{' | '.join(parts)}]"
 
-        # Separate abnormal and normal
-        if flag == "abnormal":
+        lab_line = f"- {lab.get('test_name')}{category_str}: {value}{ref_str}\n"
+
+        if is_abnormal:
             abnormal_labs += lab_line
         else:
-            # Just the test name for normal results
+            normal_labs_with_values += lab_line
             normal_test_names += f"- {lab.get('test_name')}\n"
 
     # Combine results
     lab_results = ""
     if abnormal_labs:
-        lab_results += "ABNORMAL RESULTS:\n" + abnormal_labs
-    if normal_test_names:
-        if include_all_labs:
-            # Show full values for normal tests if include_all is True
-            lab_results += "\nNORMAL TESTS (with values):\n"
-            for lab in case.get("lab_results", []):
-                if lab.get("flag") != "abnormal":
-                    value = lab.get("value", "Unknown")
-                    unit = lab.get("unit", "")
-                    ref_range = lab.get("ref_range_lower", ""), lab.get("ref_range_upper", "")
-                    ref_str = ""
-                    if ref_range[0] or ref_range[1]:
-                        ref_str = f" (ref: {ref_range[0]}-{ref_range[1]})"
-                    lab_results += f"- {lab.get('test_name')}: {value} {unit}{ref_str}\n"
-        else:
-            # Just list test names performed for normal tests
-            lab_results += "\nNORMAL TESTS PERFORMED:\n" + normal_test_names
+        lab_results += "1. ABNORMAL RESULTS:\n" + abnormal_labs
+
+    if include_all_labs:
+        if normal_labs_with_values:
+            lab_results += "\n2. NORMAL RESULTS:\n" + normal_labs_with_values
+    else:
+        if normal_test_names:
+            lab_results += "\n2. NORMAL TESTS PERFORMED:\n" + normal_test_names
 
     # Format imaging reports
     imaging_results = ""
@@ -77,12 +94,12 @@ def gather_all_info(case, include_all_labs=False):
         test_name = micro.get("test_name", "Unknown")
         spec_type = micro.get("spec_type_desc", "")
         organism = micro.get("organism_name", "Unknown")
-        interpretation = micro.get("interpretation", "")
+        comments = micro.get("comments", "")
 
         micro_results += f"- {test_name} ({spec_type})\n"
         micro_results += f"  Organism: {organism}\n"
-        if interpretation:
-            micro_results += f"  Interpretation: {interpretation}\n"
+        if comments:
+            micro_results += f"  Comments: {comments}\n"
 
     info = {
         "age": case["demographics"]["age"],
