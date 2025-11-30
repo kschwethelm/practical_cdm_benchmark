@@ -17,32 +17,26 @@ class LabResult(BaseModel):
 
 
 class DetailedLabResult(BaseModel):
+    itemid: int
     test_name: str
+    fluid: str | None = None
+    category: str | None = None
     value: str | None = None
-    unit: str | None = None
     ref_range_lower: float | None = None
     ref_range_upper: float | None = None
-    flag: str | None = None
 
 
 class MicrobiologyEvent(BaseModel):
+    test_itemid: int
     test_name: str | None = None
     spec_type_desc: str | None = None
     organism_name: str | None = None
-    interpretation: str | None = None
+    comments: str | None = None
     charttime: datetime | None = None
 
 
-class MicrobiologyResult(BaseModel):
-    charttime: datetime
-    spec_type_desc: str | None = None
-    test_name: str | None = None
-    org_name: str | None = None
-    interpretation: str | None = None
-
-
 class RadiologyReport(BaseModel):
-    charttime: datetime
+    note_id: str
     exam_name: str | None = None
     region: str | None = None
     modality: str | None = None
