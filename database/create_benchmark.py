@@ -109,53 +109,27 @@ def main(cfg: DictConfig):
     # Load admission IDs
     hadm_ids = load_hadm_ids(hadm_id_file)
 
-    # Check if --all flag is set
-    process_all = cfg.get("all", False)
+    # Check if --num_cases flag is set
+    num_cases = cfg.get("num_cases", len(hadm_ids))
 
     # Connect to database
     conn = get_db_connection()
 
     try:
         cursor = conn.cursor()
-        complete_cases = []
+        cases = []
 
-        # Set up processing mode
-        if process_all:
-            logger.info(f"Processing all {len(hadm_ids)} admissions...")
-        else:
-            logger.info("Querying database for admissions until finding one with complete data...")
+        logger.info(f"Processing {num_cases} admissions...")
 
         # Process admissions
-        for hadm_id in tqdm(hadm_ids, desc="Processing admissions"):
+        for hadm_id in tqdm(hadm_ids[:num_cases], desc="Processing admissions"):
             try:
                 case = create_hadm_case(cursor, hadm_id)
 
-                # Check if case meets requirements (only for single-case mode)
-                if not process_all:
-                    has_complete_data = (
-                        case.demographics is not None
-                        and len(case.lab_results) > 0
-                        and case.physical_exam_text is not None
-                        and len(case.radiology_reports) > 0
-                        and len(case.microbiology_events) > 0
-                        and any(r.findings for r in case.radiology_reports)
-                        and case.ground_truth is not None
-                        and case.ground_truth.primary_diagnosis is not None
-                        and len(case.ground_truth.treatments) > 0
-                    )
-
-                    if not has_complete_data:
-                        logger.debug(f"Incomplete data for hadm_id={hadm_id}, continuing search...")
-                        continue
-
                 # Add case and log success
-                complete_cases.append(case)
-                log_msg = "Added case" if process_all else "Found complete case"
+                cases.append(case)
+                log_msg = "Added case"
                 logger.success(f"{log_msg} for hadm_id={hadm_id}")
-
-                # Break if we only need one case
-                if not process_all:
-                    break
 
             except Exception as e:
                 logger.error(f"Failed to process hadm_id={hadm_id}: {e}")
@@ -164,24 +138,15 @@ def main(cfg: DictConfig):
                 continue
 
         # Check if we found any cases
-        if not complete_cases:
-            error_msg = (
-                "No admissions were successfully processed"
-                if process_all
-                else "No admission found with complete data for all parameters"
-            )
-            logger.error(error_msg)
+        if not cases:
+            logger.error("No admissions were successfully processed")
             return
 
-        # Log summary
-        if process_all:
-            logger.success(
-                f"Processed {len(complete_cases)} cases out of {len(hadm_ids)} admissions"
-            )
+        logger.success(f"Processed {len(cases)} cases out of {len(hadm_ids)} admissions")
 
         # Create benchmark dataset
-        benchmark = BenchmarkDataset(cases=complete_cases)
-        logger.success(f"Created benchmark with {len(complete_cases)} complete case(s)")
+        benchmark = BenchmarkDataset(cases=cases)
+        logger.success(f"Created benchmark with {len(cases)} case(s)")
 
         # Export to JSON
         logger.info(f"Writing benchmark to {output_file}")
@@ -191,10 +156,7 @@ def main(cfg: DictConfig):
             f.write(json_output)
 
         logger.success(f"Benchmark dataset saved to {output_file}")
-        if len(complete_cases) == 1:
-            logger.info(f"Case hadm_id: {complete_cases[0].hadm_id}")
-        else:
-            logger.info(f"Processed {len(complete_cases)} cases. See {output_file} for details.")
+        logger.info(f"Processed {len(cases)} cases. See {output_file} for details.")
 
     finally:
         cursor.close()

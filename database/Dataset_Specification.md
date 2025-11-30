@@ -4,14 +4,14 @@ This document describes the specifications for the replication of our benchmark 
 
 ## Create Benchmark Dataset
 
-For one complete admission:
+For a total of n admissions:
    ```bash
-   uv run database/create_benchmark.py
+   uv run database/create_benchmark.py num_cases=n
    ```
 
 For all admissions:
    ```bash
-   uv run database/create_benchmark.py all=true
+   uv run database/create_benchmark.py
    ```
 
 ---
