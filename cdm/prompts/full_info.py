@@ -32,11 +32,22 @@ PATIENT DEMOGRAPHICS:
 - Age: {age}
 - Gender: {gender}
 
+
 HISTORY OF PRESENT ILLNESS:
 {history_of_present_illness}
 
+
 PHYSICAL EXAMINATION:
 {physical_examination}
+
+
+LABORATORY RESULTS:
+{laboratory_results}
+
+IMAGING REPORTS:
+{imaging_reports}
+MICROBIOLOGY RESULTS:
+{microbiology_results}
 
 Use ALL information above and return in JSON format.
 """
@@ -49,6 +60,9 @@ full_info_prompt_template = PromptTemplate(
         "gender",
         "history_of_present_illness",
         "physical_examination",
+        "laboratory_results",
+        "imaging_reports",
+        "microbiology_results",
     ],
 )
 system_prompt_template = system_prompt.format(format_instructions=format_instructions)
