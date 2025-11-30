@@ -27,7 +27,7 @@ class TestBuildAgent:
 
     def test_build_agent_with_valid_tools(self, mock_llm, sample_case):
         """Test that build_agent succeeds with all valid tool names."""
-        valid_tools = ["physical_exam", "lab", "microbiology"]
+        valid_tools = ["physical_exam", "lab", "microbiology", "radiology"]
         agent = build_agent(sample_case, mock_llm, valid_tools)
         assert agent is not None
 

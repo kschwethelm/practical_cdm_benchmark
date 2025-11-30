@@ -11,3 +11,4 @@ enabled_tools:
   - physical_exam
   - lab
   - microbiology
+  - radiology
