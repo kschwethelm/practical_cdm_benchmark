@@ -71,8 +71,16 @@ CREATE TABLE cdm_hosp.labevents AS
 SELECT l.* FROM mimiciv_hosp.labevents l
 INNER JOIN temp_hadm_filter f ON l.hadm_id = f.hadm_id;
 
+CREATE TABLE cdm_hosp.labevents_assigned AS
+SELECT l.* FROM mimiciv_hosp.labevents_assigned l
+INNER JOIN temp_hadm_filter f ON l.hadm_id = f.hadm_id;
+
 CREATE TABLE cdm_hosp.microbiologyevents AS
 SELECT m.* FROM mimiciv_hosp.microbiologyevents m
+INNER JOIN temp_hadm_filter f ON m.hadm_id = f.hadm_id;
+
+CREATE TABLE cdm_hosp.microbiologyevents_assigned AS
+SELECT m.* FROM mimiciv_hosp.microbiologyevents_assigned m
 INNER JOIN temp_hadm_filter f ON m.hadm_id = f.hadm_id;
 
 CREATE TABLE cdm_hosp.pharmacy AS
@@ -155,14 +163,6 @@ SELECT * FROM mimiciv_hosp.provider;
 SELECT 'Copied dictionary tables' AS status;
 
 -----------------------------------------
--- STEP 6: Drop original schema
------------------------------------------
-
-DROP SCHEMA mimiciv_hosp CASCADE;
-
-SELECT 'Dropped mimiciv_hosp schema' AS status;
-
------------------------------------------
 -- Summary statistics
 -----------------------------------------
 
@@ -176,7 +176,9 @@ SELECT
     (SELECT COUNT(*) FROM cdm_hosp.emar_detail) AS emar_detail,
     (SELECT COUNT(*) FROM cdm_hosp.hcpcsevents) AS hcpcsevents,
     (SELECT COUNT(*) FROM cdm_hosp.labevents) AS labevents,
+    (SELECT COUNT(*) FROM cdm_hosp.labevents_assigned) AS labevents_assigned,
     (SELECT COUNT(*) FROM cdm_hosp.microbiologyevents) AS microbiologyevents,
+    (SELECT COUNT(*) FROM cdm_hosp.microbiologyevents_assigned) AS microbiologyevents_assigned,
     (SELECT COUNT(*) FROM cdm_hosp.omr) AS omr,
     (SELECT COUNT(*) FROM cdm_hosp.pharmacy) AS pharmacy,
     (SELECT COUNT(*) FROM cdm_hosp.poe) AS poe,

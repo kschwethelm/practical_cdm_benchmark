@@ -58,6 +58,20 @@ Microbiology cultures and antibiotic sensitivity results.
 - **Key columns**: `hadm_id`, `charttime`, `spec_type_desc`, `test_name`, `org_name`, `ab_name`, `interpretation`
 - **Note**: May include events assigned to admissions based on timing
 
+#### `labevents_assigned` (subset of labevents)
+Laboratory events that originally had `hadm_id = NULL` but were assigned to admissions based on temporal proximity.
+- **Assignment logic**: Lab events within a 1-day window before first transfer to last transfer time
+- **Key columns**: Same as `labevents`
+- **Purpose**: Captures lab results ordered during admission but not initially linked to `hadm_id`
+- **Source**: Created by `database/sql/hosp/assign_events.sql`
+
+#### `microbiologyevents_assigned` (subset of microbiologyevents)
+Microbiology events that originally had `hadm_id = NULL` but were assigned to admissions based on temporal proximity.
+- **Assignment logic**: Microbiology events within a 1-day window before first transfer to last transfer time
+- **Key columns**: Same as `microbiologyevents`
+- **Purpose**: Captures cultures/sensitivities ordered during admission but not initially linked to `hadm_id`
+- **Source**: Created by `database/sql/hosp/assign_events.sql`
+
 ### Medication Tables
 
 #### `prescriptions` (79,448 rows)
@@ -143,6 +157,14 @@ Radiology reports (X-rays, CT scans, MRIs, ultrasounds, etc.).
 Structured fields from radiology reports.
 - **Key columns**: `note_id`, `field_name`, `field_value`, `field_ordinal`
 - **Foreign key**: Links to `radiology` via `note_id`
+
+### `radiology_assigned` (subset of radiology)
+Radiology reports that originally had `hadm_id = NULL` but were assigned to admissions based on temporal proximity.
+- **Assignment logic**: Radiology reports within a 1-day window before first transfer to last transfer time
+- **Key columns**: Same as `radiology`
+- **Purpose**: Captures radiology reports performed during admission but not initially linked to `hadm_id`
+- **Source**: Created by `database/sql/note/assign_events.sql`
+- **Note**: Includes manual fix for one report that was 1 day and 1 hour off (note_id: `13458482-RR-51`)
 
 ---
 
@@ -406,11 +428,12 @@ Steps for Ubuntu:
    psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/hosp/constraint.sql
    psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/hosp/index.sql
 
-   # Assign lab and microbiology events to hadm_id based on time (optional)
+   # Assign lab and microbiology events to hadm_id based on time
    psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/hosp/assign_events.sql
 
    # Remove admissions not in 'database/hadm_id_list.txt'
    psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/hosp/filter_hadm.sql
+   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -c "DROP SCHEMA mimiciv_hosp CASCADE;"
    ```
 
 3. Load and filter note module:
@@ -418,7 +441,10 @@ Steps for Ubuntu:
    MIMIC_DIR=/srv/mimic/mimiciv/mimic-iv-note/2.2/note/
    psql -d mimiciv_pract -f database/sql/note/create.sql
    psql -d mimiciv_pract -v ON_ERROR_STOP=1 -v mimic_data_dir=$MIMIC_DIR -f database/sql/note/load_gz.sql
+   # Assign radiology events to hadm_id based on time
+   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/note/assign_events.sql
    psql -d mimiciv_pract -v ON_ERROR_STOP=1 -f database/sql/note/filter_hadm.sql
+   psql -d mimiciv_pract -v ON_ERROR_STOP=1 -c "DROP SCHEMA mimiciv_note CASCADE;"
    ```
 
 4. Load note extractions:

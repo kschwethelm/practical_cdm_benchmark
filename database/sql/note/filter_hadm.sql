@@ -43,6 +43,13 @@ INNER JOIN temp_hadm_filter f ON r.hadm_id = f.hadm_id;
 
 SELECT 'Filtered radiology: ' || COUNT(*) AS status FROM cdm_note.radiology;
 
+-- Filter assigned radiology notes (hadm_id can be NULL, so only keep matching ones)
+CREATE TABLE cdm_note.radiology_assigned AS
+SELECT r.* FROM mimiciv_note.radiology_assigned r
+INNER JOIN temp_hadm_filter f ON r.hadm_id = f.hadm_id;
+
+SELECT 'Filtered radiology assigned: ' || COUNT(*) AS status FROM cdm_note.radiology_assigned;
+
 -----------------------------------------
 -- STEP 2: Filter detail tables by note_id
 -----------------------------------------
@@ -68,14 +75,6 @@ INNER JOIN temp_radiology_note_filter f ON r.note_id = f.note_id;
 SELECT 'Filtered radiology_detail: ' || COUNT(*) AS status FROM cdm_note.radiology_detail;
 
 -----------------------------------------
--- STEP 3: Drop original schema
------------------------------------------
-
-DROP SCHEMA mimiciv_note CASCADE;
-
-SELECT 'Dropped mimiciv_note schema' AS status;
-
------------------------------------------
 -- Summary statistics
 -----------------------------------------
 
@@ -84,6 +83,7 @@ SELECT
     (SELECT COUNT(*) FROM cdm_note.discharge) AS discharge,
     (SELECT COUNT(*) FROM cdm_note.discharge_detail) AS discharge_detail,
     (SELECT COUNT(*) FROM cdm_note.radiology) AS radiology,
+    (SELECT COUNT(*) FROM cdm_note.radiology_assigned) AS radiology_assigned,
     (SELECT COUNT(*) FROM cdm_note.radiology_detail) AS radiology_detail;
 
 SELECT 'Filtering complete! Data saved to cdm_note schema, mimiciv_note dropped' AS status;
