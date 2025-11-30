@@ -1,7 +1,3 @@
 defaults:
   - base
   - _self_
-
-# Lab results configuration
-lab_results:
-  include_all: false  # Set to true to include all results, false for abnormal only
