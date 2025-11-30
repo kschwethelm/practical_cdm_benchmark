@@ -2,7 +2,6 @@ import hydra
 from loguru import logger
 from omegaconf import DictConfig
 
-from cdm.benchmark.data_models import BenchmarkOutputFullInfo
 from cdm.benchmark.utils import load_cases
 from cdm.llms.agent import build_llm, run_llm
 from cdm.prompts.full_info import full_info_prompt_template, system_prompt_template
@@ -34,13 +33,12 @@ def main(cfg: DictConfig):
 
         response = run_llm(llm, system_prompt_template, patient_info)
 
-        prediction = BenchmarkOutputFullInfo.model_validate_json(response)
-        final_diagnosis = prediction.diagnosis
+        final_diagnosis = response.diagnosis
 
         print(f"\n=== CASE {idx + 1}/{len(cases)} (hadm_id={hadm_id}) ===")
         print(f"Ground truth: {gt_diagnosis}")
         print(f"Predicted: {final_diagnosis}")
-        print(f"Full output: {prediction.model_dump_json(indent=2)}\n")
+        print(f"Full output: {response.model_dump_json(indent=2)}\n")
 
 
 if __name__ == "__main__":
