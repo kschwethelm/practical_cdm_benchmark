@@ -66,8 +66,8 @@ def build_agent(llm: ChatOpenAI, enabled_tools: list[str]):
             f"Invalid tool(s): {invalid_tools}. Available tools: {list(AVAILABLE_TOOLS.keys())}"
         )
 
-    # Create the enabled tools
-    tools = [AVAILABLE_TOOLS[tool_name]() for tool_name in enabled_tools]
+    # Get the enabled tools
+    tools = [AVAILABLE_TOOLS[tool_name] for tool_name in enabled_tools]
 
     agent = create_agent(
         model=llm,
