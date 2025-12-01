@@ -14,7 +14,6 @@ def main(cfg: DictConfig):
     llm = build_llm(cfg.base_url, cfg.temperature)
 
     system_prompt = create_system_prompt()
-    print(f"=== SYSTEM PROMPT ===\n{system_prompt}\n=====================")
 
     for idx, case in enumerate(cases):
         hadm_id = case["hadm_id"]
@@ -23,7 +22,6 @@ def main(cfg: DictConfig):
 
         patient_info_dict = gather_all_info(case)
         user_prompt = create_user_prompt(patient_info_dict)
-        print(f"=== USER PROMPT for case {hadm_id} ===\n{user_prompt}\n=====================")
 
         response = run_llm(llm, system_prompt, user_prompt)
 
