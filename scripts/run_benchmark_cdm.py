@@ -4,6 +4,7 @@ from omegaconf import DictConfig
 
 from cdm.benchmark.utils import load_cases
 from cdm.llms.agent import build_agent, build_llm, run_agent
+from cdm.tools import set_current_case
 
 
 @hydra.main(version_base=None, config_path="../configs/benchmark", config_name="cdm")
@@ -15,6 +16,7 @@ def main(cfg: DictConfig):
     """
     cases = load_cases(cfg.benchmark_data_path, cfg.num_cases)
     llm = build_llm(cfg.base_url, cfg.temperature)
+    agent = build_agent(llm, cfg.enabled_tools)
 
     for idx, case in enumerate(cases):
         hadm_id = case["hadm_id"]
@@ -23,7 +25,7 @@ def main(cfg: DictConfig):
 
         logger.info(f"Processing case {idx + 1}/{len(cases)} (hadm_id: {hadm_id})")
 
-        agent = build_agent(case, llm, cfg.enabled_tools)
+        set_current_case(case)
         output = run_agent(agent, patient_info)
 
         print(f"\n=== CASE {idx + 1}/{len(cases)} (hadm_id={hadm_id}) ===")

@@ -1,3 +1,4 @@
+from .context import get_current_case, set_current_case
 from .labs import create_lab_tool
 from .microbiology import create_microbio_tool
 from .physical_exam import create_physical_exam_tool
@@ -17,4 +18,6 @@ __all__ = [
     "create_physical_exam_tool",
     "create_radiology_tool",
     "AVAILABLE_TOOLS",
+    "set_current_case",
+    "get_current_case",
 ]

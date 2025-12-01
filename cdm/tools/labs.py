@@ -1,12 +1,14 @@
-from typing import Any
 
 from langchain.tools import tool
 
+from cdm.tools.context import get_current_case
 
-def create_lab_tool(case: dict[str, Any]):
+
+def create_lab_tool():
     @tool
     def request_lab_test(test_name: str) -> str:
         """Return lab results based on the patient case."""
+        case = get_current_case()
         lab = case.get("first_lab_result")
         if lab:
             result = (

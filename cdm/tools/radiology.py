@@ -1,9 +1,10 @@
-from typing import Any
 
 from langchain.tools import tool
 
+from cdm.tools.context import get_current_case
 
-def create_radiology_tool(case: dict[str, Any]):
+
+def create_radiology_tool():
     @tool
     def request_imaging(region: str, modality: str) -> str:
         """Request imaging results for a specific scan region and modality.
@@ -15,6 +16,7 @@ def create_radiology_tool(case: dict[str, Any]):
         Returns:
             Imaging results or "No imaging available" message
         """
+        case = get_current_case()
         imaging_results = case.get("radiology_reports", [])
 
         if not imaging_results:

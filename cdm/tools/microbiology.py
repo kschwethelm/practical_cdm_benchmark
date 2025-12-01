@@ -1,12 +1,14 @@
-from typing import Any
 
 from langchain.tools import tool
 
+from cdm.tools.context import get_current_case
 
-def create_microbio_tool(case: dict[str, Any]):
+
+def create_microbio_tool():
     @tool
     def request_microbio_test(test_name: str) -> str:
         """Return microbiology results for the patient (blood/urine cultures, etc.)."""
+        case = get_current_case()
         bio = case.get("first_microbiology_result")
         if bio:
             result = (
