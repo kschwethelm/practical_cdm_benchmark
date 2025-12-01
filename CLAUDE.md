@@ -8,6 +8,12 @@ This is a clinical decision-making (CDM) benchmark project for evaluating LLMs o
 
 **IMPORTANT:** All MIMIC data is sensitive medical information. Never commit data files, outputs, or logs containing patient information. Only commit code.
 
+**Key Features:**
+- Tool-based agent architecture for interactive clinical reasoning
+- Context-based tool system for accessing case data
+- Jinja2 template-based prompts with dynamic Pydantic schema injection
+- Structured output validation using Pydantic models
+
 ## Development Commands
 
 ### Environment Setup
@@ -42,38 +48,37 @@ uv run pre-commit run --all-files  # Manual check
 # Create benchmark JSON from database
 uv run database/create_benchmark.py
 
-# Configuration: configs/database/benchmark_creation.yaml
+# Configuration in configs/database/
 # Output: database/output/benchmark_data.json
-# Admission IDs: database/hadm_id_list.txt (2,333 cases)
 ```
 
 ### Running Benchmarks
 ```bash
-# Run CDM benchmark with tool calling (requires vLLM server + benchmark JSON)
+# Run CDM benchmark with tool calling (requires vLLM server)
 uv run scripts/run_benchmark_cdm.py
 
-# Run full information baseline (requires vLLM server + benchmark JSON)
+# Run full information baseline (requires vLLM server)
 uv run scripts/run_benchmark_full_info.py
 
-# Configuration files: configs/benchmark/cdm.yaml and configs/benchmark/full_info.yaml
+# Configuration files in configs/benchmark/
+# Override config: uv run scripts/run_benchmark_cdm.py num_cases=5 temperature=0.7
 ```
 
 ### vLLM Server/Client
 
 **Local Development:**
 ```bash
-# Terminal 1: Start server
-uv run vllm serve --config configs/vllm_config/qwen3_4B.yaml
-# Wait for "Application startup complete"
+# Terminal 1: Start server with a config from configs/vllm_config/
+uv run vllm serve --config configs/vllm_config/<model_config>.yaml
 
-# Terminal 2: Run client scripts
-uv run scripts/vllm_test.py
+# Terminal 2: Run benchmark scripts
+uv run scripts/run_benchmark_cdm.py
 ```
 
 **Cluster (Slurm):**
 ```bash
 # Submit job (handles server startup/shutdown automatically)
-sbatch slurm/vllm_test.sbatch
+sbatch slurm/<job_script>.sbatch
 ```
 
 ## Architecture
@@ -83,28 +88,21 @@ sbatch slurm/vllm_test.sbatch
 The project uses a **library + scripts** pattern:
 
 - **`cdm/`** - Reusable library code (import from here, don't duplicate)
-  - `benchmark/data_models.py` - Pydantic models for LLM outputs (BenchmarkOutputCDM, BenchmarkOutputFullInfo)
-  - `benchmark/utils.py` - Benchmark utility functions (load_cases, etc.)
-  - `database/connection.py` - Database connection utilities
-  - `database/queries.py` - Reusable SQL query functions
-  - `database/utils.py` - Database helper functions
-  - `llms/agent.py` - LangChain agent with tool calling (build_agent, run_agent, build_llm)
-  - `prompts/cdm.py` - Clinical decision-making prompts (tool-calling workflow)
-  - `prompts/full_info.py` - Full information baseline prompts
-  - `tools/` - Clinical information tools for agent
-    - `physical_exam.py` - Physical examination queries
-    - `labs.py` - Laboratory test queries
-    - `microbiology.py` - Microbiology test queries
+  - `benchmark/` - Pydantic data models and benchmark utilities
+  - `database/` - Database connection and query functions
+  - `llms/` - LLM client and agent builders (build_llm, build_agent, run_agent, run_llm)
+  - `prompts/` - Jinja2 templates and prompt generation utilities
+  - `tools/` - Clinical information tools for agent (physical exam, labs, microbiology, radiology)
+    - `context.py` - Context variable management for current case
     - `__init__.py` - AVAILABLE_TOOLS registry
 
-- **`scripts/`** - Executable scripts (use `cdm/` library)
-  - `run_benchmark_cdm.py` - Run CDM benchmark with tool calling
-  - `run_benchmark_full_info.py` - Run full information baseline
-- **`database/`** - Database setup and benchmark creation
+- **`scripts/`** - Executable entry points (use `cdm/` library)
+- **`database/`** - Database setup scripts and benchmark creation
 - **`configs/`** - Hydra YAML configurations (never hardcode parameters)
-  - `benchmark/base.yaml` - Base configuration (shared settings)
-  - `benchmark/cdm.yaml` - CDM workflow configuration
-  - `benchmark/full_info.yaml` - Full information baseline configuration
+  - `benchmark/` - Benchmark configurations with inheritance
+  - `database/` - Database and benchmark creation configs
+  - `vllm_config/` - vLLM server configurations
+- **`tests/`** - Unit and integration tests
 - **`slurm/`** - Cluster job submission scripts
 
 ### Key Technologies
@@ -123,20 +121,16 @@ The project uses a **library + scripts** pattern:
 The PostgreSQL database contains 3 schemas:
 
 1. **`cdm_hosp`** - Hospital data (diagnoses, labs, medications, procedures)
-   - Key tables: `admissions`, `patients`, `diagnoses_icd`, `labevents`, `prescriptions`
-   - All filtered to 2,333 admissions from `database/hadm_id_list.txt`
+   - Filtered to admission IDs from `database/hadm_id_list.txt`
 
-2. **`cdm_note`** - Clinical text notes
-   - `discharge` - Discharge summaries (1 per admission)
-   - `radiology` - Radiology reports (~2.3 per admission)
+2. **`cdm_note`** - Clinical text notes (discharge summaries, radiology reports)
 
 3. **`cdm_note_extract`** - Structured extractions from discharge notes
-   - Tables: `chief_complaint`, `physical_exam`, `past_medical_history`, `discharge_diagnosis`, etc.
 
 **Key relationships:**
 - `patients.subject_id` → `admissions.hadm_id` → all other tables
-- Dictionary tables (prefix `d_`) provide code lookups (not filtered)
-- See `database/README.md` for complete schema documentation
+- Dictionary tables (prefix `d_`) provide code lookups
+- See [database/README.md](database/README.md) for complete schema documentation
 
 ### Database Connection
 
@@ -181,8 +175,8 @@ output = BenchmarkOutputFullInfo(
 ### LLM Architecture
 
 **vLLM Server-Client Model:**
-- **Server** loads model into GPU memory once, exposes OpenAI-compatible API at `http://localhost:8000`
-- **Client** uses LangChain's ChatOpenAI to communicate with server (see `cdm/llms/agent.py`)
+- **Server** loads model into GPU memory once, exposes OpenAI-compatible API (default: `http://localhost:8000`)
+- **Client** uses LangChain's ChatOpenAI to communicate with server
 
 Benefits:
 - Load model once, use many times (efficient GPU usage)
@@ -191,14 +185,21 @@ Benefits:
 
 **Agent-Based Clinical Decision Making:**
 - **Agent** (`build_agent`) - LangChain agent with tool calling capabilities
-- **Tools** - Clinical information retrieval (physical exam, labs, microbiology)
-- **Prompts** - System and user prompts for CDM workflow (`cdm/prompts/cdm.py`)
-- Tool registry in `cdm/tools/__init__.py` allows dynamic tool selection via config
+- **Tools** - Clinical information retrieval (physical exam, labs, microbiology, radiology)
+  - Tools use context variables (`get_current_case()`) to access case data
+  - No case-specific tool initialization required
+- **Prompts** - Jinja2 templates in `cdm/prompts/` with dynamic Pydantic schema injection
+- **Tool Registry** - `AVAILABLE_TOOLS` in `cdm/tools/__init__.py` enables dynamic tool selection via config
+
+**Context-Based Tool System:**
+- `set_current_case(case)` - Set the current case before running the agent
+- `get_current_case()` - Tools retrieve case data from context (no parameters needed)
+- Enables agent reuse across multiple cases without rebuilding
 
 Configuration:
-- vLLM: `configs/vllm_config/qwen3_4B.yaml`
-- Benchmark: `configs/benchmark/cdm.yaml` (tools, temperature, etc.)
-- Model download directory: `/vol/miltank/projects/LLMs` (cluster)
+- vLLM server configs in `configs/vllm_config/`
+- Benchmark configs in `configs/benchmark/` (tools, temperature, etc.)
+- All configs use Hydra for parameter management
 
 ### Hydra Configuration
 
@@ -213,12 +214,13 @@ def main(cfg: DictConfig):
     # Access config parameters
     cases = load_cases(cfg.benchmark_data_path, cfg.num_cases)
     llm = build_llm(cfg.base_url, cfg.temperature)
-    agent = build_agent(case, llm, cfg.enabled_tools)
+    agent = build_agent(llm, cfg.enabled_tools)
 ```
 
-**Configuration inheritance:**
-- `configs/benchmark/cdm.yaml` inherits from `base.yaml` using `defaults: [base, _self_]`
-- Override configs on command line: `uv run scripts/run_benchmark_cdm.py num_cases=5 temperature=0.7`
+**Configuration features:**
+- Inheritance via `defaults` key (e.g., `defaults: [base, _self_]`)
+- Override on command line: `uv run scripts/run_benchmark_cdm.py num_cases=5 temperature=0.7`
+- Environment-specific configs can be created as needed
 
 ## Development Guidelines
 
@@ -259,19 +261,12 @@ git commit -m "Add feature: description"
 git push origin feature/your-feature-name
 ```
 
-## Cluster-Specific Notes
-
-**Storage locations:**
-- Personal directory: `/vol/miltank/users/<username>/`
-- Fast metadata storage: `/meta/users/<username>/`
-- LLM models: `/vol/miltank/projects/LLMs`
-- **NEVER use home directory (`~/`)**
+## Cluster Usage
 
 **Slurm configuration:**
-- Partitions: `universe`, `asteroids`
-- GPU jobs: `#SBATCH --gres=gpu:1`
-- Set HuggingFace cache: `export HF_HOME=/vol/miltank/users/$USER/.cache/huggingface`
-- Example: `slurm/vllm_test.sbatch`
+- Use appropriate partitions and GPU resources as configured in `slurm/` scripts
+- Set HuggingFace cache to avoid filling home directory
+- Refer to existing `.sbatch` files in `slurm/` for examples
 
 ## Common Patterns
 
@@ -300,35 +295,33 @@ from cdm.tools import set_current_case
 # Build LLM client (connects to vLLM server)
 llm = build_llm(base_url="http://localhost:8000/v1", temperature=0.0)
 
-# Build agent with tools
-agent = build_agent(
-    llm=llm,
-    enabled_tools=["physical_exam", "lab", "microbiology"]
-)
+# Build agent once with enabled tools
+agent = build_agent(llm, enabled_tools=["physical_exam", "lab", "microbiology", "radiology"])
 
-# Run agent with patient information
-output: BenchmarkOutputCDM = run_agent(agent, patient_info)
-print(output.final_diagnosis, output.treatment)
+# Set context and run agent for each case
+for case in cases:
+    set_current_case(case)  # Tools will access this via get_current_case()
+    output: BenchmarkOutputCDM = run_agent(agent, case["history_of_present_illness"])
+    print(output.final_diagnosis, output.treatment)
 ```
 
 ### Creating Custom Clinical Tools
 ```python
-from langchain_core.tools import tool
+from langchain.tools import tool
+from cdm.tools.context import get_current_case
 
 @tool
-def create_my_tool(case: dict):
-    """Query custom clinical information."""
+def my_custom_tool() -> str:
+    """Tool description shown to LLM."""
+    case = get_current_case()  # Access current case from context
     hadm_id = case["hadm_id"]
 
-    def tool_function(query: str) -> str:
-        """Tool description for LLM."""
-        # Query database or perform computation
-        return result
-
-    return tool_function
+    # Query database or perform computation
+    result = perform_query(hadm_id)
+    return result
 
 # Register in cdm/tools/__init__.py
-AVAILABLE_TOOLS["my_tool"] = create_my_tool
+AVAILABLE_TOOLS["my_tool"] = my_custom_tool
 ```
 
 ### Loading Benchmark Data
@@ -344,12 +337,26 @@ for case in cases:
     print(case["ground_truth"]["primary_diagnosis"])
 ```
 
+### Working with Jinja2 Prompt Templates
+```python
+from cdm.prompts.gen_prompt_cdm import create_system_prompt, create_user_prompt
+from cdm.prompts.utils import pydantic_to_prompt
+from cdm.benchmark.data_models import BenchmarkOutputCDM
+
+# Generate prompts from templates
+system_prompt = create_system_prompt()  # Uses cdm/system.j2
+user_prompt = create_user_prompt(patient_info)  # Uses cdm/user.j2
+
+# Convert Pydantic model to prompt-friendly schema
+schema_str = pydantic_to_prompt(BenchmarkOutputCDM)
+```
+
 ## Important Reminders
 
-- **MIMIC data is protected** - Complete training at https://physionet.org/content/mimiciv/view-required-training/3.1/#1
-- **Never commit patient data** - Only commit code
-- **Always format before commit** - `uv run ruff format .`
-- **Use Pydantic models** - For all data structures (see `cdm/benchmark/data_models.py`)
-- **vLLM is server-client** - Start server first (`uv run vllm serve --config ...`), then run benchmark scripts
-- **Agent architecture** - Use LangChain agents with tool calling for CDM workflows
+- **MIMIC data is protected** - Never commit data files, outputs, or logs containing patient information
+- **Always format before commit** - `uv run ruff format .` (or use pre-commit hooks)
+- **Use Pydantic models** - For all data structures and LLM outputs
+- **vLLM is server-client** - Start server first, then run benchmark scripts
+- **Context-based tools** - Use `set_current_case()` before running agent, tools access via `get_current_case()`
 - **Register new tools** - Add to `AVAILABLE_TOOLS` in `cdm/tools/__init__.py`
+- **Jinja2 templates** - Prompts are in `cdm/prompts/` as `.j2` files, not hardcoded strings
