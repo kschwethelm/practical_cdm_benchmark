@@ -109,7 +109,8 @@ def extract_findings_from_report(raw_report_text: str) -> str:
     for header, content in sections.items():
         if "FINDINGS" in header and "SUMMARY" not in header:
             # e.g. "FINDINGS", "CT ABDOMEN FINDINGS"
-            return content.strip()
+            if content.strip():
+                return content.strip()
 
     # Fallback to Negative Filtering (CDMv1 Logic)
     # If no explicit findings section, we construct text from all non-bad sections.

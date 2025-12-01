@@ -23,7 +23,9 @@ SCHEMA_TABLES = {
         "procedures_icd",
         "drgcodes",
         "labevents",
+        "labevents_assigned",
         "microbiologyevents",
+        "microbiologyevents_assigned",
         "prescriptions",
         "pharmacy",
         "emar",
@@ -45,6 +47,7 @@ SCHEMA_TABLES = {
         "discharge",
         "discharge_detail",
         "radiology",
+        "radiology_assigned",
         "radiology_detail",
     ],
     "cdm_note_extract": [

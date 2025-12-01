@@ -4,6 +4,8 @@ from loguru import logger
 
 from cdm.benchmark.data_models import BenchmarkOutputCDM
 from cdm.prompts.cdm import system_prompt, user_prompt_template
+from cdm.benchmark.data_models import BenchmarkOutputCDM, BenchmarkOutputFullInfo
+from cdm.prompts.cdm import system_prompt_template, user_prompt_template
 from cdm.tools import AVAILABLE_TOOLS
 
 
@@ -22,7 +24,7 @@ def build_llm(base_url: str, temperature: float) -> ChatOpenAI:
     )
 
 
-def run_llm(llm: ChatOpenAI, system_prompt: str, user_prompt: str) -> str:
+def run_llm(llm: ChatOpenAI, system_prompt: str, user_prompt: str) -> BenchmarkOutputFullInfo:
     """Run the LLM with given system and user prompts.
 
     Args:
@@ -31,15 +33,22 @@ def run_llm(llm: ChatOpenAI, system_prompt: str, user_prompt: str) -> str:
         user_prompt: User prompt string
 
     Returns:
-        Model response as a string
+        Parsed benchmark output
     """
-    response = llm.invoke(
-        [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ]
-    )
-    return response.content
+    llm = llm.with_structured_output(BenchmarkOutputFullInfo)
+
+    try:
+        response = llm.invoke(
+            [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ]
+        )
+    except Exception as e:
+        logger.error(f"Failed to parse LLM response: {e}")
+        raise
+
+    return response
 
 
 def build_agent(case: dict, llm: ChatOpenAI, enabled_tools: list[str]):

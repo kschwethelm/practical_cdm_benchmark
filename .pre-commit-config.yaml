@@ -4,6 +4,7 @@ repos:
     hooks:
     - id: check-yaml
     - id: end-of-file-fixer
+      exclude: ^database/hadm_id_list\.txt$
     - id: trailing-whitespace
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.5
