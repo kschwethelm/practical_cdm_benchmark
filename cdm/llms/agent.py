@@ -2,10 +2,8 @@ from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 from loguru import logger
 
-from cdm.benchmark.data_models import BenchmarkOutputCDM
-from cdm.prompts.cdm import system_prompt, user_prompt_template
 from cdm.benchmark.data_models import BenchmarkOutputCDM, BenchmarkOutputFullInfo
-from cdm.prompts.cdm import system_prompt_template, user_prompt_template
+from cdm.prompts.cdm import system_prompt, user_prompt_template
 from cdm.tools import AVAILABLE_TOOLS
 
 
