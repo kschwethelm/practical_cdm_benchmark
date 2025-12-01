@@ -1,4 +1,3 @@
-
 from langchain.tools import tool
 
 from cdm.tools.context import get_current_case

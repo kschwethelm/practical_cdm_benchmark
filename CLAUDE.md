@@ -295,13 +295,13 @@ cursor.execute("""
 ```python
 from cdm.llms.agent import build_llm, build_agent, run_agent
 from cdm.benchmark.data_models import BenchmarkOutputCDM
+from cdm.tools import set_current_case
 
 # Build LLM client (connects to vLLM server)
 llm = build_llm(base_url="http://localhost:8000/v1", temperature=0.0)
 
 # Build agent with tools
 agent = build_agent(
-    case=case_dict,
     llm=llm,
     enabled_tools=["physical_exam", "lab", "microbiology"]
 )
