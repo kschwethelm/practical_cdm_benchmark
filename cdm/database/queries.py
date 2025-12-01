@@ -208,7 +208,20 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
         list of dicts with lab test details (may be empty)
     """
     query = """
-        WITH RankedLabEvents AS (
+        WITH CombinedLabEvents AS (
+            SELECT itemid, charttime, valuenum, value, valueuom, flag, comments,
+                   ref_range_lower, ref_range_upper, hadm_id
+            FROM cdm_hosp.labevents
+            WHERE hadm_id = %s
+
+            UNION ALL
+
+            SELECT itemid, charttime, valuenum, value, valueuom, flag, comments,
+                   ref_range_lower, ref_range_upper, hadm_id
+            FROM cdm_hosp.labevents_assigned
+            WHERE hadm_id = %s
+        ),
+        RankedLabEvents AS (
             SELECT
                 le.itemid,
                 le.charttime,
@@ -233,11 +246,10 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
                 di.fluid,
                 di.category,
                 ROW_NUMBER() OVER(PARTITION BY le.itemid ORDER BY le.charttime ASC) as rn
-            FROM cdm_hosp.labevents le
+            FROM CombinedLabEvents le
             JOIN cdm_hosp.d_labitems di ON le.itemid = di.itemid
             JOIN cdm_hosp.admissions adm ON le.hadm_id = adm.hadm_id
-            WHERE le.hadm_id = %s
-                AND le.charttime >= (adm.admittime - INTERVAL '1 day')
+            WHERE le.charttime >= (adm.admittime - INTERVAL '1 day')
                 AND le.charttime <= adm.dischtime
         )
         SELECT
@@ -253,7 +265,7 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
         ORDER BY charttime
     """
 
-    cursor.execute(query, (hadm_id,))
+    cursor.execute(query, (hadm_id, hadm_id))
     results = cursor.fetchall()
 
     lab_tests = [
@@ -285,17 +297,33 @@ def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
         list of dicts with microbiology event details (may be empty)
     """
     query = """
-        WITH RankedMicroEvents AS (
+        WITH CombinedMicroEvents AS (
+            SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id
+            FROM cdm_hosp.microbiologyevents
+            WHERE hadm_id = %s
+
+            UNION ALL
+
+            SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id
+            FROM cdm_hosp.microbiologyevents_assigned
+            WHERE hadm_id = %s
+        ),
+        RankedMicroEvents AS (
             SELECT
                 micro.test_name,
                 micro.spec_type_desc,
                 micro.org_name,
-                micro.comments,
+                CASE
+                    WHEN micro.comments IS NOT NULL AND micro.comments ~ '^_+$' THEN NULL
+                    ELSE micro.comments
+                END AS comments,
                 micro.charttime,
                 micro.test_itemid,
                 ROW_NUMBER() OVER(PARTITION BY micro.test_itemid ORDER BY micro.charttime ASC) as rn
-            FROM cdm_hosp.microbiologyevents micro
-            WHERE micro.hadm_id = %s
+            FROM CombinedMicroEvents micro
+            JOIN cdm_hosp.admissions adm ON micro.hadm_id = adm.hadm_id
+            WHERE micro.charttime >= (adm.admittime - INTERVAL '1 day')
+                AND micro.charttime <= adm.dischtime
         )
         SELECT
             test_name,
@@ -306,9 +334,11 @@ def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
             test_itemid
         FROM RankedMicroEvents
         WHERE rn = 1
+            AND comments IS NOT NULL
         ORDER BY charttime
     """
-    cursor.execute(query, (hadm_id,))
+
+    cursor.execute(query, (hadm_id, hadm_id))
     results = cursor.fetchall()
 
     microbiology_events = [
@@ -339,21 +369,31 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
         list of dicts with radiology report details (may be empty)
     """
     query = """
-        WITH RankedRadiology AS (
+        WITH CombinedRadiology AS (
+            SELECT note_id, hadm_id, text, charttime
+            FROM cdm_note.radiology
+            WHERE hadm_id = %s
+
+            UNION ALL
+
+            SELECT note_id, hadm_id, text, charttime
+            FROM cdm_note.radiology_assigned
+            WHERE hadm_id = %s
+        ),
+        RankedRadiology AS (
             SELECT
-                charttime,
-                field_value AS exam_name,
-                text AS findings,
+                rad.charttime,
+                det.field_value AS exam_name,
+                rad.text AS findings,
                 rad.note_id,
                 ROW_NUMBER() OVER(PARTITION BY rad.note_id ORDER BY rad.charttime ASC) as rn
-            FROM
-                cdm_note.radiology rad
-            JOIN cdm_note.radiology_detail det
-                ON rad.note_id = det.note_id
-            WHERE
-                hadm_id = %s
-                AND text IS NOT NULL
-                AND field_name = 'exam_name'
+            FROM CombinedRadiology rad
+            JOIN cdm_note.radiology_detail det ON rad.note_id = det.note_id
+            JOIN cdm_hosp.admissions adm ON rad.hadm_id = adm.hadm_id
+            WHERE rad.text IS NOT NULL
+                AND det.field_name = 'exam_name'
+                AND rad.charttime >= (adm.admittime - INTERVAL '1 day')
+                AND rad.charttime <= adm.dischtime
         )
         SELECT
             exam_name,
@@ -363,7 +403,7 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
         WHERE rn = 1
         ORDER BY charttime;
     """
-    cursor.execute(query, (hadm_id,))
+    cursor.execute(query, (hadm_id, hadm_id))
     results = cursor.fetchall()
 
     reports = [
