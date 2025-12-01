@@ -3,7 +3,7 @@ from langchain_openai import ChatOpenAI
 from loguru import logger
 
 from cdm.benchmark.data_models import BenchmarkOutputCDM, BenchmarkOutputFullInfo
-from cdm.prompts.cdm import system_prompt, user_prompt_template
+from cdm.prompts.gen_prompt_cdm import create_system_prompt, create_user_prompt
 from cdm.tools import AVAILABLE_TOOLS
 
 
@@ -70,6 +70,9 @@ def build_agent(case: dict, llm: ChatOpenAI, enabled_tools: list[str]):
     # Create the enabled tools
     tools = [AVAILABLE_TOOLS[tool_name](case) for tool_name in enabled_tools]
 
+    # Generate system prompt with Pydantic schema
+    system_prompt = create_system_prompt()
+
     agent = create_agent(
         model=llm,
         tools=tools,
@@ -89,12 +92,15 @@ def run_agent(agent, patient_info: str) -> BenchmarkOutputCDM:
     Returns:
         Parsed benchmark output
     """
+    # Generate user prompt with patient information
+    user_prompt = create_user_prompt(patient_info)
+
     response = agent.invoke(
         {
             "messages": [
                 {
                     "role": "user",
-                    "content": user_prompt_template.render(patient_info=patient_info),
+                    "content": user_prompt,
                 },
             ]
         }

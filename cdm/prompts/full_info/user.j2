@@ -1,33 +1,28 @@
-Diagnose the patient based on the following information.
+Provide the most likely final diagnosis of the following patient.
 
-PATIENT DEMOGRAPHICS:
-- Age: {{ age }}
-- Gender: {{ gender }}
-
-HISTORY OF PRESENT ILLNESS:
-{{ history_of_present_illness }}
+@@@ PATIENT HISTORY @@@
+{{ history_of_present_illness | trim }}
 
 {%- if physical_examination %}
-PHYSICAL EXAMINATION:
-{{ physical_examination }}
-{%- endif %}
 
-{%- if patient_history %}
-PATIENT HISTORY:
-{{ patient_history }}
+@@@ PHYSICAL EXAMINATION @@@
+{{ physical_examination | trim }}
 {%- endif %}
 
 {%- if laboratory_results %}
-LABORATORY RESULTS:
-{{ laboratory_results }}
+
+@@@ LABORATORY RESULTS @@@
+{{ laboratory_results | trim }}
 {%- endif %}
 
 {%- if imaging_reports %}
-IMAGING REPORTS:
-{{ imaging_reports }}
+
+@@@ IMAGING REPORTS @@@
+{{ imaging_reports | trim }}
 {%- endif %}
 
 {%- if microbiology_results %}
-MICROBIOLOGY RESULTS:
-{{ microbiology_results }}
+
+@@@ MICROBIOLOGY RESULTS @@@
+{{ microbiology_results | trim }}
 {%- endif %}

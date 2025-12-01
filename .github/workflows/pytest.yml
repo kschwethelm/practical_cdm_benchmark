@@ -1,0 +1,32 @@
+name: Pytest
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies (excluding heavy packages)
+        run: |
+          uv pip install --system -e . --no-deps
+          uv pip install --system pytest pydantic langchain langchain-openai loguru
+
+      - name: Run pytest (excluding database integration tests)
+        run: pytest --ignore=tests/integration/database/test_database_access.py -v
