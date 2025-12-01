@@ -3,7 +3,7 @@ from langchain_openai import ChatOpenAI
 from loguru import logger
 
 from cdm.benchmark.data_models import BenchmarkOutputCDM
-from cdm.prompts.cdm import system_prompt_template, user_prompt_template
+from cdm.prompts.cdm import system_prompt, user_prompt_template
 from cdm.tools import AVAILABLE_TOOLS
 
 
@@ -66,7 +66,7 @@ def build_agent(case: dict, llm: ChatOpenAI, enabled_tools: list[str]):
     agent = create_agent(
         model=llm,
         tools=tools,
-        system_prompt=system_prompt_template.format(),
+        system_prompt=system_prompt,
     )
     logger.info(f"Built agent with tools: {enabled_tools}")
     return agent
@@ -87,7 +87,7 @@ def run_agent(agent, patient_info: str) -> BenchmarkOutputCDM:
             "messages": [
                 {
                     "role": "user",
-                    "content": user_prompt_template.format(patient_info=patient_info),
+                    "content": user_prompt_template.render(patient_info=patient_info),
                 },
             ]
         }

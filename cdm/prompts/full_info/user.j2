@@ -1,0 +1,33 @@
+Diagnose the patient based on the following information.
+
+PATIENT DEMOGRAPHICS:
+- Age: {{ age }}
+- Gender: {{ gender }}
+
+HISTORY OF PRESENT ILLNESS:
+{{ history_of_present_illness }}
+
+{%- if physical_examination %}
+PHYSICAL EXAMINATION:
+{{ physical_examination }}
+{%- endif %}
+
+{%- if patient_history %}
+PATIENT HISTORY:
+{{ patient_history }}
+{%- endif %}
+
+{%- if laboratory_results %}
+LABORATORY RESULTS:
+{{ laboratory_results }}
+{%- endif %}
+
+{%- if imaging_reports %}
+IMAGING REPORTS:
+{{ imaging_reports }}
+{%- endif %}
+
+{%- if microbiology_results %}
+MICROBIOLOGY RESULTS:
+{{ microbiology_results }}
+{%- endif %}

@@ -1,53 +1,14 @@
-from langchain_core.prompts import PromptTemplate
+from pathlib import Path
 
-system_prompt = """You are a medical artificial intelligence assistant. 
-You directly diagnose patients based on the provided information to assist a doctor in his clinical duties.
-Your goal is to correctly diagnose the patient.
-Based on the provided information you will provide a final diagnosis of the most severe pathology.
-Don't write any further information. Give only a single diagnosis. 
-Provide the most likely final diagnosis of the following patient.
+from jinja2 import Environment, FileSystemLoader, Template
 
-You are given ALL available diagnostic information at once.
+TEMPLATE_DIR = Path(__file__).parent
+jinja_env = Environment(loader=FileSystemLoader(searchpath=TEMPLATE_DIR))
 
-Return your answer in the following format:
-{{ format_instructions }}"""
+format_instructions_template: Template = jinja_env.get_template("format_instructions/only_diagnosis.j2")
+format_instructions = format_instructions_template.render()
 
-format_instructions = """
-Return your answer as a JSON object with exactly these fields:
-{
-  "diagnosis": "<string: The final diagnosis based on the case information>"
-}
-Do not include any extra text outside the JSON.
-"""
+system_prompt_template: Template = jinja_env.get_template("full_info/system.j2")
+system_prompt = system_prompt_template.render(format_instructions=format_instructions)
 
-full_info = """Diagnose the patient based on the following information.
-
-PATIENT DEMOGRAPHICS:
-- Age: {{ age }}
-- Gender: {{ gender }}
-
-HISTORY OF PRESENT ILLNESS:
-{{ history_of_present_illness }}
-
-PHYSICAL EXAMINATION:
-{{ physical_examination }}
-
-Use ALL information above and return in JSON format.
-"""
-
-full_info_prompt_template = PromptTemplate(
-    template=full_info,
-    template_format="jinja2",
-    input_variables=[
-        "age",
-        "gender",
-        "history_of_present_illness",
-        "physical_examination",
-    ],
-)
-
-system_prompt_template = PromptTemplate(
-    template=system_prompt,
-    template_format="jinja2",
-    partial_variables={"format_instructions": format_instructions},
-)
+full_info_prompt_template: Template = jinja_env.get_template("full_info/user.j2")

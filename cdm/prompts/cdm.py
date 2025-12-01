@@ -1,36 +1,14 @@
-from langchain_core.prompts import PromptTemplate
+from pathlib import Path
 
-system_prompt = """You are a medical artificial intelligence assistant. 
-You give helpful, detailed and factually correct answers to the doctors questions to help him in his clinical duties. 
-Your goal is to correctly diagnose the patient and provide treatment advice. 
-You will consider information about a patient and provide a final diagnosis.
-Use the tools to gather physical exam and lab results.
+from jinja2 import Environment, FileSystemLoader, Template
 
-{{ format_instructions }}
-"""
+TEMPLATE_DIR = Path(__file__).parent
+jinja_env = Environment(loader=FileSystemLoader(searchpath=TEMPLATE_DIR))
 
-format_instructions = """
-Give your final response in JSON using this schema:
-{
-  "thought": "<string: Reflect on the gathered information and explain the reasoning>",
-  "final_diagnosis": "<string: The final diagnosis based on the case information>",
-  "treatment": ["<array of strings: Treatment recommendations>"]
-}"""
+format_instructions_template: Template = jinja_env.get_template("format_instructions/diagnosis_treatment.j2")
+format_instructions = format_instructions_template.render()
 
-user_prompt = """Consider the following case and come to a final diagnosis and treatment by thinking, planning, and using the aforementioned tools and format.
+system_prompt_template: Template = jinja_env.get_template("tool_calling/system.j2")
+system_prompt = system_prompt_template.render(format_instructions=format_instructions)
 
-Patient History:
-{{ patient_info }}
-"""
-
-system_prompt_template = PromptTemplate(
-    template=system_prompt,
-    template_format="jinja2",
-    partial_variables={"format_instructions": format_instructions},
-)
-
-user_prompt_template = PromptTemplate(
-    template=user_prompt,
-    template_format="jinja2",
-    input_variables=["patient_info"],
-)
+user_prompt_template: Template = jinja_env.get_template("tool_calling/user.j2")
