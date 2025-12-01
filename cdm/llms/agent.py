@@ -49,11 +49,10 @@ def run_llm(llm: ChatOpenAI, system_prompt: str, user_prompt: str) -> BenchmarkO
     return response
 
 
-def build_agent(case: dict, llm: ChatOpenAI, enabled_tools: list[str]):
+def build_agent(llm: ChatOpenAI, enabled_tools: list[str]):
     """Build a LangChain agent with tool calling capabilities.
 
     Args:
-        case: Case data dictionary
         llm: ChatOpenAI client
         enabled_tools: List of tool names to enable (e.g., ["physical_exam", "lab"])
 
@@ -67,8 +66,8 @@ def build_agent(case: dict, llm: ChatOpenAI, enabled_tools: list[str]):
             f"Invalid tool(s): {invalid_tools}. Available tools: {list(AVAILABLE_TOOLS.keys())}"
         )
 
-    # Create the enabled tools
-    tools = [AVAILABLE_TOOLS[tool_name](case) for tool_name in enabled_tools]
+    # Get the enabled tools
+    tools = [AVAILABLE_TOOLS[tool_name] for tool_name in enabled_tools]
 
     # Generate system prompt with Pydantic schema
     system_prompt = create_system_prompt()
