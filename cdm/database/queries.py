@@ -157,7 +157,7 @@ def get_history_of_present_illness(cursor: psycopg.Cursor, hadm_id: int) -> str 
         History of present illness string, or None if not found
     """
     query = """
-        SELECT history_of_present_illness
+        SELECT history_of_present_illness, past_medical_history
         FROM cdm_note_extract.discharge_free_text
         WHERE hadm_id = %s
     """
@@ -165,7 +165,7 @@ def get_history_of_present_illness(cursor: psycopg.Cursor, hadm_id: int) -> str 
     result = cursor.fetchone()
 
     if result:
-        return result[0]
+        return result[0] + "\n\nPast Medical History: " + result[1]
     logger.debug(f"No history of present illness found for hadm_id={hadm_id}")
     return None
 

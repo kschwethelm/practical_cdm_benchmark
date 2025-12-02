@@ -48,9 +48,17 @@ def scrub_text(text: str, pathology_type: str | None) -> str:
     """
     Removes mentions of the diagnosis and related procedures from
     a block of text, replacing them with '___' as per CDMv1.
+
+    Args:
+        text: The text to scrub
+        pathology_type: The type of pathology (e.g., 'pancreatitis')
     """
     if not text:
         return ""
+
+    # Replace newlines with spaces
+    text = text.replace("\n", " ")
+
     if not pathology_type:
         return text  # No scrubbing needed if no pathology type
 
@@ -105,15 +113,6 @@ def extract_findings_from_report(raw_report_text: str) -> str:
 
     sections = parse_report(raw_report_text)
 
-    # Explicitly look for "FINDINGS"
-    for header, content in sections.items():
-        if "FINDINGS" in header and "SUMMARY" not in header:
-            # e.g. "FINDINGS", "CT ABDOMEN FINDINGS"
-            if content.strip():
-                return content.strip()
-
-    # Fallback to Negative Filtering (CDMv1 Logic)
-    # If no explicit findings section, we construct text from all non-bad sections.
     text_clean = ""
 
     for field, content in sections.items():
@@ -142,7 +141,7 @@ def derive_modality(exam_name: str, text: str) -> str:
             modality = mod
             break
     if modality == "Unknown" and exam_upper.startswith("CHEST"):
-        modality = "XR"
+        modality = "Radiograph"
 
     # Further check text if modality is still unknown
     if modality == "Unknown" and text:

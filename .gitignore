@@ -9,3 +9,4 @@ outputs/
 *.err
 *.out
 data/
+summary.txt
