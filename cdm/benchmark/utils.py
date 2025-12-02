@@ -3,56 +3,65 @@ from pathlib import Path
 
 from loguru import logger
 
+from cdm.benchmark.data_models import BenchmarkDataset, HadmCase
 
-def load_cases(benchmark_path: Path, num_cases: int = None) -> list[dict]:
-    """Load all cases from the benchmark dataset.
+
+def load_cases(benchmark_path: Path, num_cases: int = None) -> list[HadmCase]:
+    """Load cases from the benchmark dataset as Pydantic models.
 
     Args:
-        benchmark_path (Path): Path to the benchmark JSON file.
-        num_cases (int, optional): Number of cases to load. If None, load all cases.
+        benchmark_path: Path to the benchmark JSON file.
+        num_cases: Number of cases to load. If None, load all cases.
+
+    Returns:
+        List of HadmCase Pydantic models
     """
-    logger.info(f"Loading all cases from {benchmark_path}")
+    logger.info(f"Loading cases from {benchmark_path}")
 
     with open(benchmark_path) as f:
         data = json.load(f)
 
-    cases = data["cases"]
+    # Parse into Pydantic model
+    benchmark = BenchmarkDataset(**data)
+
+    cases = benchmark.cases
 
     if num_cases is not None:
         cases = cases[:num_cases]
 
+    logger.info(f"Loaded {len(cases)} cases")
     return cases
 
 
-def add_clinical_history(case: dict) -> dict:
+def add_clinical_history(case: HadmCase) -> dict:
     """Extract clinical history information from case.
 
     Args:
-        case (dict): Case dictionary containing clinical history.
+        case: HadmCase Pydantic model containing clinical history.
 
     Returns:
         dict: Dictionary with history of present illness and physical examination.
     """
     return {
-        "history_of_present_illness": case["history_of_present_illness"],
-        "physical_examination": case["physical_exam_text"],
+        "history_of_present_illness": case.history_of_present_illness,
+        "physical_examination": case.physical_exam_text,
     }
 
 
-def add_laboratory_tests(case: dict) -> dict:
+def add_laboratory_tests(case: HadmCase) -> dict:
     """Format laboratory test results from case.
 
     Args:
-        case (dict): Case dictionary containing lab results.
+        case: HadmCase Pydantic model containing lab results.
 
     Returns:
         dict: Dictionary with formatted laboratory results string.
     """
     lab_results = ""
-    for lab in case.get("lab_results", []):
-        value = lab.get("value", "Unknown")
-        ref_range_lower = lab.get("ref_range_lower")
-        ref_range_upper = lab.get("ref_range_upper")
+    for lab in case.lab_results:
+        value = lab.value or "Unknown"
+        ref_range_lower = lab.ref_range_lower
+        ref_range_upper = lab.ref_range_upper
 
         # Format reference range if available
         ref_str = ""
@@ -60,38 +69,36 @@ def add_laboratory_tests(case: dict) -> dict:
             ref_str = f" (ref: {ref_range_lower}-{ref_range_upper})"
 
         # Format category and fluid info
-        category = lab.get("category", "")
-        fluid = lab.get("fluid", "")
         category_str = ""
-        if category or fluid:
+        if lab.category or lab.fluid:
             parts = []
-            if category:
-                parts.append(category)
-            if fluid:
-                parts.append(fluid)
+            if lab.category:
+                parts.append(lab.category)
+            if lab.fluid:
+                parts.append(lab.fluid)
             category_str = f" [{' | '.join(parts)}]"
 
-        lab_line = f"- {lab.get('test_name')}{category_str}: {value}{ref_str}\n"
+        lab_line = f"- {lab.test_name}{category_str}: {value}{ref_str}\n"
         lab_results += lab_line
 
     return {"laboratory_results": lab_results}
 
 
-def add_imaging_reports(case: dict) -> dict:
+def add_imaging_reports(case: HadmCase) -> dict:
     """Format imaging/radiology reports from case.
 
     Args:
-        case (dict): Case dictionary containing radiology reports.
+        case: HadmCase Pydantic model containing radiology reports.
 
     Returns:
         dict: Dictionary with formatted imaging reports string.
     """
     imaging_results = ""
-    for imaging in case.get("radiology_reports", []):
-        exam_name = imaging.get("exam_name", "Unknown")
-        modality = imaging.get("modality", "")
-        region = imaging.get("region", "")
-        findings = imaging.get("findings", "Unknown")
+    for imaging in case.radiology_reports:
+        exam_name = imaging.exam_name or "Unknown"
+        modality = imaging.modality or ""
+        region = imaging.region or ""
+        findings = imaging.findings or "Unknown"
 
         imaging_results += f"- {exam_name} ({modality}, {region})\n"
         imaging_results += f"  Findings: {findings}\n\n"
@@ -99,21 +106,21 @@ def add_imaging_reports(case: dict) -> dict:
     return {"imaging_reports": imaging_results}
 
 
-def add_microbiology_results(case: dict) -> dict:
+def add_microbiology_results(case: HadmCase) -> dict:
     """Format microbiology test results from case.
 
     Args:
-        case (dict): Case dictionary containing microbiology events.
+        case: HadmCase Pydantic model containing microbiology events.
 
     Returns:
         dict: Dictionary with formatted microbiology results string.
     """
     micro_results = ""
-    for micro in case.get("microbiology_events", []):
-        test_name = micro.get("test_name", "Unknown")
-        spec_type = micro.get("spec_type_desc", "")
-        organism = micro.get("organism_name", "Unknown")
-        comments = micro.get("comments", "")
+    for micro in case.microbiology_events:
+        test_name = micro.test_name or "Unknown"
+        spec_type = micro.spec_type_desc or ""
+        organism = micro.organism_name or "Unknown"
+        comments = micro.comments or ""
 
         micro_results += f"- {test_name} ({spec_type})\n"
         micro_results += f"  Organism: {organism}\n"
@@ -123,11 +130,11 @@ def add_microbiology_results(case: dict) -> dict:
     return {"microbiology_results": micro_results}
 
 
-def gather_all_info(case: dict) -> dict:
+def gather_all_info(case: HadmCase) -> dict:
     """Gather all clinical information by combining all data sources.
 
     Args:
-        case (dict): Case dictionary containing all clinical data.
+        case: HadmCase Pydantic model containing all clinical data.
 
     Returns:
         dict: Dictionary with all formatted clinical information.
