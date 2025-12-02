@@ -19,10 +19,9 @@ def main(cfg: DictConfig):
     agent = build_agent(llm, cfg.enabled_tools)
 
     for idx, case in enumerate(cases):
-        hadm_id = case["hadm_id"]
-        patient_info = case["history_of_present_illness"]
-        gt_diagnosis = case["ground_truth"]["primary_diagnosis"]
-
+        hadm_id = case.hadm_id
+        patient_info = case.history_of_present_illness
+        gt_diagnosis = case.ground_truth.primary_diagnosis if case.ground_truth else "Unknown"
         logger.info(f"Processing case {idx + 1}/{len(cases)} (hadm_id: {hadm_id})")
 
         set_current_case(case)

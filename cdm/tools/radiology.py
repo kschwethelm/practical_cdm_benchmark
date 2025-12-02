@@ -1,5 +1,6 @@
 from langchain.tools import tool
 
+from cdm.benchmark.data_models import HadmCase
 from cdm.tools.context import get_current_case
 
 
@@ -14,23 +15,23 @@ def request_imaging(region: str, modality: str) -> str:
     Returns:
         Imaging results or "No imaging available" message
     """
-    case = get_current_case()
-    imaging_results = case.get("radiology_reports", [])
+    case: HadmCase = get_current_case()
+    imaging_results = case.radiology_reports
 
     if not imaging_results:
         return "No imaging results available for this patient."
 
     # Search for matching imaging by region and modality
     for imaging in imaging_results:
-        img_region = imaging.get("region", "").lower()
-        img_modality = imaging.get("modality", "").lower()
+        img_region = (imaging.region or "").lower()
+        img_modality = (imaging.modality or "").lower()
 
         if region.lower() in img_region and modality.lower() in img_modality:
             result = (
-                f"- Exam Name: {imaging.get('exam_name', 'N/A')}\n"
-                f"- Region: {imaging.get('region', 'N/A')}\n"
-                f"- Modality: {imaging.get('modality', 'N/A')}\n"
-                f"- Findings: {imaging.get('findings', 'N/A')}\n"
+                f"- Exam Name: {imaging.exam_name or 'N/A'}\n"
+                f"- Region: {imaging.region or 'N/A'}\n"
+                f"- Modality: {imaging.modality or 'N/A'}\n"
+                f"- Findings: {imaging.findings or 'N/A'}\n"
             )
             return result
 

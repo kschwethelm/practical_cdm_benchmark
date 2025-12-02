@@ -1,23 +1,22 @@
-from .context import get_current_case, set_current_case
-from .labs import request_lab_test
-from .microbiology import request_microbio_test
-from .physical_exam import physical_examination
-from .radiology import request_imaging
+from cdm.tools.context import get_current_case, set_current_case
+from cdm.tools.labs import request_lab_test
+from cdm.tools.microbiology import request_microbiology
+from cdm.tools.physical_exam import physical_examination
+from cdm.tools.radiology import request_imaging
 
-# Registry of all available tools
 AVAILABLE_TOOLS = {
     "physical_exam": physical_examination,
     "lab": request_lab_test,
-    "microbiology": request_microbio_test,
     "radiology": request_imaging,
+    "microbiology": request_microbiology,
 }
 
 __all__ = [
+    "get_current_case",
+    "set_current_case",
     "request_lab_test",
-    "request_microbio_test",
     "physical_examination",
     "request_imaging",
+    "request_microbiology",
     "AVAILABLE_TOOLS",
-    "set_current_case",
-    "get_current_case",
 ]

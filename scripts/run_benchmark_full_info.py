@@ -16,8 +16,8 @@ def main(cfg: DictConfig):
     system_prompt = create_system_prompt()
 
     for idx, case in enumerate(cases):
-        hadm_id = case["hadm_id"]
-        gt_diagnosis = case["ground_truth"]["primary_diagnosis"]
+        hadm_id = case.hadm_id
+        gt_diagnosis = case.ground_truth.primary_diagnosis if case.ground_truth else "Unknown"
         logger.info(f"Processing case {idx + 1}/{len(cases)} (hadm_id: {hadm_id})")
 
         patient_info_dict = gather_all_info(case)

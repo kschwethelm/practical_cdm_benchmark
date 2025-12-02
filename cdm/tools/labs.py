@@ -1,5 +1,6 @@
 from langchain.tools import tool
 
+from cdm.benchmark.data_models import DetailedLabResult, HadmCase
 from cdm.tools.context import get_current_case
 from cdm.tools.lab_utils import (
     convert_labs_to_itemid,
@@ -27,8 +28,8 @@ def request_lab_test(test_name: str) -> str:
     Returns:
         Formatted lab results or error message
     """
-    case = get_current_case()
-    lab_results = case.get("lab_results", [])
+    case: HadmCase = get_current_case()
+    lab_results = case.lab_results
 
     if not lab_results:
         return "No laboratory results available for this patient."
@@ -47,7 +48,7 @@ def request_lab_test(test_name: str) -> str:
     for item in itemids:
         if isinstance(item, int):
             # It's an itemid, find in patient's lab results
-            matching_labs = [lab for lab in lab_results if lab.get("itemid") == item]
+            matching_labs = [lab for lab in lab_results if lab.itemid == item]
 
             if matching_labs:
                 for lab in matching_labs:
@@ -59,7 +60,7 @@ def request_lab_test(test_name: str) -> str:
             # It's a string (couldn't map to itemid), try substring search
             found = False
             for lab in lab_results:
-                if str(item).lower() in lab.get("test_name", "").lower():
+                if str(item).lower() in lab.test_name.lower():
                     results.append(format_lab_result(lab))
                     found = True
 
@@ -80,12 +81,11 @@ def request_lab_test(test_name: str) -> str:
     return response if response else f"No laboratory results found for: {test_name}"
 
 
-def format_lab_result(lab: dict) -> str:
+def format_lab_result(lab: DetailedLabResult) -> str:
     """Format a single lab result with category, fluid, value, and reference range."""
-    value = lab.get("value", "Unknown")
-    unit = lab.get("unit", "")
-    ref_range_lower = lab.get("ref_range_lower")
-    ref_range_upper = lab.get("ref_range_upper")
+    value = lab.value or "Unknown"
+    ref_range_lower = lab.ref_range_lower
+    ref_range_upper = lab.ref_range_upper
 
     # Format reference range
     ref_str = ""
@@ -93,13 +93,11 @@ def format_lab_result(lab: dict) -> str:
         ref_str = f" (ref: {ref_range_lower}-{ref_range_upper})"
 
     # Format category and fluid
-    category = lab.get("category", "")
-    fluid = lab.get("fluid", "")
+    category = lab.category or ""
+    fluid = lab.fluid or ""
     category_str = ""
     if category or fluid:
         parts = [p for p in (category, fluid) if p]
         category_str = f" [{' | '.join(parts)}]"
 
-    unit_str = f" {unit}" if unit else ""
-
-    return f"- {lab.get('test_name')}{category_str}: {value}{unit_str}{ref_str}"
+    return f"- {lab.test_name}{category_str}: {value}{ref_str}"
