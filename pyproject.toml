@@ -25,6 +25,7 @@ dependencies = [
     "streamlit>=1.51.0",
     "tqdm>=4.67.1",
     "vllm>=0.10.2",
+    "thefuzz>=0.22.1",
 ]
 
 [dependency-groups]

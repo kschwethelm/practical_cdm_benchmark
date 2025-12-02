@@ -4,7 +4,6 @@ import json
 import re
 from pathlib import Path
 
-import pandas as pd
 from loguru import logger
 from thefuzz import fuzz, process
 
@@ -18,16 +17,16 @@ from cdm.tools.lab_mappings import (
 LAB_TEST_MAPPING_PATH = Path("/srv/student/cdm_v1/lab_test_mapping.json")
 
 
-def load_lab_test_mapping() -> pd.DataFrame:
+def load_lab_test_mapping() -> list[dict]:
     """Load lab test mapping from JSON file."""
     if not LAB_TEST_MAPPING_PATH.exists():
         logger.warning(f"Lab test mapping not found at {LAB_TEST_MAPPING_PATH}")
-        return pd.DataFrame()
+        return []
 
     with open(LAB_TEST_MAPPING_PATH) as f:
         data = json.load(f)
 
-    return pd.DataFrame(data)
+    return data
 
 
 def extract_short_and_long_name(test_name: str) -> tuple[str, str]:
@@ -137,21 +136,23 @@ def parse_lab_tests_action_input(action_input: str) -> list[str]:
     return tests
 
 
-def convert_labs_to_itemid(tests: list[str], lab_test_mapping_df: pd.DataFrame) -> list[int | str]:
+def convert_labs_to_itemid(tests: list[str], lab_test_mapping: list[dict]) -> list[int | str]:
     """Convert list of test names to canonical itemids.
 
     Args:
         tests: List of test names
-        lab_test_mapping_df: DataFrame with lab test mapping
+        lab_test_mapping: List of dicts with lab test mapping
 
     Returns:
         List of itemids (or test name strings if no match)
     """
-    if lab_test_mapping_df.empty:
-        logger.warning("Lab test mapping DataFrame is empty")
+    if not lab_test_mapping:
+        logger.warning("Lab test mapping is empty")
         return tests
 
-    labels = lab_test_mapping_df["label"].tolist() if not lab_test_mapping_df.empty else []
+    # Extract labels from mapping
+    labels = [test.get("label") for test in lab_test_mapping if "label" in test]
+
     all_tests = []
 
     for test_full in tests:
@@ -178,7 +179,7 @@ def convert_labs_to_itemid(tests: list[str], lab_test_mapping_df: pd.DataFrame) 
         # Extract short/long names
         test_short, test_long = extract_short_and_long_name(test_full)
 
-        # Fuzzy matching against lab_test_mapping_df labels
+        # Fuzzy matching against lab_test_mapping labels
         if labels:
             test_match, score = process.extractOne(test_full, labels, scorer=fuzz.ratio)
 
@@ -196,11 +197,16 @@ def convert_labs_to_itemid(tests: list[str], lab_test_mapping_df: pd.DataFrame) 
 
             # Get corresponding itemids
             if test_match:
-                expanded_tests = lab_test_mapping_df.loc[
-                    lab_test_mapping_df["label"] == test_match, "corresponding_ids"
-                ].iloc[0]
+                # Find the test entry with this label
+                matching_entry = next(
+                    (t for t in lab_test_mapping if t.get("label") == test_match), None
+                )
 
-                all_tests.extend(expanded_tests)
+                if matching_entry and "corresponding_ids" in matching_entry:
+                    expanded_tests = matching_entry["corresponding_ids"]
+                    all_tests.extend(expanded_tests)
+                else:
+                    all_tests.append(test_full)
             else:
                 # No match - keep original
                 all_tests.append(test_full)
