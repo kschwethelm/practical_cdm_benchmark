@@ -27,6 +27,7 @@ def request_imaging(region: str, modality: str) -> str:
 
         if region.lower() in img_region and modality.lower() in img_modality:
             result = (
+                f"- Exam Name: {imaging.get('exam_name', 'N/A')}\n"
                 f"- Region: {imaging.get('region', 'N/A')}\n"
                 f"- Modality: {imaging.get('modality', 'N/A')}\n"
                 f"- Findings: {imaging.get('findings', 'N/A')}\n"
