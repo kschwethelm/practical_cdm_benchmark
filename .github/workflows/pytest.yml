@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies (excluding heavy packages)
         run: |
           uv pip install --system -e . --no-deps
-          uv pip install --system pytest pydantic langchain langchain-openai loguru jinja2
+          uv pip install --system pytest pydantic langchain langchain-openai loguru jinja2 thefuzz python-Levenshtein
 
       - name: Run pytest (excluding database integration tests)
         run: pytest --ignore=tests/integration/database/test_database_access.py -v
