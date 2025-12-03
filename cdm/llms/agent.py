@@ -2,7 +2,7 @@ from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 from loguru import logger
 
-from cdm.benchmark.data_models import BenchmarkOutputCDM, BenchmarkOutputFullInfo
+from cdm.benchmark.data_models import BenchmarkOutputCDM, BenchmarkOutputFullInfo, AgentRunResult
 from cdm.prompts.gen_prompt_cdm import create_system_prompt, create_user_prompt
 from cdm.tools import AVAILABLE_TOOLS
 
@@ -106,7 +106,10 @@ def run_agent(agent, patient_info: str) -> BenchmarkOutputCDM:
     )
 
     try:
-        return BenchmarkOutputCDM.model_validate_json(response["messages"][-1].content)
+        prediction = BenchmarkOutputCDM.model_validate_json(response["messages"][-1].content)
+        messages_as_dicts = [msg.dict() for msg in response["messages"]]
+        output = AgentRunResult(prediction=prediction, messages=messages_as_dicts)
+        return output
     except Exception as e:
         logger.error(f"Failed to parse agent response: {e}")
         logger.error(f"Response: {response['messages'][-1].content}")
