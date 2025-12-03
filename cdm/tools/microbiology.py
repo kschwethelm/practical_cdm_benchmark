@@ -1,26 +1,22 @@
 from langchain.tools import tool
 
+from cdm.benchmark.data_models import HadmCase
 from cdm.tools.context import get_current_case
 
 
 @tool
-def request_microbio_test(test_name: str) -> str:
-    """Return microbiology results for the patient (blood/urine cultures, etc.)."""
-    case = get_current_case()
-    bio = case.get("first_microbiology_result")
-    if bio:
-        result = (
-            # f"Microbiology result:\n"
-            f"- Time collected: {bio.get('charttime', 'N/A')}\n"
-            f"- Specimen type: {bio.get('spec_type_desc', 'N/A')}\n"
-            f"- Test name: {bio.get('test_name', 'N/A')}\n"
-            f"- Organism found: {bio.get('org_name', 'N/A')}\n"
-            f"- Interpretation: {bio.get('interpretation', 'N/A')}\n"
-        )
-        return result
+def request_microbiology(test_name: str) -> str:
+    """Return microbiology results for the patient (blood/urine cultures, etc.).
 
-    # Otherwise, use the new format (list of microbiology events)
-    microbio_events = case.get("microbiology_events", [])
+    Args:
+        test_name: The microbiology test to request. Use "all" for all results.
+
+    Returns:
+        Formatted microbiology results
+    """
+    case: HadmCase = get_current_case()
+    microbio_events = case.microbiology_events
+
     if not microbio_events:
         return "No microbiology results available for this patient."
 
@@ -29,25 +25,25 @@ def request_microbio_test(test_name: str) -> str:
         result_lines = []
         for bio in microbio_events:
             bio_line = (
-                f"- {bio.get('test_name', 'N/A')} [{bio.get('spec_type_desc', 'N/A')}]: "
-                f"Organism: {bio.get('organism_name', 'N/A')}"
+                f"- {bio.test_name or 'N/A'} [{bio.spec_type_desc or 'N/A'}]: "
+                f"Organism: {bio.organism_name or 'N/A'}"
             )
-            if bio.get("interpretation"):
-                bio_line += f" - {bio.get('interpretation')}"
-            if bio.get("charttime"):
-                bio_line += f" (Time: {bio.get('charttime')})"
+            if bio.comments:
+                bio_line += f" - {bio.comments}"
+            if bio.charttime:
+                bio_line += f" (Time: {bio.charttime})"
             result_lines.append(bio_line)
         return "\n".join(result_lines)
 
     # Otherwise, search for specific test
     for bio in microbio_events:
-        if test_name.lower() in bio.get("test_name", "").lower():
+        if test_name.lower() in (bio.test_name or "").lower():
             result = (
-                f"- Time collected: {bio.get('charttime', 'N/A')}\n"
-                f"- Specimen type: {bio.get('spec_type_desc', 'N/A')}\n"
-                f"- Test name: {bio.get('test_name', 'N/A')}\n"
-                f"- Organism found: {bio.get('organism_name', 'N/A')}\n"
-                f"- Interpretation: {bio.get('interpretation', 'N/A')}\n"
+                f"- Time collected: {bio.charttime or 'N/A'}\n"
+                f"- Specimen type: {bio.spec_type_desc or 'N/A'}\n"
+                f"- Test name: {bio.test_name or 'N/A'}\n"
+                f"- Organism found: {bio.organism_name or 'N/A'}\n"
+                f"- Comments: {bio.comments or 'N/A'}\n"
             )
             return result
 

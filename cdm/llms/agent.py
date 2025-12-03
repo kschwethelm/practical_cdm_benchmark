@@ -1,10 +1,14 @@
+import logging
+
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 from loguru import logger
 
-from cdm.benchmark.data_models import BenchmarkOutputCDM, BenchmarkOutputFullInfo
+from cdm.benchmark.data_models import AgentRunResult, BenchmarkOutputCDM, BenchmarkOutputFullInfo
 from cdm.prompts.gen_prompt_cdm import create_system_prompt, create_user_prompt
 from cdm.tools import AVAILABLE_TOOLS
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 def build_llm(base_url: str, temperature: float) -> ChatOpenAI:
@@ -81,15 +85,15 @@ def build_agent(llm: ChatOpenAI, enabled_tools: list[str]):
     return agent
 
 
-def run_agent(agent, patient_info: str) -> BenchmarkOutputCDM:
-    """Invoke agent with patient information and return parsed diagnosis output.
+def run_agent(agent, patient_info: str) -> AgentRunResult:
+    """Invoke agent with patient information and return parsed diagnosis output and full conversation history.
 
     Args:
         agent: LangChain agent
         patient_info: Patient's history of present illness
 
     Returns:
-        Parsed benchmark output
+        Parsed benchmark output and full conversation history
     """
     # Generate user prompt with patient information
     user_prompt = create_user_prompt(patient_info)
@@ -105,9 +109,8 @@ def run_agent(agent, patient_info: str) -> BenchmarkOutputCDM:
         }
     )
 
-    try:
-        return BenchmarkOutputCDM.model_validate_json(response["messages"][-1].content)
-    except Exception as e:
-        logger.error(f"Failed to parse agent response: {e}")
-        logger.error(f"Response: {response['messages'][-1].content}")
-        raise
+    parsed_output = BenchmarkOutputCDM.model_validate_json(response["messages"][-1].content)
+
+    messages_as_dicts = [msg.dict() for msg in response["messages"]]
+
+    return AgentRunResult(parsed_output=parsed_output, messages=messages_as_dicts)

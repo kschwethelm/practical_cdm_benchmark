@@ -1,6 +1,14 @@
+# Load environment variables from .env file BEFORE importing loguru
+# This ensures LOGURU_LEVEL is available when logger is initialized
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# ruff: noqa: E402 - imports after load_dotenv() are intentional
 import hydra
 from loguru import logger
 from omegaconf import DictConfig
+from tqdm import tqdm
 
 from cdm.benchmark.utils import load_cases
 from cdm.llms.agent import build_agent, build_llm, run_agent
@@ -14,26 +22,24 @@ def main(cfg: DictConfig):
     The agent can dynamically query clinical tools to gather information and
     make a diagnosis based on the patient's history.
     """
-    cases = load_cases(cfg.benchmark_data_path, cfg.num_cases)
+    dataset = load_cases(cfg.benchmark_data_path, cfg.num_cases)
     llm = build_llm(cfg.base_url, cfg.temperature)
     agent = build_agent(llm, cfg.enabled_tools)
 
-    for idx, case in enumerate(cases):
-        hadm_id = case["hadm_id"]
-        patient_info = case["history_of_present_illness"]
-        gt_diagnosis = case["ground_truth"]["primary_diagnosis"]
-
-        logger.info(f"Processing case {idx + 1}/{len(cases)} (hadm_id: {hadm_id})")
+    progress_bar = tqdm(dataset, desc="Processing cases")
+    for case in progress_bar:
+        progress_bar.set_postfix_str(f"hadm_id={case.hadm_id}")
+        patient_info = case.history_of_present_illness
+        gt_diagnosis = case.ground_truth.primary_diagnosis
 
         set_current_case(case)
         output = run_agent(agent, patient_info)
 
-        print(f"\n=== CASE {idx + 1}/{len(cases)} (hadm_id={hadm_id}) ===")
-        print(f"Ground truth: {gt_diagnosis}")
-        print(f"Predicted: {output.final_diagnosis}")
-        print(f"Full output: {output.model_dump_json(indent=2)}\n")
+        logger.debug(f"Ground truth: {gt_diagnosis}")
+        logger.debug(f"Predicted: {output.parsed_output.final_diagnosis}")
+        logger.debug(f"Full output: {output.model_dump_json(indent=2)}\n")
 
-    logger.info("Benchmark complete")
+    logger.success("Benchmark complete")
 
 
 if __name__ == "__main__":
