@@ -15,5 +15,4 @@ max_concurrent_requests: 5
 enabled_tools:
   - physical_exam
   - lab
-  - microbiology
   - radiology
