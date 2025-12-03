@@ -1,3 +1,4 @@
+import asyncio
 import json
 from pathlib import Path
 
@@ -27,6 +28,19 @@ def load_cases(benchmark_path: Path, num_cases: int = None) -> BenchmarkDataset:
 
     logger.info(f"Loaded {len(benchmark.cases)} cases")
     return benchmark
+
+
+async def write_result_to_jsonl(file_path: Path, result: dict, lock: asyncio.Lock):
+    """Write a single result to JSONL file with async-safe locking.
+
+    Args:
+        file_path: Path to JSONL output file
+        result: Dictionary to write as JSON line
+        lock: asyncio.Lock for thread-safe writing
+    """
+    async with lock:
+        # Use asyncio.to_thread for file I/O to avoid blocking
+        await asyncio.to_thread(lambda: file_path.open("a").write(json.dumps(result) + "\n"))
 
 
 def add_clinical_history(case: HadmCase) -> dict:
