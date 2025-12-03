@@ -109,3 +109,13 @@ class BenchmarkOutputFullInfo(BaseModel):
     """Structured output from LLM clinical decision-making with full information"""
 
     diagnosis: str
+
+class AgentRunResult(BaseModel):
+    """Complete agent execution result with tool calls and parsed output."""
+
+    prediction: BenchmarkOutputCDM
+    messages: list[dict]  # Full conversation history with tool calls
+
+    @property
+    def num_tool_calls(self) -> int:
+        return sum(1 for msg in self.messages if msg.get("type") == "tool")
