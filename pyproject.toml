@@ -24,6 +24,8 @@ dependencies = [
     "pydantic>=2.11.9",
     "tqdm>=4.67.1",
     "vllm>=0.10.2",
+    "thefuzz>=0.20.0", 
+    "spacy>=3.4.4"
 ]
 
 [dependency-groups]
