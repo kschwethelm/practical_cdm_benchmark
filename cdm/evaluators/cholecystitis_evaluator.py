@@ -1,8 +1,8 @@
 from typing import List 
-from pathology_evaluator import PathologyEvaluator
-from mappings import INFLAMMATION_LAB_TESTS, CHOLECYSTECTOMY_PROCEDURES_KEYWORDS, ALTERNATE_CHOLECYSTECTOMY_KEYWORDS
-from mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
-from utils import procedure_checker, keyword_positive, alt_procedure_checker
+from cdm.evaluators.pathology_evaluator import PathologyEvaluator
+from cdm.evaluators.mappings import INFLAMMATION_LAB_TESTS, CHOLECYSTECTOMY_PROCEDURES_KEYWORDS, ALTERNATE_CHOLECYSTECTOMY_KEYWORDS
+from cdm.evaluators.mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
+from cdm.evaluators.utils import procedure_checker, keyword_positive, alt_procedure_checker
 
 class CholecystitisEvaluator(PathologyEvaluator): 
     def __init__(self, grounded_treatment: List[str], grounded_diagnosis: str, hadm_id: int):
@@ -52,13 +52,13 @@ class CholecystitisEvaluator(PathologyEvaluator):
         }
         
     def score_imaging(self, region: str, modality: str):
-        if region == "Abdomen":
-            if modality == "Ultrasound" or modality == "HIDA":
+        if region == "abdomen":
+            if modality == "ultrasound" or modality == "us" or modality == "hida":
                 if self.scores["Imaging"] == 0:
                     self.scores["Imaging"] = 2
                     self.explanations["Imaging"] = f"CORRECT: Preferred imaging modality was ordered ({modality}) in the correct order"
                 return True
-            if modality == "MRI" or modality == "EUS":
+            if modality == "mri" or modality == "eus":
                 if self.scores["Imaging"] == 0:
                     self.scores["Imaging"] = 1
                     self.explanations["Imaging"] = f"ACCEPTABLE: {modality} is acceptable but should not be done before US/HIDA"

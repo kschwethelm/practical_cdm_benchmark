@@ -1,10 +1,10 @@
 from typing import List
-from pathology_evaluator import PathologyEvaluator
-from mappings import INFLAMMATION_LAB_TESTS, DRAINAGE_PROCEDURES_KEYWORDS, DRAINAGE_LOCATIONS_PANCREATITIS, \
+from cdm.evaluators.pathology_evaluator import PathologyEvaluator
+from cdm.evaluators.mappings import INFLAMMATION_LAB_TESTS, DRAINAGE_PROCEDURES_KEYWORDS, DRAINAGE_LOCATIONS_PANCREATITIS, \
     ALTERNATE_DRAINAGE_KEYWORDS_PANCREATITIS, ERCP_PROCEDURES_KEYWORDS, CHOLECYSTECTOMY_PROCEDURES_KEYWORDS, \
         ALTERNATE_CHOLECYSTECTOMY_KEYWORDS
-from mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
-from utils import procedure_checker, keyword_positive, alt_procedure_checker
+from cdm.evaluators.mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
+from cdm.evaluators.utils import procedure_checker, keyword_positive, alt_procedure_checker
 
 class PancreatitisEvaluator(PathologyEvaluator): 
     def __init__(self, grounded_treatment: List[str], grounded_diagnosis: str, hadm_id: int):
@@ -67,20 +67,20 @@ class PancreatitisEvaluator(PathologyEvaluator):
         }
         
     def score_imaging(self, region: str, modality: str):
-        if region == "Abdomen":
-            if modality == "Ultrasound":
+        if region == "abdomen":
+            if modality == "ultrasound" or modality == "us":
                 if self.scores["Imaging"] == 0:
                     self.scores["Imaging"] = 2
                     self.explanations["Imaging"] = "CORRECT: Preferred imaging modality was ordered (Ultrasound) in the correct order"
 
                 return True
-            if modality == "CT":
+            if modality == "ct":
                 if self.scores["Imaging"] == 0:
                     self.scores["Imaging"] = 1
                     self.explanations["Imaging"] = "ACCEPTABLE: CT is acceptable but should not be done before US"
 
                 return True
-            if modality == "EUS":
+            if modality == "eus":
                 if keyword_positive(self.grounded_diagnosis, "biliary"):
                     self.scores["Imaging"] += 1
                     self.explanations["Imaging"] = "ACCEPTABLE: EUS is acceptable if patient has biliary etiology"

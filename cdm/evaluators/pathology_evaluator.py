@@ -48,8 +48,8 @@ class PathologyEvaluator():
             "Physical": "", 
             "Diagnosis": ""
         }
-    def evaluate_case(self, output: AgentRunResult, verbose: bool = True, save: bool = True):
-        tool_calls = [m for m in output.messages if "tool_calls" in m]
+    def evaluate_case(self, output: AgentRunResult):
+        tool_calls = [m['tool_calls'][0] for m in output.messages if "tool_calls" in m and m["tool_calls"]]
         tools = [m for m in output.messages if m.get("type") == "tool"]
         assert(len(tool_calls) == len(tools))
         for idx, tool in enumerate(tools):
@@ -66,14 +66,12 @@ class PathologyEvaluator():
             # elif action.tool == "request_microbio_test": 
             #     self._score_microbiology(tool_call)
  
-        self.scores["Tool Calls"] = output.num_tool_calls()
+        self.scores["Tool Calls"] = output.num_tool_calls
         
         self.answers["Diagnosis"] = output.prediction.final_diagnosis
-        self._score_diagnosis()
+        self.score_diagnosis()
         self.answers["Treatment"] = output.prediction.treatment
         self.score_treatment()  
-
-        self.print_eval(verbose, save)
         
         return {
             "scores": self.scores,
@@ -108,9 +106,10 @@ class PathologyEvaluator():
                 self.answers["Unnecessary Laboratory Tests"].append(test_id)
 
     def score_imaging_action(self, tool_call: dict):
+        print(tool_call)
         args = tool_call.get("args")
-        modality = args.get("modality")
-        region = args.get("region")
+        modality = args.get("modality").lower() 
+        region = args.get("region").lower() 
         imaging_dict = {"region": region, "modality": modality}
         
         if not self.score_imaging(region, modality) or imaging_dict in self.answers["Correct Imaging"]:
@@ -119,12 +118,14 @@ class PathologyEvaluator():
             self.answers["Correct Imaging"].append(imaging_dict)
             
     def score_diagnosis(self):
+        print(self.answers["Diagnosis"])
         answer = self.answers["Diagnosis"].lower() 
         for word in answer.split():
             if fuzz.ratio(word, self.pathology) > 90:
                 self.scores["Diagnosis"] = 1
                 self.scores["Gracious Diagnosis"] = 1
                 self.explanations["Diagnosis"] = "CORRECT: Model prediction matches ground truth diagnosis closely."
+                print(self.answers["Diagnosis"])
                 break
         for alternative_patho in self.alternative_pathology_names:
             patho_loc = alternative_patho["location"]
@@ -141,6 +142,7 @@ class PathologyEvaluator():
                     self.scores["Gracious Diagnosis"] = 1
                     self.explanations["Diagnosis"] = "ACCEPTABLE: Model prediction is similar to the ground truth diagnosis."
                     break
+        
         
     
     def print_eval(self, verbose: bool = True, save: bool = True, csv_path: str = ""): 
@@ -170,14 +172,15 @@ class PathologyEvaluator():
         TREATMENT EVALUATION: 
         {done_treat_cat} out of the {num_required_treat_cat} treatmented were ordered. 
         """ 
+        print(self.answers["Diagnosis"])
         evaluation = { 
             "hadm_id": self.hadm_id, 
             "diagnosis": self.answers["Diagnosis"], 
             "gt_diagnosis": self.grounded_diagnosis, 
             "treatment": self.answers["Treatment"], 
             "gt_treatment": self.grounded_treatment, 
-            "diagnosis_acc": self.scores["Diagnosis"], 
-            "gracious_diagnosis_acc": self.scores["Gracious Diagnosis"], 
+            "diagnosis_score": self.scores["Diagnosis"], 
+            "gracious_diagnosis_score": self.scores["Gracious Diagnosis"], 
             "tool_calls": self.scores["Tool Calls"], 
             "sat_lab": done_lab_cat / num_required_lab_cat, #proportion of required labs were tested 
             "num_neutral_lab": num_neutral_lab, 
@@ -187,10 +190,7 @@ class PathologyEvaluator():
             "phys": self.scores["Physical Examination"], 
             "late_phys": self.scores["Late Physical Examination"], 
             "explanation": verbose_eval, 
-            "diagnosis": self.scores["Diagnosis"], 
-            "gracious_diagnosis": self.scores["Gracious Diagnosis"], 
             "sat_treat": done_treat_cat / num_required_treat_cat #proportion of required treatments that were ordered 
-
         }
         
         print(verbose_eval)

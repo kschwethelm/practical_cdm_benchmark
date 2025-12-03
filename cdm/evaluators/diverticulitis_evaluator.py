@@ -1,9 +1,9 @@
 from typing import List 
-from pathology_evaluator import PathologyEvaluator
-from mappings import INFLAMMATION_LAB_TESTS, DRAINAGE_PROCEDURES_KEYWORDS, DRAINAGE_LOCATIONS_DIVERTICULITIS, \
+from cdm.evaluators.pathology_evaluator import PathologyEvaluator
+from cdm.evaluators.mappings import INFLAMMATION_LAB_TESTS, DRAINAGE_PROCEDURES_KEYWORDS, DRAINAGE_LOCATIONS_DIVERTICULITIS, \
     ALTERNATE_DRAINAGE_KEYWORDS_DIVERTICULITIS, COLECTOMY_PROCEDURES_KEYWORDS, ALTERNATE_COLECTOMY_KEYWORDS
-from mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
-from utils import procedure_checker, keyword_positive, alt_procedure_checker
+from cdm.evaluators.mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
+from cdm.evaluators.utils import procedure_checker, keyword_positive, alt_procedure_checker
 
 class DiverticulitisEvaluator(PathologyEvaluator): 
     def __init__(self, grounded_treatment: List[str], grounded_diagnosis: str, hadm_id: int):
@@ -59,13 +59,13 @@ class DiverticulitisEvaluator(PathologyEvaluator):
 
         
     def score_imaging(self, region: str, modality: str):
-        if region == "Abdomen":
-            if modality == "CT":
+        if region == "abdomen":
+            if modality == "ct":
                 if self.scores["Imaging"] == 0:
                     self.scores["Imaging"] = 2
                     self.explanations["Imaging"] = "CORRECT: Preferred imaging modality was ordered (CT) in the correct order"
                 return True
-            if modality == "Ultrasound" or modality == "MRI":
+            if modality == "ultrasound" or modality == "us" or modality == "mri":
                 if self.scores["Imaging"] == 0:
                     self.scores["Imaging"] = 1
                     self.explanations["Imaging"] = f"ACCEPTABLE: {modality} is acceptable but should not be done before CT"

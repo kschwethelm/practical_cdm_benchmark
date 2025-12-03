@@ -1,8 +1,8 @@
 from typing import List 
-from pathology_evaluator import PathologyEvaluator
-from mappings import INFLAMMATION_LAB_TESTS, APPENDECTOMY_PROCEDURES_KEYWORDS, ALTERNATE_APPENDECTOMY_KEYWORDS
-from mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
-from utils import procedure_checker, keyword_positive, alt_procedure_checker
+from cdm.evaluators.pathology_evaluator import PathologyEvaluator
+from cdm.evaluators.mappings import INFLAMMATION_LAB_TESTS, APPENDECTOMY_PROCEDURES_KEYWORDS, ALTERNATE_APPENDECTOMY_KEYWORDS
+from cdm.evaluators.mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
+from cdm.evaluators.utils import procedure_checker, keyword_positive, alt_procedure_checker
 
 class AppendicitisEvaluator(PathologyEvaluator): 
     def __init__(self, grounded_treatment: List[str], grounded_diagnosis: str, hadm_id: int):
@@ -41,21 +41,21 @@ class AppendicitisEvaluator(PathologyEvaluator):
         }
         
     def score_imaging(self, region: str, modality: str):
-        if region == "Abdomen":
+        if region == "abdomen":
             # TODO: Score according to what was done in case and not blindly following guidelines? i.e. if only CT was done by Dr, then give full points
-            if modality == "Ultrasound":
+            if modality == "ultrasound" or modality == "us":
                 if self.scores["Imaging"] == 0:
                     self.scores["Imaging"] = 2
                     self.explanations["Imaging"] = "CORRECT: Preferred imaging modality was ordered (Ultrasound) in the correct order"
                 return True
 
-            if modality == "CT":
+            if modality == "ct":
                 if self.scores["Imaging"] == 0:
                     self.scores["Imaging"] = 1
                     self.explanations["Imaging"] = "ACCEPTABLE: CT is acceptable but should not be done before US"
                 return True
 
-            if modality == "MRI":
+            if modality == "mri":
                 if self.scores["Imaging"] == 0:
                     self.scores["Imaging"] = 1
                     self.explanations["Imaging"] = "ACCEPTABLE: MRI is acceptable but should not be done before US (preferred to CT for pregnant patients)"
