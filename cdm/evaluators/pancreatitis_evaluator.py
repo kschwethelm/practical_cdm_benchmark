@@ -1,3 +1,4 @@
+from typing import List
 from pathology_evaluator import PathologyEvaluator
 from mappings import INFLAMMATION_LAB_TESTS, DRAINAGE_PROCEDURES_KEYWORDS, DRAINAGE_LOCATIONS_PANCREATITIS, \
     ALTERNATE_DRAINAGE_KEYWORDS_PANCREATITIS, ERCP_PROCEDURES_KEYWORDS, CHOLECYSTECTOMY_PROCEDURES_KEYWORDS, \
@@ -6,8 +7,8 @@ from mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
 from utils import procedure_checker, keyword_positive, alt_procedure_checker
 
 class PancreatitisEvaluator(PathologyEvaluator): 
-    def __init__(self):
-        super().__init__() 
+    def __init__(self, grounded_treatment: List[str], grounded_diagnosis: str, hadm_id: int):
+        super().__init__(grounded_treatment, grounded_diagnosis, hadm_id) 
         self.pathology = "pancreatitis"
         self.alternative_pathology_names = [
             {

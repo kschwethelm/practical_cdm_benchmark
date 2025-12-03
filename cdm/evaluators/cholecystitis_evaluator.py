@@ -1,11 +1,12 @@
+from typing import List 
 from pathology_evaluator import PathologyEvaluator
 from mappings import INFLAMMATION_LAB_TESTS, CHOLECYSTECTOMY_PROCEDURES_KEYWORDS, ALTERNATE_CHOLECYSTECTOMY_KEYWORDS
 from mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
 from utils import procedure_checker, keyword_positive, alt_procedure_checker
 
 class CholecystitisEvaluator(PathologyEvaluator): 
-    def __init__(self):
-        super().__init__() 
+    def __init__(self, grounded_treatment: List[str], grounded_diagnosis: str, hadm_id: int):
+        super().__init__(grounded_treatment, grounded_diagnosis, hadm_id) 
         self.pathology = "cholecystitis"
         self.alternative_pathology_names = [
             {

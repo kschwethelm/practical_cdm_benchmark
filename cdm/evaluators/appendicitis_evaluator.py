@@ -1,11 +1,12 @@
+from typing import List 
 from pathology_evaluator import PathologyEvaluator
 from mappings import INFLAMMATION_LAB_TESTS, APPENDECTOMY_PROCEDURES_KEYWORDS, ALTERNATE_APPENDECTOMY_KEYWORDS
 from mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
 from utils import procedure_checker, keyword_positive, alt_procedure_checker
 
 class AppendicitisEvaluator(PathologyEvaluator): 
-    def __init__(self):
-        super().__init__() 
+    def __init__(self, grounded_treatment: List[str], grounded_diagnosis: str, hadm_id: int):
+        super().__init__(grounded_treatment, grounded_diagnosis, hadm_id) 
         self.pathology = "appendicitis"
         self.alternative_pathology_names = [
             {
@@ -72,7 +73,6 @@ class AppendicitisEvaluator(PathologyEvaluator):
             alt_procedure_checker(ALTERNATE_APPENDECTOMY_KEYWORDS, self.answers["Treatment"]):
             self.answers["Treatment Requested"]["Appendectomy"] = True
 
-        # TODO: Check antibiotics against medications table
         if keyword_positive(self.answers["Treatment"], "antibiotic"):
             self.answers["Treatment Requested"]["Antibiotics"] = True
 

@@ -17,10 +17,10 @@ class PathologyEvaluator():
     grounded_treatment: List[str] = [] 
     grounded_diagnosis: str = ""
 
-    def __init__(self):
-        self._reset_evaluation() 
-        
-    def _reset_evaluation(self): 
+    def __init__(self, grounded_treatment: List[str], grounded_diagnosis: str, hadm_id: int):
+        self.grounded_treatment = grounded_treatment
+        self.grounded_diagnosis = grounded_diagnosis
+        self.hadm_id = hadm_id
         self.answers = {
             "Diagnosis": "",
             "Treatment": [],
@@ -48,11 +48,7 @@ class PathologyEvaluator():
             "Physical": "", 
             "Diagnosis": ""
         }
-    def evaluate_case(self, output: AgentRunResult, grounded_treatment: List[str], grounded_diagnosis: str, hadm_id: int, verbose: bool = True, save: bool = True):
-        self._reset_evaluation()  
-        self.grounded_treatment = grounded_treatment
-        self.grounded_diagnosis = grounded_diagnosis
-        self.hadm_id = hadm_id
+    def evaluate_case(self, output: AgentRunResult, verbose: bool = True, save: bool = True):
         tool_calls = [m for m in output.messages if "tool_calls" in m]
         tools = [m for m in output.messages if m.get("type") == "tool"]
         assert(len(tool_calls) == len(tools))
