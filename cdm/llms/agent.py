@@ -26,7 +26,9 @@ def build_llm(base_url: str, temperature: float) -> ChatOpenAI:
     )
 
 
-def run_llm(llm: ChatOpenAI, system_prompt: str, user_prompt: str) -> BenchmarkOutputFullInfo:
+async def run_llm_async(
+    llm: ChatOpenAI, system_prompt: str, user_prompt: str
+) -> BenchmarkOutputFullInfo:
     """Run the LLM with given system and user prompts.
 
     Args:
@@ -40,7 +42,7 @@ def run_llm(llm: ChatOpenAI, system_prompt: str, user_prompt: str) -> BenchmarkO
     llm = llm.with_structured_output(BenchmarkOutputFullInfo)
 
     try:
-        response = llm.invoke(
+        response = await llm.ainvoke(
             [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -85,7 +87,7 @@ def build_agent(llm: ChatOpenAI, enabled_tools: list[str]):
     return agent
 
 
-def run_agent(agent, patient_info: str) -> AgentRunResult:
+async def run_agent_async(agent, patient_info: str) -> AgentRunResult:
     """Invoke agent with patient information and return parsed diagnosis output and full conversation history.
 
     Args:
@@ -98,7 +100,7 @@ def run_agent(agent, patient_info: str) -> AgentRunResult:
     # Generate user prompt with patient information
     user_prompt = create_user_prompt(patient_info)
 
-    response = agent.invoke(
+    response = await agent.ainvoke(
         {
             "messages": [
                 {

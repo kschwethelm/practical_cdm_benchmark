@@ -132,3 +132,26 @@ class AgentRunResult(BaseModel):
     @property
     def num_tool_calls(self) -> int:
         return sum(1 for msg in self.messages if msg.get("type") == "tool")
+
+
+class EvalOutput(BaseModel):
+    """Evaluation output for a single case, including ground truth and predictions.
+
+    NOTE: THIS MODEL IS A PLACEHOLDER!!! ADAPT IT TO THE OUTPUT OF THE EVALUATOR CLASS WHEN IMPLEMENTED.
+    """
+
+    hadm_id: int
+    ground_truth: GroundTruth
+    prediction: BenchmarkOutputCDM
+    num_tool_calls: int
+
+
+class EvalOutputFullInfo(BaseModel):
+    """Evaluation output for full info baseline (no tool calls).
+
+    NOTE: THIS MODEL IS A PLACEHOLDER!!! ADAPT IT TO THE OUTPUT OF THE EVALUATOR CLASS WHEN IMPLEMENTED.
+    """
+
+    hadm_id: int
+    ground_truth: GroundTruth
+    prediction: BenchmarkOutputFullInfo
