@@ -35,7 +35,7 @@ async def process_case(
         return case, output
 
 
-async def run_benchmark(cfg: DictConfig) -> list[tuple[HadmCase, BenchmarkOutputFullInfo]]:
+async def run_benchmark(cfg: DictConfig):
     """Run full info benchmark with concurrent async processing."""
     dataset = load_cases(cfg.benchmark_data_path, cfg.num_cases)
     llm = build_llm(cfg.base_url, cfg.temperature)
@@ -50,12 +50,11 @@ async def run_benchmark(cfg: DictConfig) -> list[tuple[HadmCase, BenchmarkOutput
     output_path = cfg.results_output_path
     write_lock = asyncio.Lock()
     if output_path:
-        output_file = Path(output_path)
-        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         # Clear existing file
-        output_file.write_text("")
-        logger.info(f"Writing results to: {output_file}")
-
+        output_path.write_text("")
+        logger.info(f"Writing results to: {output_path}")
     logger.info(f"Processing {len(dataset)} cases with max concurrency: {max_concurrent}")
 
     # Create tasks for all cases
@@ -73,11 +72,11 @@ async def run_benchmark(cfg: DictConfig) -> list[tuple[HadmCase, BenchmarkOutput
                 ground_truth=case.ground_truth,
                 prediction=output,
             )
-            await write_result_to_jsonl(output_file, eval_output.model_dump(), write_lock)
+            await write_result_to_jsonl(output_path, eval_output.model_dump(), write_lock)
 
     logger.success(f"Benchmark complete - processed {len(results)} cases")
     if output_path:
-        logger.success(f"Results saved to: {output_file}")
+        logger.success(f"Results saved to: {output_path}")
 
 
 @hydra.main(version_base=None, config_path="../configs/benchmark", config_name="full_info")

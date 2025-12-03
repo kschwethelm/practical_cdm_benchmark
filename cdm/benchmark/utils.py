@@ -39,8 +39,12 @@ async def write_result_to_jsonl(file_path: Path, result: dict, lock: asyncio.Loc
         lock: asyncio.Lock for thread-safe writing
     """
     async with lock:
-        # Use asyncio.to_thread for file I/O to avoid blocking
-        await asyncio.to_thread(lambda: file_path.open("a").write(json.dumps(result) + "\n"))
+
+        def _write():
+            with file_path.open("a") as f:
+                f.write(json.dumps(result) + "\n")
+
+        await asyncio.to_thread(_write)
 
 
 def add_clinical_history(case: HadmCase) -> dict:
