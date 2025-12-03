@@ -6,7 +6,7 @@ from loguru import logger
 from cdm.benchmark.data_models import BenchmarkDataset, HadmCase
 
 
-def load_cases(benchmark_path: Path, num_cases: int = None) -> list[HadmCase]:
+def load_cases(benchmark_path: Path, num_cases: int = None) -> BenchmarkDataset:
     """Load cases from the benchmark dataset as Pydantic models.
 
     Args:
@@ -14,23 +14,19 @@ def load_cases(benchmark_path: Path, num_cases: int = None) -> list[HadmCase]:
         num_cases: Number of cases to load. If None, load all cases.
 
     Returns:
-        List of HadmCase Pydantic models
+        BenchmarkDataset Pydantic model
     """
     logger.info(f"Loading cases from {benchmark_path}")
 
     with open(benchmark_path) as f:
         data = json.load(f)
 
-    # Parse into Pydantic model
     benchmark = BenchmarkDataset(**data)
-
-    cases = benchmark.cases
-
     if num_cases is not None:
-        cases = cases[:num_cases]
+        benchmark = BenchmarkDataset(cases=benchmark.cases[:num_cases])
 
-    logger.info(f"Loaded {len(cases)} cases")
-    return cases
+    logger.info(f"Loaded {len(benchmark.cases)} cases")
+    return benchmark
 
 
 def add_clinical_history(case: HadmCase) -> dict:
