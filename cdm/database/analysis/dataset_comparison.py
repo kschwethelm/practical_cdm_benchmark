@@ -112,6 +112,12 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
         comparison["lab_missing"] = len(cdm_itemids - new_itemids)
         comparison["lab_extra"] = len(new_itemids - cdm_itemids)
 
+        # Store the actual missing/extra itemids for debugging
+        if cdm_itemids - new_itemids:
+            comparison["lab_missing_itemids"] = list(cdm_itemids - new_itemids)
+        if new_itemids - cdm_itemids:
+            comparison["lab_extra_itemids"] = list(new_itemids - cdm_itemids)
+
         # Check if itemids are present
         new_labs_with_itemid = [lab for lab in new_labs_list if "itemid" in lab and lab["itemid"]]
         comparison["new_labs_have_itemid"] = len(new_labs_with_itemid)
@@ -119,6 +125,7 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
         # Compare lab values for matching tests by itemid
         lab_value_matches = 0
         lab_value_mismatches = 0
+        lab_value_mismatch_details = []
 
         # Create lookup for new labs by itemid
         new_labs_by_itemid = {}
@@ -149,16 +156,32 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
                         lab_value_matches += 1
                     else:
                         lab_value_mismatches += 1
+                        lab_value_mismatch_details.append(
+                            {
+                                "itemid": itemid,
+                                "cdm_value": cdm_value,
+                                "new_value": new_lab["value"],
+                            }
+                        )
                 except (ValueError, IndexError):
                     # Not numeric, do string comparison
                     if cdm_val_norm == new_val_norm:
                         lab_value_matches += 1
                     else:
                         lab_value_mismatches += 1
+                        lab_value_mismatch_details.append(
+                            {
+                                "itemid": itemid,
+                                "cdm_value": cdm_value,
+                                "new_value": new_lab["value"],
+                            }
+                        )
                         break
 
         comparison["lab_value_matches"] = lab_value_matches
         comparison["lab_value_mismatches"] = lab_value_mismatches
+        if lab_value_mismatch_details:
+            comparison["lab_value_mismatch_details"] = lab_value_mismatch_details
 
         # 4. Radiology (detailed comparison)
         cdm_rad_reports = cdm_case.get("Radiology", [])
@@ -184,6 +207,11 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
             comparison["radiology_exam_overlap"] = len(cdm_exams & new_exams)
             comparison["radiology_exam_missing"] = len(cdm_exams - new_exams)
             comparison["radiology_exam_extra"] = len(new_exams - cdm_exams)
+            # Store the actual missing/extra exam names for debugging
+            if cdm_exams - new_exams:
+                comparison["radiology_missing_exams"] = list(cdm_exams - new_exams)
+            if new_exams - cdm_exams:
+                comparison["radiology_extra_exams"] = list(new_exams - cdm_exams)
 
         # Compare modalities
         cdm_modalities = {
@@ -258,19 +286,30 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
         cdm_results = set()
         for result in cdm_micro.values():
             if result and result.strip():
-                cdm_results.add(result.strip().lower())
+                # Split by comma, normalize and sort to handle different ordering
+                parts = [p.strip().lower() for p in result.split(",")]
+                normalized = ", ".join(sorted(parts))
+                cdm_results.add(normalized)
 
         new_results = set()
         for event in new_micro_events:
             # Use organism_name if available, otherwise use comments
             result = event.get("organism_name") or event.get("comments", "")
             if result and result.strip():
-                new_results.add(result.strip().lower())
+                # Split by comma, normalize and sort to handle different ordering
+                parts = [p.strip().lower() for p in result.split(",")]
+                normalized = ", ".join(sorted(parts))
+                new_results.add(normalized)
 
         if cdm_results or new_results:
             comparison["micro_organism_overlap"] = len(cdm_results & new_results)
             comparison["micro_organism_missing"] = len(cdm_results - new_results)
             comparison["micro_organism_extra"] = len(new_results - cdm_results)
+            # Store the actual missing/extra values for debugging
+            if cdm_results - new_results:
+                comparison["micro_missing_values"] = list(cdm_results - new_results)
+            if new_results - cdm_results:
+                comparison["micro_extra_values"] = list(new_results - cdm_results)
 
         # 6. Diagnosis (keyword match)
         cdm_diag = cdm_case.get("Discharge Diagnosis", "").lower()
@@ -408,12 +447,24 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
         if cases_with_missing_labs:
             add_line(f"\n  Cases with missing lab tests ({len(cases_with_missing_labs)}):")
             for hadm_id in cases_with_missing_labs[:10]:
-                missing = next(
-                    r.get("lab_missing", 0) for r in found_cases if r["hadm_id"] == hadm_id
-                )
-                add_line(f"    - {hadm_id} ({missing} missing)")
+                r = next(x for x in found_cases if x["hadm_id"] == hadm_id)
+                missing = r.get("lab_missing", 0)
+                missing_itemids = r.get("lab_missing_itemids", [])
+                add_line(f"    - {hadm_id} ({missing} missing): itemids {missing_itemids}")
             if len(cases_with_missing_labs) > 10:
                 add_line(f"    ... and {len(cases_with_missing_labs) - 10} more")
+
+        # Cases with extra labs
+        cases_with_extra_labs = [r["hadm_id"] for r in found_cases if r.get("lab_extra", 0) > 0]
+        if cases_with_extra_labs:
+            add_line(f"\n  Cases with extra lab tests ({len(cases_with_extra_labs)}):")
+            for hadm_id in cases_with_extra_labs[:10]:
+                r = next(x for x in found_cases if x["hadm_id"] == hadm_id)
+                extra = r.get("lab_extra", 0)
+                extra_itemids = r.get("lab_extra_itemids", [])
+                add_line(f"    - {hadm_id} ({extra} extra): itemids {extra_itemids}")
+            if len(cases_with_extra_labs) > 10:
+                add_line(f"    ... and {len(cases_with_extra_labs) - 10} more")
 
         # Cases with value mismatches
         cases_with_value_mismatch = [
@@ -422,10 +473,16 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
         if cases_with_value_mismatch:
             add_line(f"\n  Cases with lab value mismatches ({len(cases_with_value_mismatch)}):")
             for hadm_id in cases_with_value_mismatch[:10]:
-                mismatches = next(
-                    r.get("lab_value_mismatches", 0) for r in found_cases if r["hadm_id"] == hadm_id
-                )
-                add_line(f"    - {hadm_id} ({mismatches} mismatches)")
+                r = next(x for x in found_cases if x["hadm_id"] == hadm_id)
+                mismatches = r.get("lab_value_mismatches", 0)
+                mismatch_details = r.get("lab_value_mismatch_details", [])
+                add_line(f"    - {hadm_id} ({mismatches} mismatches):")
+                for detail in mismatch_details[:5]:  # Show first 5 mismatches
+                    add_line(
+                        f"      itemid {detail['itemid']}: CDMv1='{detail['cdm_value']}' vs New='{detail['new_value']}'"
+                    )
+                if len(mismatch_details) > 5:
+                    add_line(f"      ... and {len(mismatch_details) - 5} more")
             if len(cases_with_value_mismatch) > 10:
                 add_line(f"    ... and {len(cases_with_value_mismatch) - 10} more")
 
@@ -475,14 +532,24 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
         if rad_exam_missing:
             add_line(f"\n  Cases with missing radiology exam names ({len(rad_exam_missing)}):")
             for hadm_id in rad_exam_missing[:10]:
-                missing = next(
-                    r.get("radiology_exam_missing", 0)
-                    for r in found_cases
-                    if r["hadm_id"] == hadm_id
-                )
-                add_line(f"    - {hadm_id} ({missing} missing)")
+                r = next(x for x in found_cases if x["hadm_id"] == hadm_id)
+                missing = r.get("radiology_exam_missing", 0)
+                missing_exams = r.get("radiology_missing_exams", [])
+                add_line(f"    - {hadm_id} ({missing} missing): {missing_exams}")
             if len(rad_exam_missing) > 10:
                 add_line(f"    ... and {len(rad_exam_missing) - 10} more")
+
+        # Cases with extra radiology exams
+        rad_exam_extra = [r["hadm_id"] for r in found_cases if r.get("radiology_exam_extra", 0) > 0]
+        if rad_exam_extra:
+            add_line(f"\n  Cases with extra radiology exam names ({len(rad_exam_extra)}):")
+            for hadm_id in rad_exam_extra[:10]:
+                r = next(x for x in found_cases if x["hadm_id"] == hadm_id)
+                extra = r.get("radiology_exam_extra", 0)
+                extra_exams = r.get("radiology_extra_exams", [])
+                add_line(f"    - {hadm_id} ({extra} extra): {extra_exams}")
+            if len(rad_exam_extra) > 10:
+                add_line(f"    ... and {len(rad_exam_extra) - 10} more")
 
         # Cases with low findings similarity
         low_findings_sim = [
@@ -536,14 +603,26 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
         if micro_organism_missing:
             add_line(f"\n  Cases with missing organisms ({len(micro_organism_missing)}):")
             for hadm_id in micro_organism_missing[:10]:
-                missing = next(
-                    r.get("micro_organism_missing", 0)
-                    for r in found_cases
-                    if r["hadm_id"] == hadm_id
-                )
-                add_line(f"    - {hadm_id} ({missing} missing)")
+                r = next(x for x in found_cases if x["hadm_id"] == hadm_id)
+                missing = r.get("micro_organism_missing", 0)
+                missing_values = r.get("micro_missing_values", [])
+                add_line(f"    - {hadm_id} ({missing} missing): {missing_values}")
             if len(micro_organism_missing) > 10:
                 add_line(f"    ... and {len(micro_organism_missing) - 10} more")
+
+        # Cases with extra organisms
+        micro_organism_extra = [
+            r["hadm_id"] for r in found_cases if r.get("micro_organism_extra", 0) > 0
+        ]
+        if micro_organism_extra:
+            add_line(f"\n  Cases with extra organisms ({len(micro_organism_extra)}):")
+            for hadm_id in micro_organism_extra[:10]:
+                r = next(x for x in found_cases if x["hadm_id"] == hadm_id)
+                extra = r.get("micro_organism_extra", 0)
+                extra_values = r.get("micro_extra_values", [])
+                add_line(f"    - {hadm_id} ({extra} extra): {extra_values}")
+            if len(micro_organism_extra) > 10:
+                add_line(f"    ... and {len(micro_organism_extra) - 10} more")
 
         add_line("\nDiagnosis:")
         diag_matches = sum(1 for r in found_cases if r.get("diagnosis_in_discharge", False))

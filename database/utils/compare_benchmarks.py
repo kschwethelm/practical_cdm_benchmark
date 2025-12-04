@@ -599,7 +599,7 @@ def main():
     with col1:
         st.markdown("## 📋 benchmark_data.json")
         if case1:
-            render_pathology(case1, "Pathology")
+            # render_pathology(case1, "Pathology")
             st.divider()
             render_demographics(case1, "Demographics")
             st.divider()
@@ -617,7 +617,7 @@ def main():
     with col2:
         st.markdown("## 📋 benchmark_data_cdm_v1.json")
         if case2:
-            render_pathology(case2, "Pathology")
+            # render_pathology(case2, "Pathology")
             st.divider()
             render_demographics(case2, "Demographics")
             st.divider()
