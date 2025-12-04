@@ -40,7 +40,7 @@ def find_matching_blocks(
     text1: str, text2: str, min_length: int = 20
 ) -> list[tuple[int, int, int]]:
     """
-    Find matching text blocks between two strings.
+    Find matching text blocks between two strings, ignoring linebreaks.
 
     Args:
         text1: First text string
@@ -53,7 +53,12 @@ def find_matching_blocks(
     if not text1 or not text2:
         return []
 
-    matcher = difflib.SequenceMatcher(None, text1, text2)
+    # Normalize texts by replacing linebreaks with spaces for comparison
+    # This allows matching text blocks even if they have different line breaks
+    normalized_text1 = text1.replace("\n", " ")
+    normalized_text2 = text2.replace("\n", " ")
+
+    matcher = difflib.SequenceMatcher(None, normalized_text1, normalized_text2)
     blocks = []
 
     for i, j, n in matcher.get_matching_blocks():
@@ -105,16 +110,16 @@ def create_colored_comparison(
     text1: str, text2: str, text3: str, min_match_length: int = 20
 ) -> tuple[str, str, str]:
     """
-    Create color-highlighted versions of three texts showing matching blocks.
+    Create color-highlighted versions of three texts, showing matches only between text2 and text3.
 
     Args:
-        text1: First text (discharge note)
-        text2: Second text (extracted field)
+        text1: First text (discharge note) - displayed without highlighting
+        text2: Second text (extracted field from cdm_note_extract)
         text3: Third text (cdm_v1 field)
         min_match_length: Minimum length of matching blocks to highlight
 
     Returns:
-        Tuple of (highlighted_text1, highlighted_text2, highlighted_text3)
+        Tuple of (text1_plain, highlighted_text2, highlighted_text3)
     """
     if not text1:
         text1 = ""
@@ -123,46 +128,31 @@ def create_colored_comparison(
     if not text3:
         text3 = ""
 
-    # Find all matching blocks between pairs
-    matches_1_2 = find_matching_blocks(text1, text2, min_match_length)
-    matches_1_3 = find_matching_blocks(text1, text3, min_match_length)
+    # Find matching blocks only between text2 and text3
     matches_2_3 = find_matching_blocks(text2, text3, min_match_length)
 
-    # Create highlight lists for each text
-    highlights_1: list[tuple[int, int, str]] = []
+    # Create highlight lists for text2 and text3 only
     highlights_2: list[tuple[int, int, str]] = []
     highlights_3: list[tuple[int, int, str]] = []
 
     color_idx = 0
 
-    # Add highlights for text1-text2 matches
-    for i, j, n in matches_1_2:
-        # Use CSS variable that will adapt to light/dark mode
-        color = f"var(--highlight-color-{color_idx % len(COLOR_VARS)})"
-        highlights_1.append((i, i + n, color))
-        highlights_2.append((j, j + n, color))
-        color_idx += 1
-
-    # Add highlights for text1-text3 matches
-    for i, k, n in matches_1_3:
-        color = f"var(--highlight-color-{color_idx % len(COLOR_VARS)})"
-        highlights_1.append((i, i + n, color))
-        highlights_3.append((k, k + n, color))
-        color_idx += 1
-
     # Add highlights for text2-text3 matches
     for j, k, n in matches_2_3:
+        # Use CSS variable that will adapt to light/dark mode
         color = f"var(--highlight-color-{color_idx % len(COLOR_VARS)})"
         highlights_2.append((j, j + n, color))
         highlights_3.append((k, k + n, color))
         color_idx += 1
 
-    # Merge overlapping highlights and apply to text
-    highlighted_1 = highlight_text(text1, merge_highlights(highlights_1))
+    # Display text1 without highlighting, but with line breaks
+    plain_text1 = text1.replace("\n", "<br>")
+
+    # Merge overlapping highlights and apply to text2 and text3
     highlighted_2 = highlight_text(text2, merge_highlights(highlights_2))
     highlighted_3 = highlight_text(text3, merge_highlights(highlights_3))
 
-    return highlighted_1, highlighted_2, highlighted_3
+    return plain_text1, highlighted_2, highlighted_3
 
 
 def merge_highlights(highlights: list[tuple[int, int, str]]) -> list[tuple[int, int, str]]:
@@ -380,19 +370,82 @@ def main():
                 logger.error(f"Error loading hadm_ids: {e}")
                 st.session_state.hadm_ids = []
 
+    # Initialize current index in session state
+    if "current_hadm_index" not in st.session_state:
+        st.session_state.current_hadm_index = 0
+
     # Display total hadm_ids available
     if st.session_state.hadm_ids:
-        st.info(f"📊 {len(st.session_state.hadm_ids)} hadm_ids available. Use +/- to navigate.")
+        st.info(
+            f"📊 {len(st.session_state.hadm_ids)} hadm_ids available. "
+            f"Showing {st.session_state.current_hadm_index + 1} of {len(st.session_state.hadm_ids)}"
+        )
 
-    # Input field for hadm_id with navigation via +/-
-    hadm_id = st.number_input(
-        "Hospital Admission ID (hadm_id)",
-        min_value=min(st.session_state.hadm_ids) if st.session_state.hadm_ids else 1,
-        max_value=max(st.session_state.hadm_ids) if st.session_state.hadm_ids else 999999,
-        value=st.session_state.hadm_ids[0] if st.session_state.hadm_ids else 1,
-        step=1,
-        help="Enter a hadm_id or use +/- buttons to navigate through available IDs",
-    )
+    # Navigation controls
+    col1, col2, col3 = st.columns([1, 3, 1])
+
+    with col1:
+        if st.button("◀ Previous", use_container_width=True):
+            if st.session_state.current_hadm_index > 0:
+                st.session_state.current_hadm_index -= 1
+                st.rerun()
+
+    with col2:
+        # Allow direct hadm_id input
+        if st.session_state.hadm_ids:
+            # Get the current hadm_id based on index
+            current_hadm_id = st.session_state.hadm_ids[st.session_state.current_hadm_index]
+
+            selected_hadm_id = st.number_input(
+                "Hospital Admission ID (hadm_id)",
+                min_value=min(st.session_state.hadm_ids),
+                max_value=max(st.session_state.hadm_ids),
+                value=current_hadm_id,
+                step=1,
+                help="Enter a hadm_id or use Previous/Next buttons to navigate",
+            )
+
+            # Check if user manually changed the hadm_id
+            if selected_hadm_id != current_hadm_id:
+                # Find the index of the selected hadm_id or closest one
+                if selected_hadm_id in st.session_state.hadm_ids:
+                    st.session_state.current_hadm_index = st.session_state.hadm_ids.index(
+                        selected_hadm_id
+                    )
+                else:
+                    # Find closest hadm_id
+                    closest_idx = min(
+                        range(len(st.session_state.hadm_ids)),
+                        key=lambda i: abs(st.session_state.hadm_ids[i] - selected_hadm_id),
+                    )
+                    st.session_state.current_hadm_index = closest_idx
+                st.rerun()
+
+            hadm_id = st.session_state.hadm_ids[st.session_state.current_hadm_index]
+        else:
+            hadm_id = st.number_input(
+                "Hospital Admission ID (hadm_id)",
+                min_value=1,
+                max_value=999999,
+                value=1,
+                step=1,
+            )
+
+    with col3:
+        if st.button("Next ▶", use_container_width=True):
+            if st.session_state.current_hadm_index < len(st.session_state.hadm_ids) - 1:
+                st.session_state.current_hadm_index += 1
+                st.rerun()
+
+    # Initialize selected columns in session state
+    if "selected_extract_column" not in st.session_state:
+        st.session_state.selected_extract_column = None
+    if "selected_cdm_v1_table" not in st.session_state:
+        st.session_state.selected_cdm_v1_table = None
+    if "selected_cdm_v1_column" not in st.session_state:
+        st.session_state.selected_cdm_v1_column = None
+    if "min_match_length" not in st.session_state:
+        st.session_state.min_match_length = 20
 
     # Get available columns for dropdowns
     try:
@@ -407,18 +460,38 @@ def main():
     col1, col2 = st.columns(2)
 
     with col1:
+        # Determine default index for extract column
+        extract_default_idx = 0
+        if (
+            st.session_state.selected_extract_column
+            and st.session_state.selected_extract_column in extract_columns
+        ):
+            extract_default_idx = extract_columns.index(st.session_state.selected_extract_column)
+
         selected_extract_column = st.selectbox(
             "Select column from cdm_note_extract.discharge_free_text",
             options=extract_columns,
+            index=extract_default_idx,
             help="Choose which extracted field to display",
         )
+        st.session_state.selected_extract_column = selected_extract_column
 
     with col2:
+        # Determine default index for cdm_v1 table
+        cdm_v1_table_default_idx = 0
+        if (
+            st.session_state.selected_cdm_v1_table
+            and st.session_state.selected_cdm_v1_table in cdm_v1_tables
+        ):
+            cdm_v1_table_default_idx = cdm_v1_tables.index(st.session_state.selected_cdm_v1_table)
+
         selected_cdm_v1_table = st.selectbox(
             "Select table from cdm_v1 schema",
             options=cdm_v1_tables,
+            index=cdm_v1_table_default_idx,
             help="Choose which cdm_v1 table to query",
         )
+        st.session_state.selected_cdm_v1_table = selected_cdm_v1_table
 
     # Get columns for selected cdm_v1 table
     cdm_v1_columns = []
@@ -429,97 +502,106 @@ def main():
         except Exception as e:
             logger.error(f"Error fetching cdm_v1.{selected_cdm_v1_table} columns: {e}")
 
+    # Determine default index for cdm_v1 column
+    cdm_v1_column_default_idx = 0
+    if (
+        st.session_state.selected_cdm_v1_column
+        and st.session_state.selected_cdm_v1_column in cdm_v1_columns
+    ):
+        cdm_v1_column_default_idx = cdm_v1_columns.index(st.session_state.selected_cdm_v1_column)
+
     selected_cdm_v1_column = st.selectbox(
         f"Select column from cdm_v1.{selected_cdm_v1_table}",
         options=cdm_v1_columns,
+        index=cdm_v1_column_default_idx if cdm_v1_columns else 0,
         help="Choose which field to display from the selected table",
     )
+    st.session_state.selected_cdm_v1_column = selected_cdm_v1_column
 
     # Slider for minimum match length
     min_match_length = st.slider(
         "Minimum match length for highlighting",
         min_value=10,
         max_value=100,
-        value=20,
+        value=st.session_state.min_match_length,
         step=5,
         help="Minimum number of characters for a text block to be highlighted as a match",
     )
+    st.session_state.min_match_length = min_match_length
 
-    # Fetch and display button
-    if st.button("Compare Data", type="primary"):
-        if not hadm_id:
-            st.warning("Please enter a valid hadm_id")
+    # Automatically fetch and display data (no button needed)
+    if not hadm_id:
+        st.warning("Please enter a valid hadm_id")
+        return
+
+    if not selected_extract_column or not selected_cdm_v1_column:
+        st.warning("Please select columns from both tables")
+        return
+
+    # Fetch all three pieces of data
+    with st.spinner("Fetching data from database..."):
+        try:
+            discharge_text = get_discharge_note(hadm_id)
+            extracted_text = get_extracted_field(hadm_id, selected_extract_column)
+            cdm_v1_text = get_cdm_v1_field(hadm_id, selected_cdm_v1_column, selected_cdm_v1_table)
+        except Exception as e:
+            st.error(f"Error fetching data: {e}")
+            logger.error(f"Database error for hadm_id {hadm_id}: {e}")
             return
 
-        if not selected_extract_column or not selected_cdm_v1_column:
-            st.warning("Please select columns from both tables")
-            return
-
-        # Fetch all three pieces of data
-        with st.spinner("Fetching data from database..."):
-            try:
-                discharge_text = get_discharge_note(hadm_id)
-                extracted_text = get_extracted_field(hadm_id, selected_extract_column)
-                cdm_v1_text = get_cdm_v1_field(
-                    hadm_id, selected_cdm_v1_column, selected_cdm_v1_table
-                )
-            except Exception as e:
-                st.error(f"Error fetching data: {e}")
-                logger.error(f"Database error for hadm_id {hadm_id}: {e}")
-                return
-
-        # Apply color highlighting to matching text blocks
-        with st.spinner("Analyzing text matches..."):
-            highlighted_1, highlighted_2, highlighted_3 = create_colored_comparison(
-                discharge_text or "",
-                extracted_text or "",
-                cdm_v1_text or "",
-                min_match_length=min_match_length,
-            )
-
-        # Display results in three columns
-        st.divider()
-        st.subheader(f"Comparison Results for hadm_id: {hadm_id}")
-        st.info(
-            "Matching text blocks are highlighted with the same color across columns. "
-            "Adjust the minimum match length slider to show more or fewer matches. "
-            "Colors automatically adapt to your system's light/dark mode."
+    # Apply color highlighting only between extracted_text and cdm_v1_text
+    with st.spinner("Analyzing text matches..."):
+        plain_discharge, highlighted_extract, highlighted_cdm_v1 = create_colored_comparison(
+            discharge_text or "",
+            extracted_text or "",
+            cdm_v1_text or "",
+            min_match_length=min_match_length,
         )
 
-        # CSS for scrollable boxes and color scheme that adapts to dark mode
-        st.markdown(generate_color_scheme_css(), unsafe_allow_html=True)
+    # Display results in three columns
+    st.divider()
+    st.subheader(f"Comparison Results for hadm_id: {hadm_id}")
+    st.info(
+        "Matching text blocks between cdm_note_extract and cdm_v1 are highlighted with the same color. "
+        "The original discharge note is shown without highlighting for reference. "
+        "Adjust the minimum match length slider to show more or fewer matches. "
+        "Colors automatically adapt to your system's light/dark mode."
+    )
 
-        col1, col2, col3 = st.columns(3)
+    # CSS for scrollable boxes and color scheme that adapts to dark mode
+    st.markdown(generate_color_scheme_css(), unsafe_allow_html=True)
 
-        with col1:
-            st.markdown("### cdm_note.discharge (text)")
-            if discharge_text:
-                st.markdown(
-                    f'<div class="text-box">{highlighted_1}</div>',
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.warning("No discharge note found")
+    col1, col2, col3 = st.columns(3)
 
-        with col2:
-            st.markdown(f"### cdm_note_extract.discharge_free_text ({selected_extract_column})")
-            if extracted_text:
-                st.markdown(
-                    f'<div class="text-box">{highlighted_2}</div>',
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.warning(f"No data found for {selected_extract_column}")
+    with col1:
+        st.markdown("### cdm_note.discharge (text)")
+        if discharge_text:
+            st.markdown(
+                f'<div class="text-box">{plain_discharge}</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.warning("No discharge note found")
 
-        with col3:
-            st.markdown(f"### cdm_v1.{selected_cdm_v1_table} ({selected_cdm_v1_column})")
-            if cdm_v1_text:
-                st.markdown(
-                    f'<div class="text-box">{highlighted_3}</div>',
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.warning(f"No data found for {selected_cdm_v1_column}")
+    with col2:
+        st.markdown(f"### cdm_note_extract.discharge_free_text ({selected_extract_column})")
+        if extracted_text:
+            st.markdown(
+                f'<div class="text-box">{highlighted_extract}</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.warning(f"No data found for {selected_extract_column}")
+
+    with col3:
+        st.markdown(f"### cdm_v1.{selected_cdm_v1_table} ({selected_cdm_v1_column})")
+        if cdm_v1_text:
+            st.markdown(
+                f'<div class="text-box">{highlighted_cdm_v1}</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.warning(f"No data found for {selected_cdm_v1_column}")
 
 
 if __name__ == "__main__":
