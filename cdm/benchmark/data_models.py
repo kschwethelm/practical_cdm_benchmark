@@ -94,6 +94,18 @@ class BenchmarkDataset(BaseModel):
 
     cases: list[HadmCase] = Field(default_factory=list)
 
+    def __iter__(self):
+        """Allow iteration over cases directly."""
+        return iter(self.cases)
+
+    def __len__(self):
+        """Return the number of cases."""
+        return len(self.cases)
+
+    def __getitem__(self, index):
+        """Allow indexing and slicing."""
+        return self.cases[index]
+
 
 class BenchmarkOutputCDM(BaseModel):
     """Structured output from LLM clinical decision-making"""
@@ -109,3 +121,37 @@ class BenchmarkOutputFullInfo(BaseModel):
     """Structured output from LLM clinical decision-making with full information"""
 
     diagnosis: str
+
+
+class AgentRunResult(BaseModel):
+    """Complete agent execution result with tool calls and parsed output."""
+
+    parsed_output: BenchmarkOutputCDM
+    messages: list[dict]  # Full conversation history with tool calls
+
+    @property
+    def num_tool_calls(self) -> int:
+        return sum(1 for msg in self.messages if msg.get("type") == "tool")
+
+
+class EvalOutput(BaseModel):
+    """Evaluation output for a single case, including ground truth and predictions.
+
+    NOTE: THIS MODEL IS A PLACEHOLDER!!! ADAPT IT TO THE OUTPUT OF THE EVALUATOR CLASS WHEN IMPLEMENTED.
+    """
+
+    hadm_id: int
+    ground_truth: GroundTruth
+    prediction: BenchmarkOutputCDM
+    num_tool_calls: int
+
+
+class EvalOutputFullInfo(BaseModel):
+    """Evaluation output for full info baseline (no tool calls).
+
+    NOTE: THIS MODEL IS A PLACEHOLDER!!! ADAPT IT TO THE OUTPUT OF THE EVALUATOR CLASS WHEN IMPLEMENTED.
+    """
+
+    hadm_id: int
+    ground_truth: GroundTruth
+    prediction: BenchmarkOutputFullInfo

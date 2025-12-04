@@ -7,6 +7,13 @@ extracts relevant clinical data to create a structured JSON benchmark dataset.
 
 from pathlib import Path
 
+# Load environment variables from .env file BEFORE importing loguru
+# This ensures LOGURU_LEVEL is available when logger is initialized
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# ruff: noqa: E402 - imports after load_dotenv() are intentional
 import hydra
 from loguru import logger
 from omegaconf import DictConfig

@@ -1,14 +1,18 @@
 benchmark_data_path: database/output/benchmark_data.json
 
-num_cases: 1
+num_cases: 10
 
 # vLLM server configuration
 base_url: http://localhost:8000/v1
 temperature: 0.0
 
+# Async concurrency configuration
+# Controls maximum number of concurrent requests to server
+# Adjust based on your server capacity and GPU memory
+max_concurrent_requests: 5
+
 # Tool configuration - list of enabled tools
 enabled_tools:
   - physical_exam
   - lab
-  - microbiology
   - radiology
