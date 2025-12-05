@@ -41,7 +41,7 @@ class RadiologyReport(BaseModel):
     exam_name: str | None = None
     region: str | None = None
     modality: str | None = None
-    reports: str | None = None
+    text: str | None = Field(None, alias="findings")
 
 
 class ChiefComplaint(BaseModel):

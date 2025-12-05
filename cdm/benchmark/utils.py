@@ -112,7 +112,7 @@ def add_imaging_reports(case: HadmCase) -> dict:
         exam_name = imaging.exam_name or "Unknown"
         modality = imaging.modality or ""
         region = imaging.region or ""
-        reports = imaging.reports or "Unknown"
+        reports = imaging.text or "Unknown"
 
         imaging_results += f"- {exam_name} ({modality}, {region})\n"
         imaging_results += f"  Reports: {reports}\n\n"
