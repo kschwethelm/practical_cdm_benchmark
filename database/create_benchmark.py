@@ -88,8 +88,9 @@ def create_hadm_case(cursor, hadm_id: int) -> HadmCase:
 
     return HadmCase(
         hadm_id=hadm_id,
+        pathology=pathology_type,
         demographics=demographics,
-        history_of_present_illness=history_of_present_illness,
+        patient_history=history_of_present_illness,
         lab_results=lab_results,
         microbiology_events=microbiology_events,
         radiology_reports=radiology_reports,
