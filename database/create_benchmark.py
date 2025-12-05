@@ -84,7 +84,7 @@ def create_hadm_case(cursor, hadm_id: int) -> HadmCase:
     history_of_present_illness = scrub_text(history_of_present_illness, pathology_type)
     physical_examination = scrub_text(physical_examination, pathology_type)
     for report in radiology_reports:
-        report.findings = scrub_text(report.findings, pathology_type)
+        report.reports = scrub_text(report.reports, pathology_type)
 
     return HadmCase(
         hadm_id=hadm_id,

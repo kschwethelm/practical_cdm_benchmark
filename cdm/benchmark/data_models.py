@@ -41,7 +41,7 @@ class RadiologyReport(BaseModel):
     exam_name: str | None = None
     region: str | None = None
     modality: str | None = None
-    reports: str | None = Field(None, alias="findings")
+    reports: str | None = None
 
 
 class ChiefComplaint(BaseModel):
@@ -92,7 +92,7 @@ class HadmCase(BaseModel):
     hadm_id: int
     pathology: Pathology | None = None
     demographics: Demographics | None = None
-    patient_history: str | None = Field(None, alias="history_of_present_illness")
+    patient_history: str | None = None
     lab_results: list[DetailedLabResult] = Field(default_factory=list)
     microbiology_events: list[MicrobiologyEvent] = Field(default_factory=list)
     radiology_reports: list[RadiologyReport] = Field(default_factory=list)
