@@ -20,8 +20,9 @@ class TestBuildAgent:
         """Create a minimal sample case for testing."""
         return {
             "hadm_id": 12345,
+            "pathology": "appendicitis",
             "demographics": {"age": 65, "gender": "M"},
-            "history_of_present_illness": "Test patient info",
+            "patient_history": "Test patient info",
             "ground_truth": {"primary_diagnosis": "Test diagnosis"},
             "physical_exam_text": "Normal examination",
             "lab_results": [],

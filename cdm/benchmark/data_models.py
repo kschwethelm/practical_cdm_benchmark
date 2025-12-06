@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, Field
 
@@ -40,7 +41,7 @@ class RadiologyReport(BaseModel):
     exam_name: str | None = None
     region: str | None = None
     modality: str | None = None
-    findings: str | None = None
+    text: str | None = None
 
 
 class ChiefComplaint(BaseModel):
@@ -76,12 +77,22 @@ class GroundTruth(BaseModel):
     treatments: list[str]
 
 
+class Pathology(str, Enum):
+    """Pathology/condition type for benchmark cases."""
+
+    APPENDICITIS = "appendicitis"
+    CHOLECYSTITIS = "cholecystitis"
+    DIVERTICULITIS = "diverticulitis"
+    PANCREATITIS = "pancreatitis"
+
+
 class HadmCase(BaseModel):
     """Complete case data for a single hospital admission based on CDMv1 schema"""
 
     hadm_id: int
+    pathology: Pathology | None = None
     demographics: Demographics | None = None
-    history_of_present_illness: str | None = None
+    patient_history: str | None = None
     lab_results: list[DetailedLabResult] = Field(default_factory=list)
     microbiology_events: list[MicrobiologyEvent] = Field(default_factory=list)
     radiology_reports: list[RadiologyReport] = Field(default_factory=list)

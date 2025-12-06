@@ -31,7 +31,7 @@ def request_imaging(region: str, modality: str) -> str:
                 f"- Exam Name: {imaging.exam_name or 'N/A'}\n"
                 f"- Region: {imaging.region or 'N/A'}\n"
                 f"- Modality: {imaging.modality or 'N/A'}\n"
-                f"- Findings: {imaging.findings or 'N/A'}\n"
+                f"- Reports: {imaging.text or 'N/A'}\n"
             )
             return result
 
