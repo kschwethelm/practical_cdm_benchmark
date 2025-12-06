@@ -272,8 +272,8 @@ def render_history(
     """Render history of present illness with highlighting."""
     st.markdown(f"**{label}**")
 
-    text = case1.history_of_present_illness if case1 else None
-    other_text = case2.history_of_present_illness if case2 else None
+    text = case1.patient_history if case1 else None
+    other_text = case2.patient_history if case2 else None
 
     if text:
         if other_text and text != other_text:
@@ -355,23 +355,23 @@ def render_radiology(
                     st.write(f"**Region:** {report.region}")
                 if report.modality:
                     st.write(f"**Modality:** {report.modality}")
-                if report.findings:
+                if report.text:
                     # Try to find matching report in other dataset by note_id
-                    other_findings = None
+                    other_text = None
                     for other_report in other_reports:
-                        if other_report.note_id == report.note_id and other_report.findings:
-                            other_findings = other_report.findings
+                        if other_report.note_id == report.note_id and other_report.text:
+                            other_text = other_report.text
                             break
 
-                    if other_findings and report.findings != other_findings:
+                    if other_text and report.text != other_text:
                         # Highlight matching blocks
                         if dataset_id == "dataset1":
                             highlighted, _ = create_highlighted_pair(
-                                report.findings, other_findings, min_match_length
+                                report.text, other_text, min_match_length
                             )
                         else:
                             _, highlighted = create_highlighted_pair(
-                                other_findings, report.findings, min_match_length
+                                other_text, report.text, min_match_length
                             )
 
                         st.markdown(
@@ -380,7 +380,7 @@ def render_radiology(
                         )
                     else:
                         # No highlighting needed
-                        plain_text = report.findings.replace("\n", "<br>")
+                        plain_text = report.text.replace("\n", "<br>")
                         st.markdown(
                             f'<div class="text-box" style="height: 200px;">{plain_text}</div>',
                             unsafe_allow_html=True,

@@ -28,9 +28,8 @@ def create_user_prompt(case: dict, template_name: str = "full_info/user.j2") -> 
 
     Args:
         case: Dictionary containing case data with keys:
-            - history_of_present_illness: str
+            - patient_history: str
             - physical_examination: str (optional)
-            - patient_history: str (optional)
             - laboratory_results: str (optional)
             - imaging_reports: str (optional)
             - microbiology_results: str (optional)
@@ -41,9 +40,8 @@ def create_user_prompt(case: dict, template_name: str = "full_info/user.j2") -> 
     """
     template = jinja_env.get_template(template_name)
     return template.render(
-        history_of_present_illness=case.get("history_of_present_illness"),
-        physical_examination=case.get("physical_examination"),
         patient_history=case.get("patient_history"),
+        physical_examination=case.get("physical_examination"),
         laboratory_results=case.get("laboratory_results"),
         imaging_reports=case.get("imaging_reports"),
         microbiology_results=case.get("microbiology_results"),

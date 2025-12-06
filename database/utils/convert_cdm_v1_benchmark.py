@@ -16,6 +16,7 @@ from cdm.benchmark.data_models import (
     GroundTruth,
     HadmCase,
     MicrobiologyEvent,
+    Pathology,
     RadiologyReport,
 )
 
@@ -123,7 +124,7 @@ def convert_radiology(radiology_list: list[dict]) -> list[RadiologyReport]:
             exam_name=rad_dict.get("Exam Name"),
             region=rad_dict.get("Region"),
             modality=rad_dict.get("Modality"),
-            findings=rad_dict.get("Report"),
+            text=rad_dict.get("Report"),
         )
         reports.append(report)
 
@@ -141,7 +142,9 @@ def convert_ground_truth(discharge_diagnosis: str, procedures_discharge: list[st
     )
 
 
-def convert_case(hadm_id: int, case_data: dict, lab_mapping: dict[int, dict]) -> HadmCase:
+def convert_case(
+    hadm_id: int, case_data: dict, lab_mapping: dict[int, dict], pathology: Pathology
+) -> HadmCase:
     """Convert a single case from CDM v1 format to HadmCase model."""
     # Convert lab results
     lab_results = convert_lab_results(
@@ -168,8 +171,9 @@ def convert_case(hadm_id: int, case_data: dict, lab_mapping: dict[int, dict]) ->
     # Create HadmCase
     return HadmCase(
         hadm_id=hadm_id,
+        pathology=pathology,
         demographics=None,  # Not available in CDM v1 format
-        history_of_present_illness=case_data.get("Patient History"),
+        patient_history=case_data.get("Patient History"),
         lab_results=lab_results,
         microbiology_events=microbiology_events,
         radiology_reports=radiology_reports,
@@ -193,6 +197,10 @@ def main():
         file_path = CDM_V1_DIR / condition_file
         logger.info(f"Processing {condition_file}")
 
+        # Extract pathology from filename (e.g., "appendicitis_hadm_info_first_diag.json" -> "appendicitis")
+        pathology_name = condition_file.replace("_hadm_info_first_diag.json", "").upper()
+        pathology = Pathology[pathology_name]
+
         with open(file_path) as f:
             condition_data = json.load(f)
 
@@ -205,7 +213,7 @@ def main():
                 # Skip known problematic case
                 logger.warning(f"  Skipping problematic case hadm_id={hadm_id}")
                 continue
-            case = convert_case(hadm_id, case_data, lab_mapping)
+            case = convert_case(hadm_id, case_data, lab_mapping, pathology)
             all_cases.append(case)
 
     # Create benchmark dataset
