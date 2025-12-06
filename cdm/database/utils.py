@@ -44,13 +44,28 @@ def get_pathology_type_from_string(ground_truth_diagnosis: str) -> str | None:
     return None
 
 
-def scrub_text(text: str, pathology_type: str | None) -> str:
+def scrub_text(text: str, pathology_type: str | None, is_physical_exam: bool = False) -> str:
     """
     Removes mentions of the diagnosis and related procedures from
     a block of text, replacing them with '___' as per CDMv1.
+    Also removes any text after "discharge" for physical exam texts.
+
+    Args:
+        text: The text to scrub
+        pathology_type: The type of pathology (e.g., 'pancreatitis')
+        is_physical_exam: If True, removes text after "discharge"
     """
     if not text:
         return ""
+
+    # Remove text after "discharge" only for physical exams (case insensitive)
+    if is_physical_exam:
+        discharge_pattern = re.compile(r"\bdischarge\b.*", re.IGNORECASE | re.DOTALL)
+        text = discharge_pattern.sub("", text).strip()
+
+    # Replace newlines with spaces
+    text = text.replace("\n", " ")
+
     if not pathology_type:
         return text  # No scrubbing needed if no pathology type
 
@@ -105,15 +120,6 @@ def extract_findings_from_report(raw_report_text: str) -> str:
 
     sections = parse_report(raw_report_text)
 
-    # Explicitly look for "FINDINGS"
-    for header, content in sections.items():
-        if "FINDINGS" in header and "SUMMARY" not in header:
-            # e.g. "FINDINGS", "CT ABDOMEN FINDINGS"
-            if content.strip():
-                return content.strip()
-
-    # Fallback to Negative Filtering (CDMv1 Logic)
-    # If no explicit findings section, we construct text from all non-bad sections.
     text_clean = ""
 
     for field, content in sections.items():
@@ -142,7 +148,7 @@ def derive_modality(exam_name: str, text: str) -> str:
             modality = mod
             break
     if modality == "Unknown" and exam_upper.startswith("CHEST"):
-        modality = "XR"
+        modality = "Radiograph"
 
     # Further check text if modality is still unknown
     if modality == "Unknown" and text:
