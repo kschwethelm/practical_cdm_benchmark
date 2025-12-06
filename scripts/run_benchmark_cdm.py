@@ -27,7 +27,7 @@ async def process_case(
 ) -> tuple[HadmCase, AgentRunResult]:
     """Process a single case with semaphore-based rate limiting."""
     async with semaphore:
-        patient_info = case.history_of_present_illness
+        patient_info = case.patient_history
         set_current_case(case)
         output = await run_agent_async(agent, patient_info)
 

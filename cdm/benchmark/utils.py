@@ -57,7 +57,7 @@ def add_clinical_history(case: HadmCase) -> dict:
         dict: Dictionary with history of present illness and physical examination.
     """
     return {
-        "history_of_present_illness": case.history_of_present_illness,
+        "patient_history": case.patient_history,
         "physical_examination": case.physical_exam_text,
     }
 
@@ -112,10 +112,10 @@ def add_imaging_reports(case: HadmCase) -> dict:
         exam_name = imaging.exam_name or "Unknown"
         modality = imaging.modality or ""
         region = imaging.region or ""
-        findings = imaging.findings or "Unknown"
+        reports = imaging.text or "Unknown"
 
         imaging_results += f"- {exam_name} ({modality}, {region})\n"
-        imaging_results += f"  Findings: {findings}\n\n"
+        imaging_results += f"  Reports: {reports}\n\n"
 
     return {"imaging_reports": imaging_results}
 
