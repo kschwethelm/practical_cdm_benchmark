@@ -20,6 +20,9 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
     """
     Compare new dataset with original CDMv1 dataset files.
 
+    Text similarity is calculated using Jaccard similarity: the size of the intersection
+    divided by the size of the union of word sets (after lowercasing and basic tokenization).
+
     Args:
         new_dataset_path: Path to new benchmark_data.json
         cdm_v1_dir: Directory containing CDMv1 files (pancreatitis, appendicitis, etc.)
@@ -27,30 +30,31 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
 
     Returns:
         dict: Comparison results with match statistics
+
+    Raises:
+        FileNotFoundError: If dataset or CDMv1 files are not found
+        json.JSONDecodeError: If JSON files are malformed
     """
     # Load new dataset
-    with open(new_dataset_path) as f:
-        new_data = json.load(f)
-
-    # Load lab mapping
-    lab_mapping_path = Path(cdm_v1_dir) / "lab_test_mapping.json"
-    with open(lab_mapping_path) as f:
-        lab_mapping = json.load(f)
-    itemid_to_name = {}
-    for item in lab_mapping:
-        try:
-            itemid = str(int(item["itemid"]))
-            itemid_to_name[itemid] = item["label"]
-        except (ValueError, KeyError):
-            continue
+    try:
+        with open(new_dataset_path) as f:
+            new_data = json.load(f)
+    except FileNotFoundError as err:
+        raise FileNotFoundError(f"Dataset file not found: {new_dataset_path}") from err
+    except json.JSONDecodeError as e:
+        raise json.JSONDecodeError(f"Invalid JSON in dataset file: {e.msg}", e.doc, e.pos) from e
 
     # Load all CDMv1 dataset files
     cdm_v1_data = {}
     for diagnosis in ["pancreatitis", "appendicitis", "cholecystitis", "diverticulitis"]:
         file_path = Path(cdm_v1_dir) / f"{diagnosis}_hadm_info_first_diag.json"
         if file_path.exists():
-            with open(file_path) as f:
-                cdm_v1_data.update(json.load(f))
+            try:
+                with open(file_path) as f:
+                    cdm_v1_data.update(json.load(f))
+            except json.JSONDecodeError as e:
+                print(f"Warning: Invalid JSON in {file_path}: {e}")
+                continue
 
     results = []
 
@@ -176,7 +180,6 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
                                 "new_value": new_lab["value"],
                             }
                         )
-                        break
 
         comparison["lab_value_matches"] = lab_value_matches
         comparison["lab_value_mismatches"] = lab_value_mismatches
