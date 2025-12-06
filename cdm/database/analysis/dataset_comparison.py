@@ -7,8 +7,8 @@ Usage:
     results = compare_datasets('database/output/benchmark_data.json')
 
     # From terminal:
-    python cdm/database/analysis/dataset_comparison.py database/output/benchmark_data.json
-    python cdm/database/analysis/dataset_comparison.py database/output/benchmark_data.json --output my_report.txt
+    uv run cdm/database/analysis/dataset_comparison.py database/output/benchmark_data.json
+    uv run cdm/database/analysis/dataset_comparison.py database/output/benchmark_data.json --output my_report.txt
 """
 
 import argparse
@@ -294,20 +294,64 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
         new_results = set()
         for event in new_micro_events:
             # Use organism_name if available, otherwise use comments
-            result = event.get("organism_name") or event.get("comments", "")
-            if result and result.strip():
-                # Split by comma, normalize and sort to handle different ordering
-                parts = [p.strip().lower() for p in result.split(",")]
+            org = event.get("organism_name", "")
+            comm = event.get("comments", "")
+
+            # Add both org_name and comments separately if they exist
+            if org and org.strip():
+                parts = [p.strip().lower() for p in org.split(",")]
+                normalized = ", ".join(sorted(parts))
+                new_results.add(normalized)
+            if comm and comm.strip():
+                parts = [p.strip().lower() for p in comm.split(",")]
                 normalized = ", ".join(sorted(parts))
                 new_results.add(normalized)
 
         if cdm_results or new_results:
-            comparison["micro_organism_overlap"] = len(cdm_results & new_results)
-            comparison["micro_organism_missing"] = len(cdm_results - new_results)
-            comparison["micro_organism_extra"] = len(new_results - cdm_results)
+            # Calculate overlaps considering substring matches for comments
+            overlap_count = 0
+            missing_results = set()
+
+            for cdm_result in cdm_results:
+                found = False
+                # Check exact match first
+                if cdm_result in new_results:
+                    overlap_count += 1
+                    found = True
+                else:
+                    # Check if CDM result is contained in any new result (for comments)
+                    for new_result in new_results:
+                        if cdm_result in new_result or new_result in cdm_result:
+                            overlap_count += 1
+                            found = True
+                            break
+
+                if not found:
+                    missing_results.add(cdm_result)
+
+            # Calculate extra results
+            extra_results = set()
+            for new_result in new_results:
+                found = False
+                for cdm_result in cdm_results:
+                    if (
+                        new_result == cdm_result
+                        or cdm_result in new_result
+                        or new_result in cdm_result
+                    ):
+                        found = True
+                        break
+                if not found:
+                    extra_results.add(new_result)
+
+            comparison["micro_organism_overlap"] = overlap_count
+            comparison["micro_organism_missing"] = len(missing_results)
+            comparison["micro_organism_extra"] = len(extra_results)
             # Store the actual missing/extra values for debugging
-            if cdm_results - new_results:
-                comparison["micro_missing_values"] = list(cdm_results - new_results)
+            if missing_results:
+                comparison["micro_missing_values"] = list(missing_results)
+            if extra_results:
+                comparison["micro_extra_values"] = list(extra_results)
             if new_results - cdm_results:
                 comparison["micro_extra_values"] = list(new_results - cdm_results)
 
@@ -712,13 +756,13 @@ def main():
         epilog="""
 Examples:
   # Basic comparison (auto-generates report file)
-  python cdm/database/analysis/dataset_comparison.py database/output/benchmark_data.json
+  uv run cdm/database/analysis/dataset_comparison.py database/output/benchmark_data.json
 
   # Specify custom output file
-  python cdm/database/analysis/dataset_comparison.py database/output/benchmark_data.json --output report.txt
+  uv run cdm/database/analysis/dataset_comparison.py database/output/benchmark_data.json --output report.txt
 
   # Use custom CDMv1 directory
-  python cdm/database/analysis/dataset_comparison.py database/output/benchmark_data.json --cdm-v1-dir /path/to/cdm_v1
+  uv run cdm/database/analysis/dataset_comparison.py database/output/benchmark_data.json --cdm-v1-dir /path/to/cdm_v1
         """,
     )
 

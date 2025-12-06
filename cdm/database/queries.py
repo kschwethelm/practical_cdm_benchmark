@@ -248,7 +248,6 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
                 di.category
             FROM CombinedLabEvents le
             JOIN cdm_hosp.d_labitems di ON le.itemid = di.itemid
-            JOIN cdm_hosp.admissions adm ON le.hadm_id = adm.hadm_id
         ),
         RankedLabEvents AS (
             SELECT
@@ -311,13 +310,13 @@ def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     """
     query = """
         WITH CombinedMicroEvents AS (
-            SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id
+            SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id, storetime
             FROM cdm_hosp.microbiologyevents
             WHERE hadm_id = %s
 
             UNION ALL
 
-            SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id
+            SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id, storetime
             FROM cdm_hosp.microbiologyevents_assigned
             WHERE hadm_id = %s
         ),
@@ -328,12 +327,10 @@ def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
                 micro.org_name,
                 micro.comments,
                 micro.charttime,
+                micro.storetime,
                 micro.test_itemid
             FROM CombinedMicroEvents micro
-            JOIN cdm_hosp.admissions adm ON micro.hadm_id = adm.hadm_id
-            WHERE micro.charttime >= (adm.admittime - INTERVAL '1 day')
-                AND micro.charttime <= adm.dischtime
-                AND ((micro.org_name IS NOT NULL AND micro.org_name != 'CANCELLED') OR (micro.comments IS NOT NULL AND micro.comments != '___'))
+            WHERE ((micro.org_name IS NOT NULL AND micro.org_name != 'CANCELLED') OR (micro.comments IS NOT NULL AND micro.comments != '___'))
         ),
         RankedMicroEvents AS (
             SELECT
@@ -342,8 +339,9 @@ def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
                 STRING_AGG(DISTINCT org_name, ', ' ORDER BY org_name) FILTER (WHERE org_name IS NOT NULL) AS org_name,
                 STRING_AGG(DISTINCT comments, ', ' ORDER BY comments) FILTER (WHERE comments IS NOT NULL) AS comments,
                 charttime,
+                MIN(storetime) as storetime,
                 test_itemid,
-                ROW_NUMBER() OVER(PARTITION BY test_itemid ORDER BY charttime ASC) as rn
+                ROW_NUMBER() OVER(PARTITION BY test_itemid ORDER BY charttime ASC, MIN(storetime) ASC NULLS LAST) as rn
             FROM FilteredMicroEvents
             GROUP BY test_name, spec_type_desc, charttime, test_itemid
         )
@@ -410,11 +408,8 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
                 rad.note_id
             FROM CombinedRadiology rad
             JOIN cdm_note.radiology_detail det ON rad.note_id = det.note_id
-            JOIN cdm_hosp.admissions adm ON rad.hadm_id = adm.hadm_id
             WHERE rad.text IS NOT NULL
                 AND det.field_name = 'exam_name'
-                AND rad.charttime >= (adm.admittime - INTERVAL '1 day')
-                AND rad.charttime <= adm.dischtime
         ),
         RankedRadiology AS (
             SELECT
