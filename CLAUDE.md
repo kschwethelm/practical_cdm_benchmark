@@ -50,6 +50,15 @@ uv run database/create_benchmark.py
 
 # Configuration in configs/database/
 # Output: database/output/benchmark_data.json
+
+# View database tables with Streamlit UI
+uv run streamlit run database/utils/view_tables.py
+
+# Compare benchmark files with Streamlit UI
+uv run streamlit run database/utils/compare_benchmarks.py
+
+# Convert CDM v1 benchmark to new format
+uv run database/utils/convert_cdm_v1_benchmark.py
 ```
 
 ### Running Benchmarks
@@ -92,12 +101,18 @@ The project uses a **library + scripts** pattern:
   - `database/` - Database connection and query functions
   - `llms/` - LLM client and agent builders (build_llm, build_agent, run_agent, run_llm)
   - `prompts/` - Jinja2 templates and prompt generation utilities
-  - `tools/` - Clinical information tools for agent (physical exam, labs, microbiology, radiology)
+  - `tools/` - Clinical information tools for agent (physical exam, labs, radiology)
     - `context.py` - Context variable management for current case
+    - `lab_mappings.py` - Lab test category mappings (mirrors CDM v1)
+    - `lab_utils.py` - Lab result parsing and formatting utilities
     - `__init__.py` - AVAILABLE_TOOLS registry
 
 - **`scripts/`** - Executable entry points (use `cdm/` library)
 - **`database/`** - Database setup scripts and benchmark creation
+  - `utils/` - Utilities for viewing and comparing benchmarks
+    - `view_tables.py` - Streamlit UI for visualizing database tables
+    - `compare_benchmarks.py` - Streamlit UI for comparing benchmark JSON files
+    - `convert_cdm_v1_benchmark.py` - Convert CDM v1 benchmark files to new format
 - **`configs/`** - Hydra YAML configurations (never hardcode parameters)
   - `benchmark/` - Benchmark configurations with inheritance
   - `database/` - Database and benchmark creation configs
@@ -157,7 +172,32 @@ DB_USER="postgres"
 All data structures use Pydantic for validation:
 
 ```python
-from cdm.benchmark.data_models import BenchmarkOutputCDM, BenchmarkOutputFullInfo
+from cdm.benchmark.data_models import (
+    HadmCase,
+    BenchmarkDataset,
+    BenchmarkOutputCDM,
+    BenchmarkOutputFullInfo,
+    Pathology
+)
+
+# HadmCase - Primary data model for a single hospital admission
+case = HadmCase(
+    hadm_id=12345,
+    pathology=Pathology.APPENDICITIS,  # Enum: appendicitis, cholecystitis, diverticulitis, pancreatitis
+    demographics=Demographics(age=45, gender="M"),
+    patient_history="Patient presents with...",
+    lab_results=[DetailedLabResult(...)],
+    microbiology_events=[MicrobiologyEvent(...)],
+    radiology_reports=[RadiologyReport(exam_name="CT Abdomen", ...)],
+    physical_exam_text="General: Alert and oriented...",
+    ground_truth=GroundTruth(primary_diagnosis="Appendicitis", treatments=["Surgery"])
+)
+
+# BenchmarkDataset - Container for multiple cases
+dataset = BenchmarkDataset(cases=[case1, case2, case3])
+# Supports iteration, indexing, slicing
+for case in dataset:
+    print(case.hadm_id)
 
 # CDM workflow output (with tool calling)
 output = BenchmarkOutputCDM(
@@ -185,7 +225,8 @@ Benefits:
 
 **Agent-Based Clinical Decision Making:**
 - **Agent** (`build_agent`) - LangChain agent with tool calling capabilities
-- **Tools** - Clinical information retrieval (physical exam, labs, microbiology, radiology)
+- **Tools** - Clinical information retrieval (physical exam, labs, radiology)
+  - **Note:** Microbiology data is now included in the lab tool (merged as of commit af27af2)
   - Tools use context variables (`get_current_case()`) to access case data
   - No case-specific tool initialization required
 - **Prompts** - Jinja2 templates in `cdm/prompts/` with dynamic Pydantic schema injection
@@ -196,9 +237,14 @@ Benefits:
 - `get_current_case()` - Tools retrieve case data from context (no parameters needed)
 - Enables agent reuse across multiple cases without rebuilding
 
+**Async Processing:**
+- Scripts support async processing with concurrent requests
+- Configure `max_concurrent_requests` in benchmark configs (default: 5)
+- Results are written to JSONL files asynchronously for better performance
+
 Configuration:
 - vLLM server configs in `configs/vllm_config/`
-- Benchmark configs in `configs/benchmark/` (tools, temperature, etc.)
+- Benchmark configs in `configs/benchmark/` (tools, temperature, max_concurrent_requests, etc.)
 - All configs use Hydra for parameter management
 
 ### Hydra Configuration
@@ -215,6 +261,8 @@ def main(cfg: DictConfig):
     cases = load_cases(cfg.benchmark_data_path, cfg.num_cases)
     llm = build_llm(cfg.base_url, cfg.temperature)
     agent = build_agent(llm, cfg.enabled_tools)
+    # Async processing configuration
+    max_concurrent = cfg.max_concurrent_requests
 ```
 
 **Configuration features:**
@@ -296,7 +344,8 @@ from cdm.tools import set_current_case
 llm = build_llm(base_url="http://localhost:8000/v1", temperature=0.0)
 
 # Build agent once with enabled tools
-agent = build_agent(llm, enabled_tools=["physical_exam", "lab", "microbiology", "radiology"])
+# Available tools: physical_exam, lab, radiology (microbiology merged into lab)
+agent = build_agent(llm, enabled_tools=["physical_exam", "lab", "radiology"])
 
 # Set context and run agent for each case
 for case in cases:
@@ -328,13 +377,14 @@ AVAILABLE_TOOLS["my_tool"] = my_custom_tool
 ```python
 from cdm.benchmark.utils import load_cases
 
-# Load cases from JSON
-cases = load_cases("database/output/benchmark_data.json", num_cases=10)
+# Load cases from JSON as Pydantic models
+dataset = load_cases("database/output/benchmark_data.json", num_cases=10)
 
-# Access case data
-for case in cases:
-    print(case["hadm_id"], case["history_of_present_illness"])
-    print(case["ground_truth"]["primary_diagnosis"])
+# Access case data (returns BenchmarkDataset with HadmCase models)
+for case in dataset:
+    print(case.hadm_id, case.patient_history)
+    print(case.ground_truth.primary_diagnosis)
+    print(case.pathology)  # Pathology enum value
 ```
 
 ### Working with Jinja2 Prompt Templates
@@ -351,12 +401,41 @@ user_prompt = create_user_prompt(patient_info)  # Uses cdm/user.j2
 schema_str = pydantic_to_prompt(BenchmarkOutputCDM)
 ```
 
+### Database Utilities
+
+**Streamlit UIs for visualization and comparison:**
+
+```bash
+# View and compare database tables for a specific hadm_id
+uv run streamlit run database/utils/view_tables.py
+
+# Compare benchmark JSON files (e.g., CDM v1 vs new format)
+uv run streamlit run database/utils/compare_benchmarks.py
+```
+
+**Converting CDM v1 benchmark files:**
+
+```bash
+# Convert old CDM v1 format to new HadmCase Pydantic models
+uv run database/utils/convert_cdm_v1_benchmark.py
+```
+
+These utilities help with:
+- Visualizing differences between original reports, CDM v1 extractions, and current extractions
+- Comparing benchmark outputs from different model versions
+- Migrating legacy benchmark data to the new Pydantic-based format
+
 ## Important Reminders
 
 - **MIMIC data is protected** - Never commit data files, outputs, or logs containing patient information
 - **Always format before commit** - `uv run ruff format .` (or use pre-commit hooks)
 - **Use Pydantic models** - For all data structures and LLM outputs
+  - **HadmCase** is the primary case data model (replaces dictionaries)
+  - **BenchmarkDataset** is the container for multiple cases
+  - **Pathology** enum defines the condition type (appendicitis, cholecystitis, diverticulitis, pancreatitis)
 - **vLLM is server-client** - Start server first, then run benchmark scripts
 - **Context-based tools** - Use `set_current_case()` before running agent, tools access via `get_current_case()`
+- **Available tools** - Only 3 tools: `physical_exam`, `lab`, `radiology` (microbiology merged into lab)
 - **Register new tools** - Add to `AVAILABLE_TOOLS` in `cdm/tools/__init__.py`
 - **Jinja2 templates** - Prompts are in `cdm/prompts/` as `.j2` files, not hardcoded strings
+- **Async processing** - Configure `max_concurrent_requests` for optimal performance
