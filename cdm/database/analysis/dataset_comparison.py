@@ -411,9 +411,11 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
 
     # Generate output file path if not provided
     if output_file is None:
-        # Save in the same directory as this script
+        # Save in the output subdirectory
         script_dir = Path(__file__).parent
-        output_file = script_dir / "summary.txt"
+        output_dir = script_dir / "output"
+        output_dir.mkdir(exist_ok=True)
+        output_file = output_dir / "summary.txt"
 
     # Collect summary lines for both console and file
     summary_lines = []
