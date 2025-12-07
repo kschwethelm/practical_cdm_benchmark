@@ -6,6 +6,7 @@ from thefuzz import fuzz
 from abc import abstractmethod
 import pandas as pd
 import os 
+from utils import keyword_positive
 
 class PathologyEvaluator():
 
@@ -61,10 +62,6 @@ class PathologyEvaluator():
                 self.score_imaging_action(tool_call)
             elif tool_name == "request_lab_test":
                 self.score_lab(tool_call)
-            
-            # TODO: Developing a microbiology scoring metric? 
-            # elif action.tool == "request_microbio_test": 
-            #     self._score_microbiology(tool_call)
  
         self.scores["Tool Calls"] = output.num_tool_calls
         
@@ -118,34 +115,32 @@ class PathologyEvaluator():
             self.answers["Correct Imaging"].append(imaging_dict)
             
     def score_diagnosis(self):
-        print(self.answers["Diagnosis"])
         answer = self.answers["Diagnosis"].lower() 
         for word in answer.split():
-            if fuzz.ratio(word, self.pathology) > 90:
+            if fuzz.ratio(word, self.pathology) > 90 and keyword_positive(self.pathology, word):
                 self.scores["Diagnosis"] = 1
                 self.scores["Gracious Diagnosis"] = 1
                 self.explanations["Diagnosis"] = "CORRECT: Model prediction matches ground truth diagnosis closely."
-                print(self.answers["Diagnosis"])
                 break
         for alternative_patho in self.alternative_pathology_names:
             patho_loc = alternative_patho["location"]
             for patho_mod in alternative_patho["modifiers"]:
-                if patho_loc in answer and patho_mod in answer:
-                    self.scores["Diagnosis"] = 1
+                if keyword_positive(answer, patho_loc) and keyword_positive(answer, patho_mod):
+                    self.scores["Diagnosis"] = 0.7 
                     self.scores["Gracious Diagnosis"] = 1
                     self.explanations["Diagnosis"] = "CORRECT: Model prediction matches alternative name for ground truth diagnosis."
                     break
         for alternative_patho in self.gracious_alternative_pathology_names:
             patho_loc = alternative_patho["location"]
             for patho_mod in alternative_patho["modifiers"]:
-                if (patho_loc in answer and patho_mod in answer):
+                if keyword_positive(answer, patho_loc) and keyword_positive(answer, patho_mod): 
+                    self.scores["Diagnosis"] = 0.4 
                     self.scores["Gracious Diagnosis"] = 1
                     self.explanations["Diagnosis"] = "ACCEPTABLE: Model prediction is similar to the ground truth diagnosis."
                     break
+        self.scores["Diagnosis"] = 0 
         
-        
-    
-    def print_eval(self, verbose: bool = True, save: bool = True, csv_path: str = ""): 
+    def print_eval(self, verbose: bool = True): 
         done_lab_cat = self.scores["Laboratory Tests"]
         num_required_lab_cat = len(self.required_lab_tests)
         num_neutral_lab = len(self.answers["Neutral Laboratory Tests"])
@@ -160,19 +155,32 @@ class PathologyEvaluator():
             self.explanations["Diagnosis"] = "INCORRECT: Model does not predict the ground truth diagnosis."
         verbose_eval = f"""
         DIAGNOSIS EVALUATION: 
+        -------------------------------
+        Predicted diagnosis: {self.answers["Diagnosis"]}
+        Ground truth diagnosis: {self.grounded_diagnosis}
         {self.explanations["Diagnosis"]}
+        -------------------------------
         PHYSICAL EXAMINATION: 
+        -------------------------------
         {self.explanations["Physical"]}
+        -------------------------------
         IMAGING EVALUATION: 
+        -------------------------------
         {self.explanations["Imaging"]}
+        -------------------------------
         LABORATORY EVALUATION:  
+        -------------------------------
         {done_lab_cat} out of the {num_required_lab_cat} required categories were tested. 
         {num_neutral_lab} neutral labs were ordered. 
         {num_wrong_lab} unnecessary labs were ordered. 
-        TREATMENT EVALUATION: 
+        -------------------------------
+        TREATMENT PROCEDURES EVALUATION: 
+        -------------------------------
+        Treatments recommended by models: {" ".join(self.answers["Treatment"])}
+        Grounded truth treatment: {" ".join(self.grounded_treatment)}
         {done_treat_cat} out of the {num_required_treat_cat} treatmented were ordered. 
+        -------------------------------
         """ 
-        print(self.answers["Diagnosis"])
         evaluation = { 
             "hadm_id": self.hadm_id, 
             "diagnosis": self.answers["Diagnosis"], 
@@ -190,17 +198,12 @@ class PathologyEvaluator():
             "phys": self.scores["Physical Examination"], 
             "late_phys": self.scores["Late Physical Examination"], 
             "explanation": verbose_eval, 
-            "sat_treat": done_treat_cat / num_required_treat_cat #proportion of required treatments that were ordered 
+            "sat_treat": done_treat_cat / num_required_treat_cat,  #proportion of required treatments that were ordered 
+            "diagnosis_score": self.scores["Diagnosis"]
         }
-        
-        print(verbose_eval)
-        if save:
-            df = pd.DataFrame([evaluation])
-            #Create file if it doesn't exist
-            if not os.path.exists(csv_path): 
-                df.to_csv(csv_path, index=False)
-            else: 
-                df.to_csv(csv_path, mode="a", header=False, index=False)
+        if verbose: 
+            print(verbose_eval)
+        return evaluation
             
     # Subclasses must define these: 
     @abstractmethod
