@@ -156,11 +156,12 @@ class EvalOutput(BaseModel):
     prediction: BenchmarkOutputCDM
     num_tool_calls: int
     diagnosis_score: float
-    lab_recall: float | None = None 
-    lab_precision: float | None = None
     imaging_precision: float | None = None 
     treatment_recall: float | None = None
     physical_compliance: int | None = None
+    #TODO: uncomment once lab_id is passed 
+    # lab_recall: float | None = None 
+    # lab_precision: float | None = None
     
     
 

@@ -78,7 +78,7 @@ class PathologyEvaluator():
         # Lab Categories Recall: how many required lab categories were tested? 
         correct_lab_cat = self.scores["Laboratory Tests"]
         num_required_lab_cat = len(self.required_lab_tests)
-        lab_recall = correct_lab_cat/num_required_lab_cat 
+        lab_recall = round(correct_lab_cat/num_required_lab_cat, 2)
         
         # Lab Tests Precision: how many labs ordered were correct? 
         num_neutral_lab = len(self.answers["Neutral Laboratory Tests"])
@@ -88,7 +88,7 @@ class PathologyEvaluator():
         # if total_labs_ordered = 0 then precision = 0 because all pathologies have required labs 
         lab_precision = 0 
         if total_labs_ordered > 0: 
-            lab_precision = (num_correct_lab + num_neutral_lab)/ total_labs_ordered
+            lab_precision = round((num_correct_lab + num_neutral_lab)/ total_labs_ordered, 2)
         
         # Imaging precision: how many imaging requests were correct? 
         correct_imaging = len(self.answers["Correct Imaging"]) 
@@ -96,12 +96,12 @@ class PathologyEvaluator():
         # Is imaging REQUIRED for all pathologies?? 
         imaging_precision = 0 
         if (incorrect_imaging + correct_imaging) > 0: 
-            imaging_precision = correct_imaging/ (incorrect_imaging + correct_imaging)
+            imaging_precision = round(correct_imaging/ (incorrect_imaging + correct_imaging), 2)
         
         # Treatment recall: how many required treatments were recommended by model?
         done_treat_cat = sum([1 for treat in self.answers["Treatment Requested"].values() if treat])
         num_required_treat_cat = sum([1 for treat in self.answers["Treatment Required"].values() if treat])
-        treatment_recall = done_treat_cat / num_required_treat_cat
+        treatment_recall = round(done_treat_cat / num_required_treat_cat, 2)
         
         evaluation =  {
             "diagnosis_score": self.scores["Diagnosis"],  # 1 - perfect, 0.7 - acceptable, 0.4 - acceptable (gracious)
