@@ -3,11 +3,12 @@ from cdm.evaluators.pathology_evaluator import PathologyEvaluator
 from cdm.evaluators.mappings import INFLAMMATION_LAB_TESTS, CHOLECYSTECTOMY_PROCEDURES_KEYWORDS, ALTERNATE_CHOLECYSTECTOMY_KEYWORDS
 from cdm.evaluators.mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
 from cdm.evaluators.utils import procedure_checker, keyword_positive, alt_procedure_checker
+from cdm.benchmark.data_models import GroundTruth, Pathology
 
 class CholecystitisEvaluator(PathologyEvaluator): 
-    def __init__(self, grounded_treatment: List[str], grounded_diagnosis: str, hadm_id: int):
-        super().__init__(grounded_treatment, grounded_diagnosis, hadm_id) 
-        self.pathology = "cholecystitis"
+    def __init__(self, ground_truth: GroundTruth, pathology: Pathology):
+        super().__init__(ground_truth, pathology) 
+        self.pathology = "cholecystitis" # safe fail 
         self.alternative_pathology_names = [
             {
                 "location": "gallbladder",

@@ -20,8 +20,9 @@ class TestBuildAgent:
         """Create a minimal sample case for testing."""
         return {
             "hadm_id": 12345,
+            "pathology": "appendicitis",
             "demographics": {"age": 65, "gender": "M"},
-            "history_of_present_illness": "Test patient info",
+            "patient_history": "Test patient info",
             "ground_truth": {"primary_diagnosis": "Test diagnosis"},
             "physical_exam_text": "Normal examination",
             "lab_results": [],
@@ -31,7 +32,7 @@ class TestBuildAgent:
 
     def test_build_agent_with_valid_tools(self, mock_llm, sample_case):
         """Test that build_agent succeeds with all valid tool names."""
-        valid_tools = ["physical_exam", "lab", "microbiology", "radiology"]
+        valid_tools = ["physical_exam", "lab", "radiology"]
         agent = build_agent(mock_llm, valid_tools)
         assert agent is not None
 

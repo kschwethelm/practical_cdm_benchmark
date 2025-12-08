@@ -1,12 +1,12 @@
 from langchain_core.agents import AgentAction
 from typing import List, Dict, Tuple, Union
 import re
-from cdm.benchmark.data_models import AgentRunResult
+from cdm.benchmark.data_models import AgentRunResult, GroundTruth, BenchmarkOutputFullInfo, Pathology
 from thefuzz import fuzz
 from abc import abstractmethod
 import pandas as pd
 import os 
-from utils import keyword_positive
+from cdm.evaluators.utils import keyword_positive
 
 class PathologyEvaluator():
 
@@ -15,13 +15,13 @@ class PathologyEvaluator():
     gracious_alternative_pathology_names: List[Dict] = []
     required_lab_tests: Dict[str, List[str]] = {}
     neutral_lab_tests: List[str] = []
-    grounded_treatment: List[str] = [] 
-    grounded_diagnosis: str = ""
 
-    def __init__(self, grounded_treatment: List[str], grounded_diagnosis: str, hadm_id: int):
-        self.grounded_treatment = grounded_treatment
-        self.grounded_diagnosis = grounded_diagnosis
-        self.hadm_id = hadm_id
+    def __init__(self, ground_truth: GroundTruth, pathology: Pathology):
+        self.grounded_treatment = ground_truth.treatments
+        self.grounded_diagnosis = ground_truth.primary_diagnosis
+        if pathology: 
+            self.pathology = pathology.value.lower() 
+        
         self.answers = {
             "Diagnosis": "",
             "Treatment": [],
@@ -36,12 +36,10 @@ class PathologyEvaluator():
 
         self.scores = {
             "Physical Examination": 0,
-            "Late Physical Examination": 0,
+            "Total Physical Examination": 0,
             "Laboratory Tests": 0,
             "Imaging": 0,
-            "Diagnosis": 0,
-            "Gracious Diagnosis": 0,
-            "Tool Calls": 0,
+            "Diagnosis": 0
         } 
         
         self.explanations = {
@@ -49,43 +47,85 @@ class PathologyEvaluator():
             "Physical": "", 
             "Diagnosis": ""
         }
-    def evaluate_case(self, output: AgentRunResult):
-        tool_calls = [m['tool_calls'][0] for m in output.messages if "tool_calls" in m and m["tool_calls"]]
-        tools = [m for m in output.messages if m.get("type") == "tool"]
-        assert(len(tool_calls) == len(tools))
-        for idx, tool in enumerate(tools):
+    def evaluate_case(self, output: AgentRunResult | BenchmarkOutputFullInfo):
+        if isinstance(output, BenchmarkOutputFullInfo): 
+            self.answers["Diagnosis"] = output.diagnosis 
+            self.score_diagnosis()
+            evaluation = {"diagnosis_score": self.scores["Diagnosis"]}
+            return evaluation  
+        else: 
+            self.answers["Diagnosis"] = output.parsed_output.final_diagnosis
+            self.score_diagnosis()
+        
+        tool_calls = [tc for m in output.messages if "tool_calls" in m and m["tool_calls"] for tc in m["tool_calls"]]
+        for idx, tool in enumerate(tool_calls):
             tool_name = tool.get("name") #tool_calls is a list of dict
             tool_call = tool_calls[idx]
             if tool_name == "physical_examination":
                 self.score_physical_exam(idx)
+                if not self.explanations["Physical"]: 
+                    self.explanations["Physical"] = "PROTOCOL VIOLATION: Physical examination was not ordered"
+                if not self.explanations["Diagnosis"]: 
+                    self.explanations["Diagnosis"] = "INCORRECT: Model does not predict the ground truth diagnosis."
             elif tool_name == "request_imaging":
                 self.score_imaging_action(tool_call)
             elif tool_name == "request_lab_test":
                 self.score_lab(tool_call)
- 
-        self.scores["Tool Calls"] = output.num_tool_calls
         
-        self.answers["Diagnosis"] = output.prediction.final_diagnosis
-        self.score_diagnosis()
-        self.answers["Treatment"] = output.prediction.treatment
+        self.answers["Treatment"] = output.parsed_output.treatment
         self.score_treatment()  
         
-        return {
-            "scores": self.scores,
-            "answers": self.answers
+        # Lab Categories Recall: how many required lab categories were tested? 
+        correct_lab_cat = self.scores["Laboratory Tests"]
+        num_required_lab_cat = len(self.required_lab_tests)
+        lab_recall = correct_lab_cat/num_required_lab_cat 
+        
+        # Lab Tests Precision: how many labs ordered were correct? 
+        num_neutral_lab = len(self.answers["Neutral Laboratory Tests"])
+        num_wrong_lab = len(self.answers["Unnecessary Laboratory Tests"])
+        num_correct_lab = sum(len(labs) for labs in self.answers["Correct Laboratory Tests"].values())
+        total_labs_ordered = num_neutral_lab + num_wrong_lab + num_correct_lab
+        # if total_labs_ordered = 0 then precision = 0 because all pathologies have required labs 
+        lab_precision = 0 
+        if total_labs_ordered > 0: 
+            lab_precision = (num_correct_lab + num_neutral_lab)/ total_labs_ordered
+        
+        # Imaging precision: how many imaging requests were correct? 
+        correct_imaging = len(self.answers["Correct Imaging"]) 
+        incorrect_imaging = len(self.answers["Unnecessary Imaging"])
+        # Is imaging REQUIRED for all pathologies?? 
+        imaging_precision = 0 
+        if (incorrect_imaging + correct_imaging) > 0: 
+            imaging_precision = correct_imaging/ (incorrect_imaging + correct_imaging)
+        
+        # Treatment recall: how many required treatments were recommended by model?
+        done_treat_cat = sum([1 for treat in self.answers["Treatment Requested"].values() if treat])
+        num_required_treat_cat = sum([1 for treat in self.answers["Treatment Required"].values() if treat])
+        treatment_recall = done_treat_cat / num_required_treat_cat
+        
+        evaluation =  {
+            "diagnosis_score": self.scores["Diagnosis"],  # 1 - perfect, 0.7 - acceptable, 0.4 - acceptable (gracious)
+            "lab_recall": lab_recall, 
+            "lab_precision": lab_precision, 
+            "imaging_precision": imaging_precision, 
+            "treatment_recall": treatment_recall,  
+            # 1 - physical examination was ordered first, 0 - physical examination was not ordered first 
+            "physical_compliance": self.scores["Physical Examination"]   
         }
+        print(evaluation)
+        return evaluation
+        
 
     def score_physical_exam(self, idx: int):
         if idx == 0: #physical exam is the first tool called 
             self.scores["Physical Examination"] = 1
-            self.scores["Late Physical Examination"] = 1
+            self.scores["Total Physical Examination"] += 1
             self.explanations["Physical"] = "CORRECT: Physical Exam was ordered first."
         else:
-            self.scores["Late Physical Examination"] = 1
+            self.scores["Total Physical Examination"] += 1
             if self.scores["Physical Examination"] == 0: 
                 self.explanations["Physical"] = "PROTOCOL VIOLATION: Physical Exam was not ordered first."
-
-    #TODO: Check that this works once lab tool is working 
+ 
     def score_lab(self, tool_call: dict): 
         args = tool_call.get("args")
         test_id = args.get("test_id")
@@ -119,7 +159,6 @@ class PathologyEvaluator():
         for word in answer.split():
             if fuzz.ratio(word, self.pathology) > 90 and keyword_positive(self.pathology, word):
                 self.scores["Diagnosis"] = 1
-                self.scores["Gracious Diagnosis"] = 1
                 self.explanations["Diagnosis"] = "CORRECT: Model prediction matches ground truth diagnosis closely."
                 break
         for alternative_patho in self.alternative_pathology_names:
@@ -127,7 +166,6 @@ class PathologyEvaluator():
             for patho_mod in alternative_patho["modifiers"]:
                 if keyword_positive(answer, patho_loc) and keyword_positive(answer, patho_mod):
                     self.scores["Diagnosis"] = 0.7 
-                    self.scores["Gracious Diagnosis"] = 1
                     self.explanations["Diagnosis"] = "CORRECT: Model prediction matches alternative name for ground truth diagnosis."
                     break
         for alternative_patho in self.gracious_alternative_pathology_names:
@@ -135,83 +173,13 @@ class PathologyEvaluator():
             for patho_mod in alternative_patho["modifiers"]:
                 if keyword_positive(answer, patho_loc) and keyword_positive(answer, patho_mod): 
                     self.scores["Diagnosis"] = 0.4 
-                    self.scores["Gracious Diagnosis"] = 1
                     self.explanations["Diagnosis"] = "ACCEPTABLE: Model prediction is similar to the ground truth diagnosis."
                     break
-        self.scores["Diagnosis"] = 0 
-        
-    def print_eval(self, verbose: bool = True): 
-        done_lab_cat = self.scores["Laboratory Tests"]
-        num_required_lab_cat = len(self.required_lab_tests)
-        num_neutral_lab = len(self.answers["Neutral Laboratory Tests"])
-        num_wrong_lab = len(self.answers["Unnecessary Laboratory Tests"])
-        
-        done_treat_cat = sum([1 for treat in self.answers["Treatment Requested"].values() if treat])
-        num_required_treat_cat = sum([1 for treat in self.answers["Treatment Required"].values() if treat])
-        
-        if not self.explanations["Physical"]: 
-            self.explanations["Physical"] = "PROTOCOL VIOLATION: Physical examination was not ordered"
-        if not self.explanations["Diagnosis"]: 
-            self.explanations["Diagnosis"] = "INCORRECT: Model does not predict the ground truth diagnosis."
-        verbose_eval = f"""
-        DIAGNOSIS EVALUATION: 
-        -------------------------------
-        Predicted diagnosis: {self.answers["Diagnosis"]}
-        Ground truth diagnosis: {self.grounded_diagnosis}
-        {self.explanations["Diagnosis"]}
-        -------------------------------
-        PHYSICAL EXAMINATION: 
-        -------------------------------
-        {self.explanations["Physical"]}
-        -------------------------------
-        IMAGING EVALUATION: 
-        -------------------------------
-        {self.explanations["Imaging"]}
-        -------------------------------
-        LABORATORY EVALUATION:  
-        -------------------------------
-        {done_lab_cat} out of the {num_required_lab_cat} required categories were tested. 
-        {num_neutral_lab} neutral labs were ordered. 
-        {num_wrong_lab} unnecessary labs were ordered. 
-        -------------------------------
-        TREATMENT PROCEDURES EVALUATION: 
-        -------------------------------
-        Treatments recommended by models: {" ".join(self.answers["Treatment"])}
-        Grounded truth treatment: {" ".join(self.grounded_treatment)}
-        {done_treat_cat} out of the {num_required_treat_cat} treatmented were ordered. 
-        -------------------------------
-        """ 
-        evaluation = { 
-            "hadm_id": self.hadm_id, 
-            "diagnosis": self.answers["Diagnosis"], 
-            "gt_diagnosis": self.grounded_diagnosis, 
-            "treatment": self.answers["Treatment"], 
-            "gt_treatment": self.grounded_treatment, 
-            "diagnosis_score": self.scores["Diagnosis"], 
-            "gracious_diagnosis_score": self.scores["Gracious Diagnosis"], 
-            "tool_calls": self.scores["Tool Calls"], 
-            "sat_lab": done_lab_cat / num_required_lab_cat, #proportion of required labs were tested 
-            "num_neutral_lab": num_neutral_lab, 
-            "num_wrong_lab": num_wrong_lab, 
-            "imaging_score": self.scores["Imaging"], 
-            "num_wrong_imaging": len(self.answers["Unnecessary Imaging"]), 
-            "phys": self.scores["Physical Examination"], 
-            "late_phys": self.scores["Late Physical Examination"], 
-            "explanation": verbose_eval, 
-            "sat_treat": done_treat_cat / num_required_treat_cat,  #proportion of required treatments that were ordered 
-            "diagnosis_score": self.scores["Diagnosis"]
-        }
-        if verbose: 
-            print(verbose_eval)
-        return evaluation
             
-    # Subclasses must define these: 
-    @abstractmethod
     def score_imaging(self, region: str, modality: str) -> bool:
-        pass
+        return 
 
-    @abstractmethod
     def score_treatment(self):
-        pass
+        return 
 
 

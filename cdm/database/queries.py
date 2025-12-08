@@ -157,7 +157,7 @@ def get_history_of_present_illness(cursor: psycopg.Cursor, hadm_id: int) -> str 
         History of present illness string, or None if not found
     """
     query = """
-        SELECT history_of_present_illness
+        SELECT history_of_present_illness, past_medical_history
         FROM cdm_note_extract.discharge_free_text
         WHERE hadm_id = %s
     """
@@ -165,7 +165,7 @@ def get_history_of_present_illness(cursor: psycopg.Cursor, hadm_id: int) -> str 
     result = cursor.fetchone()
 
     if result:
-        return result[0]
+        return result[0] + "\n\nPast Medical History: " + result[1]
     logger.debug(f"No history of present illness found for hadm_id={hadm_id}")
     return None
 
@@ -210,21 +210,22 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     query = """
         WITH CombinedLabEvents AS (
             SELECT itemid, charttime, valuenum, value, valueuom, flag, comments,
-                   ref_range_lower, ref_range_upper, hadm_id
+                   ref_range_lower, ref_range_upper, hadm_id, storetime
             FROM cdm_hosp.labevents
             WHERE hadm_id = %s
 
             UNION ALL
 
             SELECT itemid, charttime, valuenum, value, valueuom, flag, comments,
-                   ref_range_lower, ref_range_upper, hadm_id
+                   ref_range_lower, ref_range_upper, hadm_id, storetime
             FROM cdm_hosp.labevents_assigned
             WHERE hadm_id = %s
         ),
-        RankedLabEvents AS (
+        FilteredLabEvents AS (
             SELECT
                 le.itemid,
                 le.charttime,
+                le.storetime,
                 CASE
                     WHEN le.valuenum IS NOT NULL AND CAST(le.valuenum AS TEXT) != '___' THEN
                         CASE
@@ -244,13 +245,24 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
                 le.ref_range_upper,
                 di.label AS test_name,
                 di.fluid,
-                di.category,
-                ROW_NUMBER() OVER(PARTITION BY le.itemid ORDER BY le.charttime ASC) as rn
+                di.category
             FROM CombinedLabEvents le
             JOIN cdm_hosp.d_labitems di ON le.itemid = di.itemid
-            JOIN cdm_hosp.admissions adm ON le.hadm_id = adm.hadm_id
-            WHERE le.charttime >= (adm.admittime - INTERVAL '1 day')
-                AND le.charttime <= adm.dischtime
+        ),
+        RankedLabEvents AS (
+            SELECT
+                itemid,
+                charttime,
+                valuestr,
+                ref_range_lower,
+                ref_range_upper,
+                test_name,
+                fluid,
+                category,
+                ROW_NUMBER() OVER(PARTITION BY itemid ORDER BY charttime ASC, storetime ASC NULLS LAST) as rn
+            FROM FilteredLabEvents
+            WHERE valuestr IS NOT NULL
+                AND valuestr != '___'
         )
         SELECT
             test_name,
@@ -286,8 +298,8 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
 
 def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     """
-    Get the first entry of each microbiology test for a given admission.
-    Uses window function to find earliest test result for each unique test_itemid.
+    Get microbiology tests for a given admission, merging multiple organisms/comments
+    for the same test_itemid and charttime.
 
     Args:
         cursor: Database cursor
@@ -298,32 +310,40 @@ def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     """
     query = """
         WITH CombinedMicroEvents AS (
-            SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id
+            SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id, storetime
             FROM cdm_hosp.microbiologyevents
             WHERE hadm_id = %s
 
             UNION ALL
 
-            SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id
+            SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id, storetime
             FROM cdm_hosp.microbiologyevents_assigned
             WHERE hadm_id = %s
         ),
-        RankedMicroEvents AS (
+        FilteredMicroEvents AS (
             SELECT
                 micro.test_name,
                 micro.spec_type_desc,
                 micro.org_name,
-                CASE
-                    WHEN micro.comments IS NOT NULL AND micro.comments ~ '^_+$' THEN NULL
-                    ELSE micro.comments
-                END AS comments,
+                micro.comments,
                 micro.charttime,
-                micro.test_itemid,
-                ROW_NUMBER() OVER(PARTITION BY micro.test_itemid ORDER BY micro.charttime ASC) as rn
+                micro.storetime,
+                micro.test_itemid
             FROM CombinedMicroEvents micro
-            JOIN cdm_hosp.admissions adm ON micro.hadm_id = adm.hadm_id
-            WHERE micro.charttime >= (adm.admittime - INTERVAL '1 day')
-                AND micro.charttime <= adm.dischtime
+            WHERE ((micro.org_name IS NOT NULL AND micro.org_name != 'CANCELLED') OR (micro.comments IS NOT NULL AND micro.comments != '___'))
+        ),
+        RankedMicroEvents AS (
+            SELECT
+                test_name,
+                spec_type_desc,
+                STRING_AGG(DISTINCT org_name, ', ' ORDER BY org_name) FILTER (WHERE org_name IS NOT NULL) AS org_name,
+                STRING_AGG(DISTINCT comments, ', ' ORDER BY comments) FILTER (WHERE comments IS NOT NULL) AS comments,
+                charttime,
+                MIN(storetime) as storetime,
+                test_itemid,
+                ROW_NUMBER() OVER(PARTITION BY test_itemid ORDER BY charttime ASC, MIN(storetime) ASC NULLS LAST) as rn
+            FROM FilteredMicroEvents
+            GROUP BY test_name, spec_type_desc, charttime, test_itemid
         )
         SELECT
             test_name,
@@ -334,7 +354,7 @@ def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
             test_itemid
         FROM RankedMicroEvents
         WHERE rn = 1
-            AND comments IS NOT NULL
+            AND (org_name IS NOT NULL OR comments IS NOT NULL)
         ORDER BY charttime
     """
 
@@ -380,20 +400,25 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
             FROM cdm_note.radiology_assigned
             WHERE hadm_id = %s
         ),
-        RankedRadiology AS (
+        FilteredRadiology AS (
             SELECT
                 rad.charttime,
                 det.field_value AS exam_name,
                 rad.text AS findings,
-                rad.note_id,
-                ROW_NUMBER() OVER(PARTITION BY rad.note_id ORDER BY rad.charttime ASC) as rn
+                rad.note_id
             FROM CombinedRadiology rad
             JOIN cdm_note.radiology_detail det ON rad.note_id = det.note_id
-            JOIN cdm_hosp.admissions adm ON rad.hadm_id = adm.hadm_id
             WHERE rad.text IS NOT NULL
                 AND det.field_name = 'exam_name'
-                AND rad.charttime >= (adm.admittime - INTERVAL '1 day')
-                AND rad.charttime <= adm.dischtime
+        ),
+        RankedRadiology AS (
+            SELECT
+                charttime,
+                exam_name,
+                findings,
+                note_id,
+                ROW_NUMBER() OVER(PARTITION BY note_id ORDER BY charttime ASC) as rn
+            FROM FilteredRadiology
         )
         SELECT
             exam_name,

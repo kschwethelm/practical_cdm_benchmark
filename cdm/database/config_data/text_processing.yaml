@@ -32,17 +32,17 @@ modality_keywords:
     - CT
     - CTA
     - COMPUTED TOMOGRAPHY
-  MR:
+  MRI:
     - MR
     - MRI
     - MRA
     - MAGNETIC RESONANCE
-  US:
+  Ultrasound:
     - US
     - ULTRASOUND
     - SONOGRAM
     - DUPLEX
-  XR:
+  Radiograph:
     - XR
     - X-RAY
     - RADIOGRAPH
@@ -59,6 +59,12 @@ modality_keywords:
     - ENEMA
   ERCP:
     - ERCP
+  MRCP:
+    - MRCP
+  Upper GI Series:
+    - BAS/UGI
+    - SBFT
+    - UPPER GI SERIES
 
 # Keywords for detecting anatomical region
 region_keywords:

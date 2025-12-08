@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, Field
 
@@ -40,7 +41,7 @@ class RadiologyReport(BaseModel):
     exam_name: str | None = None
     region: str | None = None
     modality: str | None = None
-    findings: str | None = None
+    text: str | None = None
 
 
 class ChiefComplaint(BaseModel):
@@ -76,12 +77,22 @@ class GroundTruth(BaseModel):
     treatments: list[str]
 
 
+class Pathology(str, Enum):
+    """Pathology/condition type for benchmark cases."""
+
+    APPENDICITIS = "appendicitis"
+    CHOLECYSTITIS = "cholecystitis"
+    DIVERTICULITIS = "diverticulitis"
+    PANCREATITIS = "pancreatitis"
+
+
 class HadmCase(BaseModel):
     """Complete case data for a single hospital admission based on CDMv1 schema"""
 
     hadm_id: int
+    pathology: Pathology | None = None
     demographics: Demographics | None = None
-    history_of_present_illness: str | None = None
+    patient_history: str | None = None
     lab_results: list[DetailedLabResult] = Field(default_factory=list)
     microbiology_events: list[MicrobiologyEvent] = Field(default_factory=list)
     radiology_reports: list[RadiologyReport] = Field(default_factory=list)
@@ -93,6 +104,18 @@ class BenchmarkDataset(BaseModel):
     """Root model for the complete benchmark dataset"""
 
     cases: list[HadmCase] = Field(default_factory=list)
+
+    def __iter__(self):
+        """Allow iteration over cases directly."""
+        return iter(self.cases)
+
+    def __len__(self):
+        """Return the number of cases."""
+        return len(self.cases)
+
+    def __getitem__(self, index):
+        """Allow indexing and slicing."""
+        return self.cases[index]
 
 
 class BenchmarkOutputCDM(BaseModel):
@@ -110,12 +133,46 @@ class BenchmarkOutputFullInfo(BaseModel):
 
     diagnosis: str
 
+
 class AgentRunResult(BaseModel):
     """Complete agent execution result with tool calls and parsed output."""
 
-    prediction: BenchmarkOutputCDM
+    parsed_output: BenchmarkOutputCDM
     messages: list[dict]  # Full conversation history with tool calls
 
     @property
     def num_tool_calls(self) -> int:
         return sum(1 for msg in self.messages if msg.get("type") == "tool")
+
+
+class EvalOutput(BaseModel):
+    """Evaluation output for a single case, including ground truth and predictions.
+
+    NOTE: THIS MODEL IS A PLACEHOLDER!!! ADAPT IT TO THE OUTPUT OF THE EVALUATOR CLASS WHEN IMPLEMENTED.
+    """
+
+    hadm_id: int
+    ground_truth: GroundTruth
+    prediction: BenchmarkOutputCDM
+    num_tool_calls: int
+    diagnosis_score: float
+    lab_recall: float | None = None 
+    lab_precision: float | None = None
+    imaging_precision: float | None = None 
+    treatment_recall: float | None = None
+    physical_compliance: int | None = None
+    
+    
+
+class EvalOutputFullInfo(BaseModel):
+    """Evaluation output for full info baseline (no tool calls).
+
+    NOTE: THIS MODEL IS A PLACEHOLDER!!! ADAPT IT TO THE OUTPUT OF THE EVALUATOR CLASS WHEN IMPLEMENTED.
+    """
+
+    hadm_id: int
+    ground_truth: GroundTruth
+    prediction: BenchmarkOutputFullInfo
+    diagnosis_score: float 
+    
+    

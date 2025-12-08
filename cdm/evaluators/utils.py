@@ -39,7 +39,7 @@ def alt_procedure_checker(operation_keywords, text):
     for alternative_operations in operation_keywords:
         op_loc = alternative_operations["location"]
         for op_mod in alternative_operations["modifiers"]:
-            for sentence in text.split("."):
+            for sentence in text:
                 if keyword_positive(sentence, op_loc) and keyword_positive(sentence, op_mod):
                     return True
     return False

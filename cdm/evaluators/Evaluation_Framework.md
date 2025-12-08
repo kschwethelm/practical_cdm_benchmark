@@ -32,7 +32,10 @@ Imaging is scored out of 2 points:
 |---------------------|-------------------------------------------------------|---------------------------------------------|----------------------------------------------------------|-------------------------------------------|
 | Relevant Treatment  | `Support` `Cholecystectomy, if biliary` `ERCP` `Drainage` | `Support` `Appendectomy` `Antibiotics`      | `Colonoscopy` `Antibiotics` `Support` `Colectomy` `Drainage` | `Cholecystectomy` `Antibiotics` `Support` |
 
-
+# Diagnosis Scoring 
+- 1: Predicted diagnosis and ground truth match almost perfectly  
+- 0.7: Predicted diagnosis matched ground truth to some degree (includes a modifier)
+- 0.4: Predicted diagnosis matched ground truth with alternative names/pathologies that can be considered equivalent 
 
 
 
