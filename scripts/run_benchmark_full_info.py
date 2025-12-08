@@ -70,13 +70,13 @@ async def run_benchmark(cfg: DictConfig):
         print(case.pathology)
         evaluator = PathologyEvaluator(case.ground_truth, case.pathology)
         evaluation = evaluator.evaluate_case(output)
-        
+
         if output_path:
             eval_output = EvalOutputFullInfo(
                 hadm_id=case.hadm_id,
                 ground_truth=case.ground_truth,
                 prediction=output,
-                diagnosis_score=evaluation["diagnosis_score"]
+                diagnosis_score=evaluation["diagnosis_score"],
             )
             await write_result_to_jsonl(output_path, eval_output.model_dump(), write_lock)
 

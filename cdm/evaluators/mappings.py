@@ -412,5 +412,3 @@ ERCP_PROCEDURES_KEYWORDS = [
     "sphincterotomy",
     "sphinctertomy",
 ]
-
-

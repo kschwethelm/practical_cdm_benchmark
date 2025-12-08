@@ -1,6 +1,5 @@
-import spacy
 from typing import List, Union
-import regex as re
+import re
 
 NEGATION_PATTERNS = [
     r"no\s+{}",
@@ -13,7 +12,8 @@ NEGATION_PATTERNS = [
     r"free\s+of\s+{}",
 ]
 
-def keyword_search(s: str, k: str): 
+
+def keyword_search(s: str, k: str):
     s = s.lower()
     k = re.escape(k.lower())
 
@@ -26,14 +26,17 @@ def keyword_search(s: str, k: str):
             return False
     return True
 
+
 def keyword_positive(sentence: Union[str, List], keyword: str):
     if isinstance(sentence, list):
         return any(keyword_search(s, keyword) for s in sentence)
-    else: 
+    else:
         return keyword_search(sentence, keyword)
+
 
 def procedure_checker(valid_procedures: List, done_procedures: List):
     return any(keyword_positive(done_procedures, proc) for proc in valid_procedures)
+
 
 def alt_procedure_checker(operation_keywords, text):
     for alternative_operations in operation_keywords:
@@ -43,4 +46,3 @@ def alt_procedure_checker(operation_keywords, text):
                 if keyword_positive(sentence, op_loc) and keyword_positive(sentence, op_mod):
                     return True
     return False
-

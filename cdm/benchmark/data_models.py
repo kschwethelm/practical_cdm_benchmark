@@ -156,14 +156,13 @@ class EvalOutput(BaseModel):
     prediction: BenchmarkOutputCDM
     num_tool_calls: int
     diagnosis_score: float
-    imaging_precision: float | None = None 
+    imaging_precision: float | None = None
     treatment_recall: float | None = None
     physical_compliance: int | None = None
-    #TODO: uncomment once lab_id is passed 
-    # lab_recall: float | None = None 
+    # TODO: uncomment once lab_id is passed
+    # lab_recall: float | None = None
     # lab_precision: float | None = None
-    
-    
+
 
 class EvalOutputFullInfo(BaseModel):
     """Evaluation output for full info baseline (no tool calls).
@@ -174,6 +173,4 @@ class EvalOutputFullInfo(BaseModel):
     hadm_id: int
     ground_truth: GroundTruth
     prediction: BenchmarkOutputFullInfo
-    diagnosis_score: float 
-    
-    
+    diagnosis_score: float

@@ -18,11 +18,7 @@ from cdm.benchmark.data_models import AgentRunResult, EvalOutput, HadmCase
 from cdm.benchmark.utils import load_cases, write_result_to_jsonl
 from cdm.llms.agent import build_agent, build_llm, run_agent_async
 from cdm.tools import set_current_case
-import os 
-from cdm.evaluators.appendicitis_evaluator import AppendicitisEvaluator
-from cdm.evaluators.cholecystitis_evaluator import CholecystitisEvaluator
-from cdm.evaluators.diverticulitis_evaluator import DiverticulitisEvaluator
-from cdm.evaluators.pancreatitis_evaluator import PancreatitisEvaluator
+from cdm.evaluators import get_evaluator
 
 
 async def process_case(
@@ -68,31 +64,28 @@ async def run_benchmark(cfg: DictConfig):
     for coro in tqdm.as_completed(tasks, total=len(tasks), desc="Processing cases"):
         case, output = await coro
         results.append((case, output))
-        
-        if case.pathology.lower() == "appendicitis": 
-            evaluator = AppendicitisEvaluator(case.ground_truth, case.pathology) 
-        elif case.pathology.lower() == "cholecystitis": 
-            evaluator = CholecystitisEvaluator(case.ground_truth, case.pathology)
-        elif case.pathology.lower() == "diverticulitis": 
-            evaluator = DiverticulitisEvaluator(case.ground_truth, case.pathology)
-        elif case.pathology.lower() == "pancreatitis": 
-            evaluator = PancreatitisEvaluator(case.ground_truth, case.pathology)
-        
-        evaluation = evaluator.evaluate_case(output)
-        
+
+        try:
+            evaluator = get_evaluator(case.pathology, case.ground_truth)
+            evaluation = evaluator.evaluate_case(output)
+        except ValueError as e:
+            logger.error(e)
+            evaluation = {}
+
         if output_path:
             eval_output = EvalOutput(
                 hadm_id=case.hadm_id,
                 ground_truth=case.ground_truth,
                 prediction=output.parsed_output,
                 num_tool_calls=output.num_tool_calls,
-                diagnosis_score = evaluation["diagnosis_score"], 
-                imaging_precision=evaluation["imaging_precision"], 
-                treatment_recall=evaluation["treatment_recall"], 
-                physical_compliance=evaluation["physical_compliance"] 
-                # TODO: lab tool evaluation requires lab_id - include when that is added 
-                # lab_precision=evaluation["lab_precision"], 
-                # lab_recall=evaluation["lab_recall"], 
+                # Set -1 as default because 0 means worst performance but if no evaluator then -1 (invalid)
+                diagnosis_score=evaluation.get("diagnosis_score", -1),
+                imaging_precision=evaluation.get("imaging_precision", -1),
+                treatment_recall=evaluation.get("treatment_recall", -1),
+                physical_compliance=evaluation.get("physical_compliance", -1),
+                # TODO: lab tool evaluation requires lab_id - include when that is added
+                # lab_precision=evaluation["lab_precision"],
+                # lab_recall=evaluation["lab_recall"],
             )
             await write_result_to_jsonl(output_path, eval_output.model_dump(), write_lock)
 
@@ -114,5 +107,3 @@ def main(cfg: DictConfig):
 
 if __name__ == "__main__":
     main()
-
-

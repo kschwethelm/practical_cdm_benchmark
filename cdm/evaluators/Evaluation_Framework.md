@@ -16,7 +16,7 @@ Imaging is scored out of 2 points:
 | Correct modality  | `US`                   | `US`           | `CT`           | `US` `HIDA`    |
 | Alternate modality| `CT` `EUS, if biliary` | `CT` `MRI`     | `US` `MRI`     | `MRI` `EUS`    |
 
-## Labratory Testing 
+## Laboratory Testing 
 |             | Pancreatitis                                 | Appendicitis                   | Diverticulitis                 | Cholecystitis                                |
 |---------------------|-----------------------------------------------|--------------------------------|--------------------------------|-----------------------------------------------|
 | Required Categories | `Inflammation` `Pancreas` `Seriousness` | `Inflammation`               | `Inflammation`               | `Inflammation` `Liver` `Gallbladder` |
