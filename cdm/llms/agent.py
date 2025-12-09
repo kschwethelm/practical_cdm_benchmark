@@ -1,6 +1,7 @@
 import logging
 
 from langchain.agents import create_agent
+from langchain_core.output_parsers import PydanticOutputParser
 from langchain_openai import ChatOpenAI
 from loguru import logger
 
@@ -111,7 +112,8 @@ async def run_agent_async(agent, patient_info: str) -> AgentRunResult:
         }
     )
 
-    parsed_output = BenchmarkOutputCDM.model_validate_json(response["messages"][-1].content)
+    parser = PydanticOutputParser(pydantic_object=BenchmarkOutputCDM)
+    parsed_output = parser.parse(response["messages"][-1].content)
 
     messages_as_dicts = [msg.dict() for msg in response["messages"]]
 

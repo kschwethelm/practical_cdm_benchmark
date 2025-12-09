@@ -1,0 +1,27 @@
+model: "aaditya/OpenBioLLM-Llama3-8B" 
+download_dir: /srv/llm-weights
+served-model-name: "default"
+host: "localhost"
+port: 8000
+
+enable-prefix-caching: true
+
+max-model-len: 8192 # Max size for openBioLLM can only be increased using rope-scaling
+tensor-parallel-size: 1
+
+enable-auto-tool-choice: true
+tool-call-parser: "hermes"
+
+# Llama 3 based models need chat_template to defined manually
+chat_template: |
+  {% set loop_messages = messages %}
+  {% for message in loop_messages %}
+  {% set content = '<|start_header_id|>' + message['role'] + '<|end_header_id|>\n\n'+ message['content'] | trim + '<|eot_id|>' %}
+  {% if loop.index0 == 0 %}
+  {% set content = bos_token + content %}
+  {% endif %}
+  {{ content }}
+  {% endfor %}
+  {% if add_generation_prompt %}
+  {{ '<|start_header_id|>assistant<|end_header_id|>\n\n' }}
+  {% endif %}
