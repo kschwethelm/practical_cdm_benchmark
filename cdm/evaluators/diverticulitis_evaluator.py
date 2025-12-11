@@ -1,16 +1,15 @@
-from typing import List
-from cdm.evaluators.pathology_evaluator import PathologyEvaluator
+from cdm.benchmark.data_models import GroundTruth, Pathology
+from cdm.evaluators.mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
 from cdm.evaluators.mappings import (
-    INFLAMMATION_LAB_TESTS,
-    DRAINAGE_PROCEDURES_KEYWORDS,
-    DRAINAGE_LOCATIONS_DIVERTICULITIS,
+    ALTERNATE_COLECTOMY_KEYWORDS,
     ALTERNATE_DRAINAGE_KEYWORDS_DIVERTICULITIS,
     COLECTOMY_PROCEDURES_KEYWORDS,
-    ALTERNATE_COLECTOMY_KEYWORDS,
+    DRAINAGE_LOCATIONS_DIVERTICULITIS,
+    DRAINAGE_PROCEDURES_KEYWORDS,
+    INFLAMMATION_LAB_TESTS,
 )
-from cdm.evaluators.mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
-from cdm.evaluators.utils import procedure_checker, keyword_positive, alt_procedure_checker
-from cdm.benchmark.data_models import GroundTruth, Pathology
+from cdm.evaluators.pathology_evaluator import PathologyEvaluator
+from cdm.evaluators.utils import alt_procedure_checker, keyword_positive, procedure_checker
 
 
 class DiverticulitisEvaluator(PathologyEvaluator):

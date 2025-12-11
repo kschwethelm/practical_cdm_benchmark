@@ -1,21 +1,22 @@
-from typing import List, Dict
+
+from thefuzz import fuzz
+
 from cdm.benchmark.data_models import (
     AgentRunResult,
-    GroundTruth,
     BenchmarkOutputFullInfo,
+    GroundTruth,
     Pathology,
 )
-from thefuzz import fuzz
 from cdm.evaluators.utils import keyword_positive
 
 
 class PathologyEvaluator:
     FUZZY_MATCH_THRESHOLD = 90
     pathology: str = ""
-    alternative_pathology_names: List[Dict] = []
-    gracious_alternative_pathology_names: List[Dict] = []
-    required_lab_tests: Dict[str, List[str]] = {}
-    neutral_lab_tests: List[str] = []
+    alternative_pathology_names: list[dict] = []
+    gracious_alternative_pathology_names: list[dict] = []
+    required_lab_tests: dict[str, list[str]] = {}
+    neutral_lab_tests: list[str] = []
 
     def __init__(self, ground_truth: GroundTruth, pathology: Pathology):
         self.grounded_treatment = ground_truth.treatments

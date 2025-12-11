@@ -1,4 +1,4 @@
-from cdm.benchmark.data_models import Pathology, GroundTruth
+from cdm.benchmark.data_models import GroundTruth, Pathology
 from cdm.evaluators.appendicitis_evaluator import AppendicitisEvaluator
 from cdm.evaluators.cholecystitis_evaluator import CholecystitisEvaluator
 from cdm.evaluators.diverticulitis_evaluator import DiverticulitisEvaluator

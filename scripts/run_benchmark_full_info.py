@@ -16,9 +16,9 @@ from tqdm.asyncio import tqdm
 
 from cdm.benchmark.data_models import BenchmarkOutputFullInfo, EvalOutputFullInfo, HadmCase
 from cdm.benchmark.utils import gather_all_info, load_cases, write_result_to_jsonl
+from cdm.evaluators.pathology_evaluator import PathologyEvaluator
 from cdm.llms.agent import build_llm, run_llm_async
 from cdm.prompts.gen_prompt_full_info import create_system_prompt, create_user_prompt
-from cdm.evaluators.pathology_evaluator import PathologyEvaluator
 
 
 async def process_case(

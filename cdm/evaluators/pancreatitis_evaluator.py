@@ -1,17 +1,16 @@
-from typing import List
-from cdm.evaluators.pathology_evaluator import PathologyEvaluator
-from cdm.evaluators.mappings import (
-    INFLAMMATION_LAB_TESTS,
-    DRAINAGE_PROCEDURES_KEYWORDS,
-    DRAINAGE_LOCATIONS_PANCREATITIS,
-    ALTERNATE_DRAINAGE_KEYWORDS_PANCREATITIS,
-    ERCP_PROCEDURES_KEYWORDS,
-    CHOLECYSTECTOMY_PROCEDURES_KEYWORDS,
-    ALTERNATE_CHOLECYSTECTOMY_KEYWORDS,
-)
-from cdm.evaluators.mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
-from cdm.evaluators.utils import procedure_checker, keyword_positive, alt_procedure_checker
 from cdm.benchmark.data_models import GroundTruth, Pathology
+from cdm.evaluators.mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
+from cdm.evaluators.mappings import (
+    ALTERNATE_CHOLECYSTECTOMY_KEYWORDS,
+    ALTERNATE_DRAINAGE_KEYWORDS_PANCREATITIS,
+    CHOLECYSTECTOMY_PROCEDURES_KEYWORDS,
+    DRAINAGE_LOCATIONS_PANCREATITIS,
+    DRAINAGE_PROCEDURES_KEYWORDS,
+    ERCP_PROCEDURES_KEYWORDS,
+    INFLAMMATION_LAB_TESTS,
+)
+from cdm.evaluators.pathology_evaluator import PathologyEvaluator
+from cdm.evaluators.utils import alt_procedure_checker, keyword_positive, procedure_checker
 
 
 class PancreatitisEvaluator(PathologyEvaluator):

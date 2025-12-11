@@ -1,13 +1,12 @@
-from typing import List
-from cdm.evaluators.pathology_evaluator import PathologyEvaluator
-from cdm.evaluators.mappings import (
-    INFLAMMATION_LAB_TESTS,
-    CHOLECYSTECTOMY_PROCEDURES_KEYWORDS,
-    ALTERNATE_CHOLECYSTECTOMY_KEYWORDS,
-)
-from cdm.evaluators.mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
-from cdm.evaluators.utils import procedure_checker, keyword_positive, alt_procedure_checker
 from cdm.benchmark.data_models import GroundTruth, Pathology
+from cdm.evaluators.mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
+from cdm.evaluators.mappings import (
+    ALTERNATE_CHOLECYSTECTOMY_KEYWORDS,
+    CHOLECYSTECTOMY_PROCEDURES_KEYWORDS,
+    INFLAMMATION_LAB_TESTS,
+)
+from cdm.evaluators.pathology_evaluator import PathologyEvaluator
+from cdm.evaluators.utils import alt_procedure_checker, keyword_positive, procedure_checker
 
 
 class CholecystitisEvaluator(PathologyEvaluator):
