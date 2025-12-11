@@ -1,5 +1,4 @@
 from cdm.benchmark.data_models import GroundTruth, Pathology
-from cdm.evaluators.mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
 from cdm.evaluators.mappings import (
     ALTERNATE_COLECTOMY_KEYWORDS,
     ALTERNATE_DRAINAGE_KEYWORDS_DIVERTICULITIS,
@@ -10,6 +9,7 @@ from cdm.evaluators.mappings import (
 )
 from cdm.evaluators.pathology_evaluator import PathologyEvaluator
 from cdm.evaluators.utils import alt_procedure_checker, keyword_positive, procedure_checker
+from cdm.tools.lab_mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
 
 
 class DiverticulitisEvaluator(PathologyEvaluator):

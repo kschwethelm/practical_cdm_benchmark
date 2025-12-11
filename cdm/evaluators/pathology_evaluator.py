@@ -7,6 +7,9 @@ from cdm.benchmark.data_models import (
     Pathology,
 )
 from cdm.evaluators.utils import keyword_positive
+from cdm.tools.lab_utils import convert_labs_to_itemid, load_lab_test_mapping
+
+LAB_TEST_MAPPING_DF = load_lab_test_mapping()
 
 
 class PathologyEvaluator:
@@ -103,8 +106,8 @@ class PathologyEvaluator:
 
     def score_lab(self, tool_call: dict):
         args = tool_call.get("args")
-        test_id = args.get("test_id")
-
+        test_name = args.get("test_name")
+        test_id = convert_labs_to_itemid(test_name, LAB_TEST_MAPPING_DF)
         for test_category, valid_test_names in self.required_lab_tests.items():
             if test_id in valid_test_names:
                 if len(self.answers["Correct Laboratory Tests"][test_category]) == 0:
