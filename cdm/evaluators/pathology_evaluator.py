@@ -11,10 +11,6 @@ from cdm.evaluators.utils import keyword_positive
 
 class PathologyEvaluator:
     FUZZY_MATCH_THRESHOLD = 90
-    DIAGNOSIS_STRICT_SCORE = 1.0  # exact / primary match
-    DIAGNOSIS_ALT_SCORE = 0.7  # alternative name
-    DIAGNOSIS_GRACIOUS_SCORE = 0.4  # gracious alternative
-
     pathology: str = ""
     alternative_pathology_names: List[Dict] = []
     gracious_alternative_pathology_names: List[Dict] = []
@@ -29,6 +25,7 @@ class PathologyEvaluator:
 
         self.answers = {
             "Diagnosis": "",
+            "Diagnostic Confidence": None,
             "Treatment": [],
             "Correct Laboratory Tests": {k: [] for k in self.required_lab_tests},
             "Unnecessary Laboratory Tests": [],
@@ -40,11 +37,12 @@ class PathologyEvaluator:
         }
 
         self.scores = {
+            "Late Physical Examination": 0,
             "Physical Examination": 0,
-            "Total Physical Examination": 0,
             "Laboratory Tests": 0,
             "Imaging": 0,
             "Diagnosis": 0,
+            "Gracious Diagnosis": 0,
         }
 
         self.explanations = {"Imaging": "", "Physical": "", "Diagnosis": ""}
@@ -53,7 +51,10 @@ class PathologyEvaluator:
         if isinstance(output, BenchmarkOutputFullInfo):
             self.answers["Diagnosis"] = output.diagnosis
             self.score_diagnosis()
-            evaluation = {"diagnosis_score": self.scores["Diagnosis"]}
+            evaluation = {
+                "Diagnosis": self.scores["Diagnosis"],
+                "Gracious Diagnosis": self.scores["Gracious Diagnosis"],
+            }
             return evaluation
         else:
             self.answers["Diagnosis"] = output.parsed_output.final_diagnosis
@@ -86,58 +87,15 @@ class PathologyEvaluator:
         self.answers["Treatment"] = output.parsed_output.treatment
         self.score_treatment()
 
-        # Lab Categories Recall: how many required lab categories were tested?
-        correct_lab_cat = self.scores["Laboratory Tests"]
-        num_required_lab_cat = len(self.required_lab_tests)
-        lab_recall = round(correct_lab_cat / num_required_lab_cat, 2)
-
-        # Lab Tests Precision: how many labs ordered were correct?
-        num_neutral_lab = len(self.answers["Neutral Laboratory Tests"])
-        num_wrong_lab = len(self.answers["Unnecessary Laboratory Tests"])
-        num_correct_lab = sum(
-            len(labs) for labs in self.answers["Correct Laboratory Tests"].values()
-        )
-        total_labs_ordered = num_neutral_lab + num_wrong_lab + num_correct_lab
-        # if total_labs_ordered = 0 then precision = 0 because all pathologies have required labs
-        lab_precision = 0
-        if total_labs_ordered > 0:
-            lab_precision = round((num_correct_lab + num_neutral_lab) / total_labs_ordered, 2)
-
-        # Imaging precision: how many imaging requests were correct?
-        correct_imaging = len(self.answers["Correct Imaging"])
-        incorrect_imaging = len(self.answers["Unnecessary Imaging"])
-        # Is imaging REQUIRED for all pathologies??
-        imaging_precision = 0
-        if (incorrect_imaging + correct_imaging) > 0:
-            imaging_precision = round(correct_imaging / (incorrect_imaging + correct_imaging), 2)
-
-        # Treatment recall: how many required treatments were recommended by model?
-        done_treat_cat = sum([1 for treat in self.answers["Treatment Requested"].values() if treat])
-        num_required_treat_cat = sum(
-            [1 for treat in self.answers["Treatment Required"].values() if treat]
-        )
-        treatment_recall = round(done_treat_cat / num_required_treat_cat, 2)
-
-        evaluation = {
-            "diagnosis_score": self.scores[
-                "Diagnosis"
-            ],  # 1 - perfect, 0.7 - acceptable, 0.4 - acceptable (gracious)
-            "lab_recall": lab_recall,
-            "lab_precision": lab_precision,
-            "imaging_precision": imaging_precision,
-            "treatment_recall": treatment_recall,
-            # 1 - physical examination was ordered first, 0 - physical examination was not ordered first
-            "physical_compliance": self.scores["Physical Examination"],
-        }
-        return evaluation
+        return self.answers, self.scores
 
     def score_physical_exam(self, idx: int):
         if idx == 0:  # physical exam is the first tool called
             self.scores["Physical Examination"] = 1
-            self.scores["Total Physical Examination"] += 1
+            self.scores["Late Physical Examination"] = 1
             self.explanations["Physical"] = "CORRECT: Physical Exam was ordered first."
         else:
-            self.scores["Total Physical Examination"] += 1
+            self.scores["Late Physical Examination"] = 1
             if self.scores["Physical Examination"] == 0:
                 self.explanations["Physical"] = (
                     "PROTOCOL VIOLATION: Physical Exam was not ordered first."
@@ -155,8 +113,6 @@ class PathologyEvaluator:
                 break
         else:
             if test_id in self.neutral_lab_tests:
-                self.answers["Neutral Laboratory Tests"].append(test_id)
-            else:
                 self.answers["Unnecessary Laboratory Tests"].append(test_id)
 
     def score_imaging_action(self, tool_call: dict):
@@ -179,7 +135,8 @@ class PathologyEvaluator:
             if fuzz.ratio(word, self.pathology) > self.FUZZY_MATCH_THRESHOLD and keyword_positive(
                 self.pathology, word
             ):
-                self.scores["Diagnosis"] = self.DIAGNOSIS_STRICT_SCORE
+                self.scores["Diagnosis"] = 1
+                self.scores["Gracious Diagnosis"] = 1
                 self.explanations["Diagnosis"] = (
                     "CORRECT: Model prediction matches ground truth diagnosis closely."
                 )
@@ -187,8 +144,14 @@ class PathologyEvaluator:
         for alternative_patho in self.alternative_pathology_names:
             patho_loc = alternative_patho["location"]
             for patho_mod in alternative_patho["modifiers"]:
-                if keyword_positive(answer, patho_loc) and keyword_positive(answer, patho_mod):
-                    self.scores["Diagnosis"] = self.DIAGNOSIS_ALT_SCORE
+                if (
+                    patho_loc in answer
+                    and patho_mod in answer
+                    and keyword_positive(answer, patho_loc)
+                    and keyword_positive(answer, patho_mod)
+                ):
+                    self.scores["Diagnosis"] = 1
+                    self.scores["Gracious Diagnosis"] = 1
                     self.explanations["Diagnosis"] = (
                         "CORRECT: Model prediction matches alternative name for ground truth diagnosis."
                     )
@@ -196,8 +159,13 @@ class PathologyEvaluator:
         for alternative_patho in self.gracious_alternative_pathology_names:
             patho_loc = alternative_patho["location"]
             for patho_mod in alternative_patho["modifiers"]:
-                if keyword_positive(answer, patho_loc) and keyword_positive(answer, patho_mod):
-                    self.scores["Diagnosis"] = self.DIAGNOSIS_GRACIOUS_SCORE
+                if (
+                    patho_loc in answer
+                    and patho_mod in answer
+                    and keyword_positive(answer, patho_loc)
+                    and keyword_positive(answer, patho_mod)
+                ):
+                    self.scores["Gracious Diagnosis"] = 1
                     self.explanations["Diagnosis"] = (
                         "ACCEPTABLE: Model prediction is similar to the ground truth diagnosis."
                     )

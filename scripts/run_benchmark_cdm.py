@@ -67,25 +67,20 @@ async def run_benchmark(cfg: DictConfig):
 
         try:
             evaluator = get_evaluator(case.pathology, case.ground_truth)
-            evaluation = evaluator.evaluate_case(output)
+            answers, scores = evaluator.evaluate_case(output)
         except ValueError as e:
             logger.error(e)
-            evaluation = {}
+            answers, scores = None, None
 
         if output_path:
             eval_output = EvalOutput(
                 hadm_id=case.hadm_id,
                 ground_truth=case.ground_truth,
+                pathology=case.pathology.value,
                 prediction=output.parsed_output,
                 num_tool_calls=output.num_tool_calls,
-                # Set -1 as default because 0 means worst performance but if no evaluator then -1 (invalid)
-                diagnosis_score=evaluation.get("diagnosis_score", -1),
-                imaging_precision=evaluation.get("imaging_precision", -1),
-                treatment_recall=evaluation.get("treatment_recall", -1),
-                physical_compliance=evaluation.get("physical_compliance", -1),
-                # TODO: lab tool evaluation requires lab_id - include when that is added
-                # lab_precision=evaluation["lab_precision"],
-                # lab_recall=evaluation["lab_recall"],
+                answers=answers,
+                scores=scores,
             )
             await write_result_to_jsonl(output_path, eval_output.model_dump(), write_lock)
 
