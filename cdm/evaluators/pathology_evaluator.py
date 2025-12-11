@@ -1,4 +1,3 @@
-
 from thefuzz import fuzz
 
 from cdm.benchmark.data_models import (
