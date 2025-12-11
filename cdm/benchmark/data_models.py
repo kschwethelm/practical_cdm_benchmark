@@ -146,23 +146,26 @@ class AgentRunResult(BaseModel):
 
 
 class EvalOutput(BaseModel):
-    """Evaluation output for a single case, including ground truth and predictions.
-
-    NOTE: THIS MODEL IS A PLACEHOLDER!!! ADAPT IT TO THE OUTPUT OF THE EVALUATOR CLASS WHEN IMPLEMENTED.
-    """
+    """Evaluation output for a single case, including ground truth and predictions."""
 
     hadm_id: int
     ground_truth: GroundTruth
+    pathology: str
     prediction: BenchmarkOutputCDM
     num_tool_calls: int
+    answers: dict
+    scores: dict
+
+    # TODO: uncomment once lab_id is passed
+    # lab_recall: float | None = None
+    # lab_precision: float | None = None
 
 
 class EvalOutputFullInfo(BaseModel):
-    """Evaluation output for full info baseline (no tool calls).
-
-    NOTE: THIS MODEL IS A PLACEHOLDER!!! ADAPT IT TO THE OUTPUT OF THE EVALUATOR CLASS WHEN IMPLEMENTED.
-    """
+    """Evaluation output for full info baseline (no tool calls)."""
 
     hadm_id: int
     ground_truth: GroundTruth
+    pathology: str
     prediction: BenchmarkOutputFullInfo
+    scores: dict

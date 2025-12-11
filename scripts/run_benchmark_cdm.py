@@ -16,6 +16,7 @@ from tqdm.asyncio import tqdm
 
 from cdm.benchmark.data_models import AgentRunResult, EvalOutput, HadmCase
 from cdm.benchmark.utils import load_cases, write_result_to_jsonl
+from cdm.evaluators import get_evaluator
 from cdm.llms.agent import build_agent, build_llm, run_agent_async
 from cdm.tools import set_current_case
 
@@ -64,12 +65,22 @@ async def run_benchmark(cfg: DictConfig):
         case, output = await coro
         results.append((case, output))
 
+        try:
+            evaluator = get_evaluator(case.pathology, case.ground_truth)
+            answers, scores = evaluator.evaluate_case(output)
+        except ValueError as e:
+            logger.error(e)
+            answers, scores = None, None
+
         if output_path:
             eval_output = EvalOutput(
                 hadm_id=case.hadm_id,
                 ground_truth=case.ground_truth,
+                pathology=case.pathology.value,
                 prediction=output.parsed_output,
                 num_tool_calls=output.num_tool_calls,
+                answers=answers,
+                scores=scores,
             )
             await write_result_to_jsonl(output_path, eval_output.model_dump(), write_lock)
 
