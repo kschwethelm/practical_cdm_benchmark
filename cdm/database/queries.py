@@ -431,16 +431,26 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     cursor.execute(query, (hadm_id, hadm_id))
     results = cursor.fetchall()
 
-    reports = [
-        {
-            "exam_name": row[0],
-            "modality": derive_modality(row[0], row[1]),
-            "region": derive_region(row[0], row[1]),
-            "findings": extract_findings_from_report(row[1]),
-            "note_id": row[2],
-        }
-        for row in results
-    ]
+    reports = []
+    for row in results:
+        modality = derive_modality(row[0], row[1])
+        region = derive_region(row[0], row[1])
+        text = extract_findings_from_report(row[1])
+
+        # Skip reports with unknown modality/region or empty findings
+        if modality == "Unknown" or region == "Unknown" or not text or not text.strip():
+            continue
+
+        reports.append(
+            {
+                "exam_name": row[0],
+                "modality": modality,
+                "region": region,
+                "text": text,
+                "note_id": row[2],
+            }
+        )
+
     logger.debug(f"Found {len(reports)} radiology reports for hadm_id={hadm_id}")
     return reports
 

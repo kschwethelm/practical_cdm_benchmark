@@ -48,20 +48,56 @@ def scrub_text(text: str, pathology_type: str | None, is_physical_exam: bool = F
     """
     Removes mentions of the diagnosis and related procedures from
     a block of text, replacing them with '___' as per CDMv1.
-    Also removes any text after "discharge" for physical exam texts.
+    Also special handling for physical exams.
 
     Args:
         text: The text to scrub
         pathology_type: The type of pathology (e.g., 'pancreatitis')
-        is_physical_exam: If True, removes text after "discharge"
+        is_physical_exam: If True, removes discharge exams and additional physical exams
     """
     if not text:
         return ""
 
-    # Remove text after "discharge" only for physical exams (case insensitive)
     if is_physical_exam:
-        discharge_pattern = re.compile(r"\bdischarge\b.*", re.IGNORECASE | re.DOTALL)
+        # Remove text after discharge-related phrases, but avoid discharge in normal sentences
+        # For "on/upon/at/day of discharge"
+        text = re.sub(
+            r"\b(?:on|upon|at|day\s+of)\s+discharge\b.*", "", text, flags=re.IGNORECASE | re.DOTALL
+        ).strip()
+
+        # Handle "discharge vs" case
+        text = re.sub(r"\bdischarge\s+vs\b.*", "", text, flags=re.IGNORECASE | re.DOTALL).strip()
+
+        # Handle "discharge physical" case, also catch typos like "phsycial"
+        text = re.sub(
+            r"\bdischarge\s+ph[sy]+[sy]?[iyc]+a?l\b.*", "", text, flags=re.IGNORECASE | re.DOTALL
+        ).strip()
+
+        # Handle standalone all-caps "DISCHARGE"
+        text = re.sub(r"\bDISCHARGE\b.*", "", text, flags=re.DOTALL).strip()
+
+        # Then handle "discharge" with colon, colon optional for "discharge exam"/"discharge pe"
+        discharge_pattern = re.compile(
+            r"\b(?:discharge\s*:|discharge\s+exam|discharge\s+pe|discharge\s+labs).*",
+            re.IGNORECASE | re.DOTALL,
+        )
         text = discharge_pattern.sub("", text).strip()
+
+        # Remove labs, imaging, and diagnostics sections
+        text = re.sub(r"\b(?:Labs|Imaging|Diagnostics)\s*:.*", "", text, flags=re.DOTALL).strip()
+
+        # Pattern matches major section headers for additional physical exam sections:
+        physical_exam_pattern = re.compile(
+            r"(?:^|\n.{0,15})(?:PHYSICAL\s+EXAM:?|TRANSFER\s+EXAM:|EXAMINATION:|EXAM:|P/E:|PE:|VS:|Vital\s+signs:)",
+            re.IGNORECASE,
+        )
+        matches = list(physical_exam_pattern.finditer(text))
+
+        # Find any additional physical exam section that appears after the first ~100 characters and remove
+        for match in matches:
+            if match.start() > 100:
+                text = text[: match.start()].strip()
+                break
 
     # Replace newlines with spaces
     text = text.replace("\n", " ")
