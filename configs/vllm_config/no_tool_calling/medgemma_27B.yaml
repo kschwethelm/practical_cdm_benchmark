@@ -1,5 +1,4 @@
-# 109B Total Parameters, but 17B Active ParameterS
-model: "meta-llama/Llama-4-Scout-17B-16E-Instruct"
+model: "google/medgemma-27b-text-it" 
 download_dir: /srv/llm-weights
 served-model-name: "default"
 host: "localhost"
@@ -8,7 +7,5 @@ port: 8000
 enable-prefix-caching: true
 
 max-model-len: 16384
+max_num_batched_tokens: 16384
 tensor-parallel-size: 1
-
-enable-auto-tool-choice: true
-tool-call-parser: "hermes"

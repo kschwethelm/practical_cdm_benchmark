@@ -1,13 +1,11 @@
-model: "google/gemma-3-12b-it" 
+model: "deepseek-ai/DeepSeek-R1-Distill-Llama-70B"
 download_dir: /srv/llm-weights
 served-model-name: "default"
 host: "localhost"
 port: 8000
 
 enable-prefix-caching: true
+quantization: bitsandbytes
 
 max-model-len: 16384
 tensor-parallel-size: 1
-
-enable-auto-tool-choice: true
-tool-call-parser: "hermes"

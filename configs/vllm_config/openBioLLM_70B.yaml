@@ -5,12 +5,14 @@ host: "localhost"
 port: 8000
 
 enable-prefix-caching: true
+quantization: bitsandbytes
 
 max-model-len: 8192 # Max size for openBioLLM can only be increased using rope-scaling
+max_num_batched_tokens: 8192
 tensor-parallel-size: 1
 
 enable-auto-tool-choice: true
-tool-call-parser: "hermes"
+tool-call-parser: "llama3_json"
 
 # Llama 3 based models need chat_template to defined manually
 chat_template: |
