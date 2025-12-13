@@ -59,6 +59,8 @@ def scrub_text(text: str, pathology_type: str | None, is_physical_exam: bool = F
         return ""
 
     if is_physical_exam:
+        # Manually checked the physical exams with the comparison script so that the following patterns don't remove too much text
+
         # Remove text after discharge-related phrases, but avoid discharge in normal sentences
         # For "on/upon/at/day of discharge"
         text = re.sub(
@@ -99,17 +101,18 @@ def scrub_text(text: str, pathology_type: str | None, is_physical_exam: bool = F
         matches = list(physical_exam_pattern.finditer(text))
 
         # Find any additional physical exam section that appears after the first ~200 characters and remove
+        # Trial and error with the comparison script resulted in 200 character cutoff
         # If "Gen:" appears shortly after the header, keep it (it's likely a continuation)
         for match in matches:
             if match.start() > 200:
-                # Check if "Gen:" or "HEENT:" appears within 22 characters after this header
+                # Check if "Gen:" or "HEENT:" appears within 22 (cutoff to avoid false positives but get all false negatives) characters after this header
                 # Very specific to catch only the few false positives following this pattern
                 remaining_text = text[match.start() :]
                 if not re.search(r"\b(?:Gen|HEENT)\s*:", remaining_text[:22], re.IGNORECASE):
                     text = text[: match.start()].strip()
                     break
 
-        # Special cases
+        # Special case for one case with only AMA exam
         text = text.replace("Prior to leaving AMA...", "").strip()
 
         # False negatives that miss the above patterns
