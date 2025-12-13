@@ -93,19 +93,48 @@ def scrub_text(text: str, pathology_type: str | None, is_physical_exam: bool = F
 
         # Pattern matches major section headers for additional physical exam sections:
         physical_exam_pattern = re.compile(
-            r"(?:^|\n.{0,15})(?:PHYSICAL\s+EXAM:?|TRANSFER\s+EXAM:|EXAMINATION:|EXAM:|P/E:|PE:|VS:|Vital\s+signs:)",
+            r"(?:^|\n.{0,15})(?:PHYSICAL\s+EXAM:?|TRANSFER\s+EXAM:|EXAMINATION:|EXAM:|P/E:|PE:|VS:|Vital\s+signs:|AMA:)",
             re.IGNORECASE,
         )
         matches = list(physical_exam_pattern.finditer(text))
 
-        # Find any additional physical exam section that appears after the first ~100 characters and remove
+        # Find any additional physical exam section that appears after the first ~200 characters and remove
+        # If "Gen:" appears shortly after the header, keep it (it's likely a continuation)
         for match in matches:
-            if match.start() > 100:
-                text = text[: match.start()].strip()
-                break
+            if match.start() > 200:
+                # Check if "Gen:" or "HEENT:" appears within 22 characters after this header
+                # Very specific to catch only the few false positives following this pattern
+                remaining_text = text[match.start() :]
+                if not re.search(r"\b(?:Gen|HEENT)\s*:", remaining_text[:22], re.IGNORECASE):
+                    text = text[: match.start()].strip()
+                    break
 
         # Special cases
         text = text.replace("Prior to leaving AMA...", "").strip()
+
+        # False negatives that miss the above patterns
+        # Remove duplicate HEENT sections (keep only first occurrence)
+        heent_pattern = re.compile(r"\bHEENT\s*:", re.IGNORECASE)
+        heent_matches = list(heent_pattern.finditer(text))
+        if len(heent_matches) > 1:
+            # Remove everything from the second HEENT onwards
+            text = text[: heent_matches[1].start()].strip()
+
+        # Remove duplicate exam starting with vital signs pattern
+        # This catches exams that don't have a header but start with temperature later in the text
+        duplicate_vitals_pattern = re.compile(
+            r"\s+T\d+\.?\d*\s+HR\s+\d+\s+BP\s+\d+/\d+", re.IGNORECASE
+        )
+        vitals_match = duplicate_vitals_pattern.search(text)
+        if vitals_match and vitals_match.start() > 200:
+            text = text[: vitals_match.start()].strip()
+
+        # Remove lab values that appear without header
+        # Pattern matches common lab value format: WBC followed by number
+        lab_values_pattern = re.compile(r"\s+WBC\s+\d+\.?\d*,?\s+", re.IGNORECASE)
+        lab_match = lab_values_pattern.search(text)
+        if lab_match:
+            text = text[: lab_match.start()].strip()
 
     # Replace newlines with spaces
     text = text.replace("\n", " ")
