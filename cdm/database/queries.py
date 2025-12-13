@@ -187,7 +187,7 @@ def get_history_of_present_illness(cursor: psycopg.Cursor, hadm_id: int) -> str 
 
 def get_physical_examination(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     """
-    Get physical examination text for a given admission.
+    Get physical examination findings for a given admission.
 
     Args:
         cursor: Database cursor
