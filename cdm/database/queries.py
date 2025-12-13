@@ -512,7 +512,7 @@ def get_ground_truth_treatments_coded(cursor: psycopg.Cursor, hadm_id: int) -> l
     cursor.execute(query, (hadm_id,))
     results = cursor.fetchall()
 
-    procedures = [row[0] for row in results if row[0]]
+    procedures = [row[0].lower() for row in results if row[0]]
     logger.debug(f"Found {len(procedures)} coded procedures for hadm_id={hadm_id}")
     return procedures
 
@@ -540,6 +540,6 @@ def get_ground_truth_treatments_freetext(cursor: psycopg.Cursor, hadm_id: int) -
     cursor.execute(query, (hadm_id,))
     results = cursor.fetchall()
 
-    procedures = [row[0] for row in results if row[0]]
+    procedures = [row[0].lower() for row in results if row[0]]
     logger.debug(f"Found {len(procedures)} free-text procedures for hadm_id={hadm_id}")
     return procedures
