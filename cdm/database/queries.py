@@ -172,7 +172,7 @@ def get_history_of_present_illness(cursor: psycopg.Cursor, hadm_id: int) -> str 
 
 def get_physical_examination(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     """
-    Get physical examination findings for a given admission.
+    Get physical examination text for a given admission.
 
     Args:
         cursor: Database cursor
@@ -437,7 +437,7 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
         region = derive_region(row[0], row[1])
         text = extract_findings_from_report(row[1])
 
-        # Skip reports with unknown modality/region or empty findings
+        # Skip reports with unknown modality/region or empty text
         if modality == "Unknown" or region == "Unknown" or not text or not text.strip():
             continue
 

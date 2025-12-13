@@ -189,7 +189,6 @@ def parse_report(report: str) -> dict:
 def extract_findings_from_report(raw_report_text: str) -> str:
     """
     Extracts relevant sections for reasoning.
-    Prioritizes 'FINDINGS' section, falls back to removing 'bad' sections.
     """
     if not raw_report_text:
         return ""
