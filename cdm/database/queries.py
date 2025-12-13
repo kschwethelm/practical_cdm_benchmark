@@ -1,3 +1,5 @@
+import re
+
 import psycopg
 from loguru import logger
 
@@ -165,14 +167,27 @@ def get_history_of_present_illness(cursor: psycopg.Cursor, hadm_id: int) -> str 
     result = cursor.fetchone()
 
     if result:
-        return result[0] + "\n\nPast Medical History: " + result[1]
+        pmh_text = result[1]
+        # Strip common PMH prefixes to avoid duplication
+        if pmh_text:
+            pmh_text = pmh_text.strip()
+            # Remove common PMH header variations
+            # Matches: "Past Medical [and/Surgical] History", "PMH", "PMHX", etc.
+            pmh_text = re.sub(
+                r"^(past\s+medical\s*(?:and|/|)\s*surgical\s+history|past\s+medical\s+history|pmhx/pshx|pmhx|pmh)\s*:?\s*",
+                "",
+                pmh_text,
+                count=1,
+                flags=re.IGNORECASE,
+            ).strip()
+        return result[0] + "\n\nPast Medical History: " + pmh_text
     logger.debug(f"No history of present illness found for hadm_id={hadm_id}")
     return None
 
 
 def get_physical_examination(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     """
-    Get physical examination findings for a given admission.
+    Get physical examination text for a given admission.
 
     Args:
         cursor: Database cursor
