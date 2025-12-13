@@ -78,13 +78,18 @@ def scrub_text(text: str, pathology_type: str | None, is_physical_exam: bool = F
 
         # Then handle "discharge" with colon, colon optional for "discharge exam"/"discharge pe"
         discharge_pattern = re.compile(
-            r"\b(?:discharge\s*:|discharge\s+exam|discharge\s+pe|discharge\s+labs).*",
+            r"\b(?:discharge\s*:|discharge\s+exam|discharge\s+pe|discharge\s+labs|D/C\s*:|DISPO).*",
             re.IGNORECASE | re.DOTALL,
         )
         text = discharge_pattern.sub("", text).strip()
 
         # Remove labs, imaging, and diagnostics sections
-        text = re.sub(r"\b(?:Labs|Imaging|Diagnostics)\s*:.*", "", text, flags=re.DOTALL).strip()
+        text = re.sub(
+            r"\b(?:Labs|Laboratory|Imaging|Diagnostics)\s*:.*",
+            "",
+            text,
+            flags=re.IGNORECASE | re.DOTALL,
+        ).strip()
 
         # Pattern matches major section headers for additional physical exam sections:
         physical_exam_pattern = re.compile(
@@ -98,6 +103,9 @@ def scrub_text(text: str, pathology_type: str | None, is_physical_exam: bool = F
             if match.start() > 100:
                 text = text[: match.start()].strip()
                 break
+
+        # Special cases
+        text = text.replace("Prior to leaving AMA...", "").strip()
 
     # Replace newlines with spaces
     text = text.replace("\n", " ")
