@@ -1,17 +1,19 @@
-model: "meta-llama/Llama-3.3-70B-Instruct"
+model: "TheBloke/WizardLM-70B-V1.0-GPTQ"
 download_dir: /srv/llm-weights
 served-model-name: "default"
 host: "localhost"
 port: 8000
 
 enable-prefix-caching: true
-quantization: bitsandbytes
+quantization: gptq
 
-max-model-len: 16384
+# Max size for llama-2 based models are 4096, can only be increased using rope-scaling
+rope-scaling: '{"type":"linear","factor":2.0}'
+
+max-model-len: 8192
+max_num_batched_tokens: 8192
+
 tensor-parallel-size: 1
-
-enable-auto-tool-choice: true
-tool-call-parser: "llama3_json"
 
 # Llama based models need chat_template to defined manually
 chat_template: |

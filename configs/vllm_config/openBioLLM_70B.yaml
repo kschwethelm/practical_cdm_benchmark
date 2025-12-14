@@ -14,7 +14,7 @@ tensor-parallel-size: 1
 enable-auto-tool-choice: true
 tool-call-parser: "llama3_json"
 
-# Llama 3 based models need chat_template to defined manually
+# Llama based models need chat_template to defined manually
 chat_template: |
   {% set loop_messages = messages %}
   {% for message in loop_messages %}
