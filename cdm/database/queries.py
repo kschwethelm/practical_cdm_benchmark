@@ -53,7 +53,6 @@ def get_presenting_chief_complaints(cursor: psycopg.Cursor, hadm_id: int) -> lis
     results = cursor.fetchall()
 
     complaints = [row[0] for row in results if row[0]]
-    logger.debug(f"Found {len(complaints)} presenting complaints for hadm_id={hadm_id}")
     return complaints
 
 
@@ -80,7 +79,6 @@ def get_first_diagnosis(cursor: psycopg.Cursor, hadm_id: int) -> str | None:
 
     if result:
         return result[0]
-    logger.debug(f"No primary diagnosis found for hadm_id={hadm_id}")
     return None
 
 
@@ -105,7 +103,6 @@ def get_all_past_medical_history(cursor: psycopg.Cursor, hadm_id: int) -> list[d
     results = cursor.fetchall()
 
     history = [{"note": row[0], "category": row[1]} for row in results if row[0]]
-    logger.debug(f"Found {len(history)} past medical history entries for hadm_id={hadm_id}")
     return history
 
 
@@ -143,7 +140,6 @@ def get_first_physical_exam(cursor: psycopg.Cursor, hadm_id: int) -> dict | None
             "neurological": result[8],
             "skin": result[9],
         }
-    logger.debug(f"No physical exam found for hadm_id={hadm_id}")
     return None
 
 
@@ -181,7 +177,6 @@ def get_history_of_present_illness(cursor: psycopg.Cursor, hadm_id: int) -> str 
                 flags=re.IGNORECASE,
             ).strip()
         return result[0] + "\n\nPast Medical History: " + pmh_text
-    logger.debug(f"No history of present illness found for hadm_id={hadm_id}")
     return None
 
 
@@ -206,7 +201,6 @@ def get_physical_examination(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]
 
     if result:
         return result[0]
-    logger.debug(f"No physical exam text found for hadm_id={hadm_id}")
     return None
 
 
@@ -307,7 +301,6 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
         }
         for row in results
     ]
-    logger.debug(f"Found {len(lab_tests)} unique lab tests for hadm_id={hadm_id}")
     return lab_tests
 
 
@@ -387,7 +380,6 @@ def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
         }
         for row in results
     ]
-    logger.debug(f"Found {len(microbiology_events)} microbiology events for hadm_id={hadm_id}")
     return microbiology_events
 
 
@@ -466,7 +458,6 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
             }
         )
 
-    logger.debug(f"Found {len(reports)} radiology reports for hadm_id={hadm_id}")
     return reports
 
 
@@ -494,7 +485,6 @@ def get_ground_truth_diagnosis(cursor: psycopg.Cursor, hadm_id: int) -> str | No
 
     if result:
         return result[0]
-    logger.debug(f"No ground truth diagnosis found for hadm_id={hadm_id}")
     return None
 
 
@@ -525,7 +515,6 @@ def get_ground_truth_treatments_coded(cursor: psycopg.Cursor, hadm_id: int) -> l
     procedures = [
         {"title": row[0].lower(), "icd_code": row[1], "is_coded": True} for row in results if row[0]
     ]
-    logger.debug(f"Found {len(procedures)} coded procedures for hadm_id={hadm_id}")
     return procedures
 
 
@@ -555,5 +544,4 @@ def get_ground_truth_treatments_freetext(cursor: psycopg.Cursor, hadm_id: int) -
     procedures = [
         {"title": row[0].lower(), "icd_code": None, "is_coded": False} for row in results if row[0]
     ]
-    logger.debug(f"Found {len(procedures)} free-text procedures for hadm_id={hadm_id}")
     return procedures
