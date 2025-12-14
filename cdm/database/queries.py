@@ -498,7 +498,7 @@ def get_ground_truth_diagnosis(cursor: psycopg.Cursor, hadm_id: int) -> str | No
     return None
 
 
-def get_ground_truth_treatments_coded(cursor: psycopg.Cursor, hadm_id: int) -> list[str]:
+def get_ground_truth_treatments_coded(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     """
     Get coded procedures (ICD) for a given admission.
     This represents part of the ground truth treatments.
@@ -508,10 +508,10 @@ def get_ground_truth_treatments_coded(cursor: psycopg.Cursor, hadm_id: int) -> l
         hadm_id: Hospital admission ID
 
     Returns:
-        list of coded procedure descriptions (may be empty)
+        list of treatment dictionaries with title, icd_code, and is_coded fields
     """
     query = """
-        SELECT dicd.long_title
+        SELECT dicd.long_title, picd.icd_code
         FROM cdm_hosp.procedures_icd picd
         JOIN cdm_hosp.d_icd_procedures dicd
             ON picd.icd_code = dicd.icd_code
@@ -522,12 +522,14 @@ def get_ground_truth_treatments_coded(cursor: psycopg.Cursor, hadm_id: int) -> l
     cursor.execute(query, (hadm_id,))
     results = cursor.fetchall()
 
-    procedures = [row[0].lower() for row in results if row[0]]
+    procedures = [
+        {"title": row[0].lower(), "icd_code": row[1], "is_coded": True} for row in results if row[0]
+    ]
     logger.debug(f"Found {len(procedures)} coded procedures for hadm_id={hadm_id}")
     return procedures
 
 
-def get_ground_truth_treatments_freetext(cursor: psycopg.Cursor, hadm_id: int) -> list[str]:
+def get_ground_truth_treatments_freetext(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     """
     Get free-text procedures from notes for a given admission.
     This represents part of the ground truth treatments.
@@ -538,7 +540,7 @@ def get_ground_truth_treatments_freetext(cursor: psycopg.Cursor, hadm_id: int) -
         hadm_id: Hospital admission ID
 
     Returns:
-        list of free-text procedure descriptions (may be empty)
+        list of treatment dictionaries with title and is_coded=False
     """
     query = """
         SELECT title
@@ -550,6 +552,8 @@ def get_ground_truth_treatments_freetext(cursor: psycopg.Cursor, hadm_id: int) -
     cursor.execute(query, (hadm_id,))
     results = cursor.fetchall()
 
-    procedures = [row[0].lower() for row in results if row[0]]
+    procedures = [
+        {"title": row[0].lower(), "icd_code": None, "is_coded": False} for row in results if row[0]
+    ]
     logger.debug(f"Found {len(procedures)} free-text procedures for hadm_id={hadm_id}")
     return procedures

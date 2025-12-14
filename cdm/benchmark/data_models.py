@@ -70,11 +70,19 @@ class PhysicalExam(BaseModel):
     skin: str | None = None
 
 
+class Treatment(BaseModel):
+    """Treatment/procedure information."""
+
+    title: str
+    icd_code: str | None = None
+    is_coded: bool = False  # True if from ICD codes, False if from free text
+
+
 class GroundTruth(BaseModel):
     """The ground truth for evaluation."""
 
     primary_diagnosis: str | None = None
-    treatments: list[str]
+    treatments: list[Treatment]
 
 
 class Pathology(str, Enum):
