@@ -35,6 +35,8 @@ CONDITION_FILES = [
 ]
 LAB_MAPPING_FILE = "lab_test_mapping.json"
 
+PROBLEMATIC_CASES = [23169808, 24004035]
+
 
 def load_lab_mapping(mapping_file: Path) -> dict[int, dict]:
     """Load lab test mapping and create itemid -> metadata dict."""
@@ -214,7 +216,7 @@ def main():
         # Convert each case
         for hadm_id_str, case_data in condition_data.items():
             hadm_id = int(hadm_id_str)
-            if hadm_id == 24004035:
+            if hadm_id in PROBLEMATIC_CASES:
                 # Skip known problematic case
                 logger.warning(f"  Skipping problematic case hadm_id={hadm_id}")
                 continue

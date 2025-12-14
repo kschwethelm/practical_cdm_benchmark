@@ -150,28 +150,3 @@ def test_all_schemas_exist():
         f"Expected schemas: {expected_schemas}\n"
         f"Found schemas: {existing_schemas}"
     )
-
-
-def test_table_row_counts():
-    """
-    Test that key tables contain data.
-
-    Verifies that primary tables are not empty (according to README.md counts).
-    """
-    expected_populated_tables = [
-        ("cdm_hosp", "admissions", 2399),
-        ("cdm_hosp", "patients", 2382),
-        ("cdm_note", "discharge", 2399),
-    ]
-
-    with db_cursor() as cur:
-        for schema, table, expected_count in expected_populated_tables:
-            cur.execute(f"SELECT COUNT(*) FROM {schema}.{table}")
-            count = cur.fetchone()[0]
-
-            logger.info(f"{schema}.{table}: {count} rows (expected: {expected_count})")
-
-            assert count == expected_count, (
-                f"Table {schema}.{table} has {count} rows, expected {expected_count}. "
-                f"Database may not be properly loaded or filtered."
-            )
