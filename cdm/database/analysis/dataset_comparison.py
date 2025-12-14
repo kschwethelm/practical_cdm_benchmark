@@ -84,7 +84,7 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
 
         # 1. Patient History (text similarity)
         cdm_history = cdm_case.get("Patient History", "").lower().split()
-        new_history = case.get("history_of_present_illness", "").lower().split()
+        new_history = case.get("patient_history", "").lower().split()
         if cdm_history and new_history:
             overlap = len(set(cdm_history) & set(new_history))
             similarity = overlap / max(len(set(cdm_history)), len(set(new_history)))
@@ -238,7 +238,7 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
         if cdm_regions or new_regions:
             comparison["radiology_region_overlap"] = len(cdm_regions & new_regions)
 
-        # Compare findings (text similarity)
+        # Compare text similarity
         if cdm_rad_reports and new_rad_reports:
             # Create lookup for new reports by note_id
             new_reports_by_id = {}
@@ -246,23 +246,21 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
                 if new_report.get("note_id"):
                     new_reports_by_id[str(new_report["note_id"])] = new_report
 
-            # Calculate findings similarity for matching note_ids
-            findings_similarities = []
+            # Calculate text similarity for matching note_ids
+            text_similarities = []
             for cdm_report in cdm_rad_reports:
                 cdm_note_id = str(cdm_report.get("Note ID", ""))
                 if cdm_note_id and cdm_note_id in new_reports_by_id:
-                    cdm_findings = cdm_report.get("Report", "").lower().split()
-                    new_findings = (
-                        new_reports_by_id[cdm_note_id].get("findings", "").lower().split()
-                    )
-                    if cdm_findings and new_findings:
-                        overlap = len(set(cdm_findings) & set(new_findings))
-                        similarity = overlap / max(len(set(cdm_findings)), len(set(new_findings)))
-                        findings_similarities.append(similarity)
+                    cdm_text = cdm_report.get("Report", "").lower().split()
+                    new_text = new_reports_by_id[cdm_note_id].get("text", "").lower().split()
+                    if cdm_text and new_text:
+                        overlap = len(set(cdm_text) & set(new_text))
+                        similarity = overlap / max(len(set(cdm_text)), len(set(new_text)))
+                        text_similarities.append(similarity)
 
-            if findings_similarities:
-                comparison["radiology_findings_similarity"] = round(
-                    sum(findings_similarities) / len(findings_similarities), 2
+            if text_similarities:
+                comparison["radiology_text_similarity"] = round(
+                    sum(text_similarities) / len(text_similarities), 2
                 )
 
         # 5. Microbiology (detailed comparison)
@@ -464,13 +462,11 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
 
         if low_exam:
             add_line(f"\n  Cases with exam similarity < 80% ({len(low_exam)}):")
-            for hadm_id in low_exam[:10]:
+            for hadm_id in low_exam:
                 sim = next(
                     r.get("exam_similarity", 0) for r in found_cases if r["hadm_id"] == hadm_id
                 )
                 add_line(f"    - {hadm_id} ({sim:.1%})")
-            if len(low_exam) > 10:
-                add_line(f"    ... and {len(low_exam) - 10} more")
 
         add_line("\nLab tests:")
         avg_cdm_labs = sum(r.get("cdm_lab_count", 0) for r in found_cases) / len(found_cases)
@@ -542,14 +538,14 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
         total_exam_missing = sum(r.get("radiology_exam_missing", 0) for r in found_cases)
         total_exam_extra = sum(r.get("radiology_exam_extra", 0) for r in found_cases)
 
-        # Calculate average findings similarity
-        cases_with_findings = [r for r in found_cases if "radiology_findings_similarity" in r]
-        if cases_with_findings:
-            avg_findings_sim = sum(
-                r["radiology_findings_similarity"] for r in cases_with_findings
-            ) / len(cases_with_findings)
+        # Calculate average text similarity
+        cases_with_text = [r for r in found_cases if "radiology_text_similarity" in r]
+        if cases_with_text:
+            avg_text_sim = sum(r["radiology_text_similarity"] for r in cases_with_text) / len(
+                cases_with_text
+            )
         else:
-            avg_findings_sim = 0.0
+            avg_text_sim = 0.0
 
         add_line(
             f"  Exact count match:         {rad_matches}/{len(found_cases)} ({rad_matches / len(found_cases):.1%})"
@@ -558,7 +554,7 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
         add_line(f"  Exam name overlap:         {total_exam_overlap}")
         add_line(f"  Exam name missing:         {total_exam_missing}")
         add_line(f"  Exam name extra:           {total_exam_extra}")
-        add_line(f"  Avg findings similarity:   {avg_findings_sim:.1%}")
+        add_line(f"  Avg text similarity:   {avg_text_sim:.1%}")
 
         # Cases with radiology count mismatch
         rad_count_mismatch = [
@@ -600,21 +596,21 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
             if len(rad_exam_extra) > 10:
                 add_line(f"    ... and {len(rad_exam_extra) - 10} more")
 
-        # Cases with low findings similarity
-        low_findings_sim = [
-            r["hadm_id"] for r in found_cases if r.get("radiology_findings_similarity", 1.0) < 0.8
+        # Cases with low text similarity
+        low_text_sim = [
+            r["hadm_id"] for r in found_cases if r.get("radiology_text_similarity", 1.0) < 0.8
         ]
-        if low_findings_sim:
-            add_line(f"\n  Cases with findings similarity < 80% ({len(low_findings_sim)}):")
-            for hadm_id in low_findings_sim[:10]:
+        if low_text_sim:
+            add_line(f"\n  Cases with text similarity < 80% ({len(low_text_sim)}):")
+            for hadm_id in low_text_sim[:10]:
                 sim = next(
-                    r.get("radiology_findings_similarity", 0)
+                    r.get("radiology_text_similarity", 0)
                     for r in found_cases
                     if r["hadm_id"] == hadm_id
                 )
                 add_line(f"    - {hadm_id} ({sim:.1%})")
-            if len(low_findings_sim) > 10:
-                add_line(f"    ... and {len(low_findings_sim) - 10} more")
+            if len(low_text_sim) > 10:
+                add_line(f"    ... and {len(low_text_sim) - 10} more")
 
         add_line("\nMicrobiology:")
         micro_matches = sum(1 for r in found_cases if r.get("micro_match", False))

@@ -1,3 +1,5 @@
+import re
+
 import psycopg
 from loguru import logger
 
@@ -165,14 +167,27 @@ def get_history_of_present_illness(cursor: psycopg.Cursor, hadm_id: int) -> str 
     result = cursor.fetchone()
 
     if result:
-        return result[0] + "\n\nPast Medical History: " + result[1]
+        pmh_text = result[1]
+        # Strip common PMH prefixes to avoid duplication
+        if pmh_text:
+            pmh_text = pmh_text.strip()
+            # Remove common PMH header variations
+            # Matches: "Past Medical [and/Surgical] History", "PMH", "PMHX", etc.
+            pmh_text = re.sub(
+                r"^(past\s+medical\s*(?:and|/|)\s*surgical\s+history|past\s+medical\s+history|pmhx/pshx|pmhx|pmh)\s*:?\s*",
+                "",
+                pmh_text,
+                count=1,
+                flags=re.IGNORECASE,
+            ).strip()
+        return result[0] + "\n\nPast Medical History: " + pmh_text
     logger.debug(f"No history of present illness found for hadm_id={hadm_id}")
     return None
 
 
 def get_physical_examination(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     """
-    Get physical examination findings for a given admission.
+    Get physical examination text for a given admission.
 
     Args:
         cursor: Database cursor
@@ -431,16 +446,26 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     cursor.execute(query, (hadm_id, hadm_id))
     results = cursor.fetchall()
 
-    reports = [
-        {
-            "exam_name": row[0],
-            "modality": derive_modality(row[0], row[1]),
-            "region": derive_region(row[0], row[1]),
-            "findings": extract_findings_from_report(row[1]),
-            "note_id": row[2],
-        }
-        for row in results
-    ]
+    reports = []
+    for row in results:
+        modality = derive_modality(row[0], row[1])
+        region = derive_region(row[0], row[1])
+        text = extract_findings_from_report(row[1])
+
+        # Skip reports with unknown modality/region or empty text
+        if modality == "Unknown" or region == "Unknown" or not text or not text.strip():
+            continue
+
+        reports.append(
+            {
+                "exam_name": row[0],
+                "modality": modality,
+                "region": region,
+                "text": text,
+                "note_id": row[2],
+            }
+        )
+
     logger.debug(f"Found {len(reports)} radiology reports for hadm_id={hadm_id}")
     return reports
 
@@ -497,7 +522,7 @@ def get_ground_truth_treatments_coded(cursor: psycopg.Cursor, hadm_id: int) -> l
     cursor.execute(query, (hadm_id,))
     results = cursor.fetchall()
 
-    procedures = [row[0] for row in results if row[0]]
+    procedures = [row[0].lower() for row in results if row[0]]
     logger.debug(f"Found {len(procedures)} coded procedures for hadm_id={hadm_id}")
     return procedures
 
@@ -525,6 +550,6 @@ def get_ground_truth_treatments_freetext(cursor: psycopg.Cursor, hadm_id: int) -
     cursor.execute(query, (hadm_id,))
     results = cursor.fetchall()
 
-    procedures = [row[0] for row in results if row[0]]
+    procedures = [row[0].lower() for row in results if row[0]]
     logger.debug(f"Found {len(procedures)} free-text procedures for hadm_id={hadm_id}")
     return procedures

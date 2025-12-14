@@ -16,6 +16,7 @@ from tqdm.asyncio import tqdm
 
 from cdm.benchmark.data_models import BenchmarkOutputFullInfo, EvalOutputFullInfo, HadmCase
 from cdm.benchmark.utils import gather_all_info, load_cases, write_result_to_jsonl
+from cdm.evaluators.pathology_evaluator import PathologyEvaluator
 from cdm.llms.agent import build_llm, run_llm_async
 from cdm.prompts.gen_prompt_full_info import create_system_prompt, create_user_prompt
 
@@ -66,11 +67,17 @@ async def run_benchmark(cfg: DictConfig):
         case, output = await coro
         results.append((case, output))
 
+        print(case.pathology)
+        evaluator = PathologyEvaluator(case.ground_truth, case.pathology)
+        scores = evaluator.evaluate_case(output)
+
         if output_path:
             eval_output = EvalOutputFullInfo(
                 hadm_id=case.hadm_id,
                 ground_truth=case.ground_truth,
+                pathology=case.pathology.value,
                 prediction=output,
+                scores=scores,
             )
             await write_result_to_jsonl(output_path, eval_output.model_dump(), write_lock)
 

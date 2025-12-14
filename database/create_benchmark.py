@@ -75,6 +75,8 @@ def create_hadm_case(cursor, hadm_id: int) -> HadmCase:
     ground_truth_treatments = get_ground_truth_treatments_coded(cursor, hadm_id)
     ground_truth_treatments_free_text = get_ground_truth_treatments_freetext(cursor, hadm_id)
     ground_truth_treatments.extend(ground_truth_treatments_free_text)
+    # Remove duplicates while preserving order
+    ground_truth_treatments = list(dict.fromkeys(ground_truth_treatments))
     ground_truth = GroundTruth(
         primary_diagnosis=ground_truth_diagnosis, treatments=ground_truth_treatments
     )
