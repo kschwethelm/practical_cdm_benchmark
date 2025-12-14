@@ -112,11 +112,6 @@ async def run_agent_async(agent, patient_info: str) -> AgentRunResult:
         }
     )
 
-    try:
-        parsed_output = BenchmarkOutputCDM.model_validate_json(response["messages"][-1].content)
-    except Exception:
-        parser = PydanticOutputParser(pydantic_object=BenchmarkOutputCDM)
-        parsed_output = parser.parse(response["messages"][-1].content)
-
+    parsed_output = BenchmarkOutputCDM.model_validate_json(response["messages"][-1].content)
     messages_as_dicts = [msg.dict() for msg in response["messages"]]
     return AgentRunResult(parsed_output=parsed_output, messages=messages_as_dicts)
