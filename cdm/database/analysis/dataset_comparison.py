@@ -372,9 +372,18 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
 
         # 8. Procedures/Treatments comparison
         cdm_procedures = set()
-        for proc in cdm_case.get("Procedures ICD9 Title", []):
-            cdm_procedures.add(proc.strip().lower())
 
+        # Collect from ICD9 titles
+        for proc in cdm_case.get("Procedures ICD9 Title", []):
+            if proc and proc.strip():
+                cdm_procedures.add(proc.strip().lower())
+
+        # Collect from ICD10 titles
+        for proc in cdm_case.get("Procedures ICD10 Title", []):
+            if proc and proc.strip():
+                cdm_procedures.add(proc.strip().lower())
+
+        # Collect from discharge procedures
         discharge_procs = cdm_case.get("Procedures Discharge", [])
         if isinstance(discharge_procs, str):
             if discharge_procs.strip():
@@ -387,7 +396,12 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
         new_treatments = set()
         for treatment in case.get("ground_truth", {}).get("treatments", []):
             if treatment:
-                new_treatments.add(treatment.strip().lower())
+                if isinstance(treatment, dict):
+                    treatment_text = treatment.get("title", "")
+                else:
+                    treatment_text = treatment
+                if treatment_text and treatment_text.strip():
+                    new_treatments.add(treatment_text.strip().lower())
 
         comparison["cdm_procedures_count"] = len(cdm_procedures)
         comparison["new_treatments_count"] = len(new_treatments)
@@ -730,13 +744,11 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
         ]
         if no_proc_match:
             add_line(f"\n  Cases with no procedure matches ({len(no_proc_match)}):")
-            for hadm_id in no_proc_match[:10]:
+            for hadm_id in no_proc_match:
                 r = next(x for x in found_cases if x["hadm_id"] == hadm_id)
                 cdm_count = r.get("cdm_procedures_count", 0)
                 new_count = r.get("new_treatments_count", 0)
                 add_line(f"    - {hadm_id} (CDMv1: {cdm_count}, New: {new_count})")
-            if len(no_proc_match) > 10:
-                add_line(f"    ... and {len(no_proc_match) - 10} more")
 
     add_line(f"\n{'=' * 80}\n")
 

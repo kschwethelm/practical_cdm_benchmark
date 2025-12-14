@@ -18,6 +18,7 @@ from cdm.benchmark.data_models import (
     MicrobiologyEvent,
     Pathology,
     RadiologyReport,
+    Treatment,
 )
 
 # Paths
@@ -133,8 +134,12 @@ def convert_radiology(radiology_list: list[dict]) -> list[RadiologyReport]:
 
 def convert_ground_truth(discharge_diagnosis: str, procedures_discharge: list[str]) -> GroundTruth:
     """Convert discharge diagnosis and procedures to GroundTruth model."""
-    # Filter out None values from treatments list
-    treatments = [t for t in (procedures_discharge or []) if t is not None]
+    # Filter out None values from treatments list and convert to Treatment objects
+    treatments = [
+        Treatment(title=t, icd_code=None, is_coded=False)
+        for t in (procedures_discharge or [])
+        if t is not None
+    ]
 
     return GroundTruth(
         primary_diagnosis=discharge_diagnosis if discharge_diagnosis else None,
