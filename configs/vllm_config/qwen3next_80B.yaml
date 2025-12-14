@@ -1,0 +1,20 @@
+# vLLM serve configuration (for server startup)
+# uv run vllm serve --config configs/vllm_config/qwen3next_80B.yaml
+model: "Qwen/Qwen3-Next-80B-A3B-Instruct" # Qwen/Qwen3-Next-80B-A3B-Thinking for reasoning model
+download_dir: /srv/llm-weights
+served-model-name: "default"
+host: "localhost"
+port: 8000
+
+enable-prefix-caching: true
+quantization: bitsandbytes
+
+max-model-len: 16384 # allowed number of input and output tokens together
+tensor-parallel-size: 1 # number of gpus
+
+enable-auto-tool-choice: true
+tool-call-parser: "hermes"
+
+# Reasoning parsing handled by server
+#reasoning-parser: "qwen3" <- remove when no thinking wanted
+

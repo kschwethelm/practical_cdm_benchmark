@@ -1,0 +1,11 @@
+model: "google/medgemma-4b-it" 
+download_dir: /srv/llm-weights
+served-model-name: "default"
+host: "localhost"
+port: 8000
+
+enable-prefix-caching: true
+
+max-model-len: 16384
+max_num_batched_tokens: 16384
+tensor-parallel-size: 1

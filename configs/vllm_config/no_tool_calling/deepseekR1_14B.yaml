@@ -1,0 +1,10 @@
+model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B"
+download_dir: /srv/llm-weights
+served-model-name: "default"
+host: "localhost"
+port: 8000
+
+enable-prefix-caching: true
+
+max-model-len: 16384
+tensor-parallel-size: 1
