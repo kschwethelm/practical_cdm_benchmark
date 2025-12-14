@@ -397,7 +397,10 @@ def render_ground_truth(case: HadmCase, label: str):
         if case.ground_truth.treatments:
             st.write("**Treatments:**")
             for treatment in case.ground_truth.treatments:
-                st.write(f"- {treatment}")
+                if treatment.icd_code:
+                    st.write(f"- {treatment.title} (ICD: {treatment.icd_code})")
+                else:
+                    st.write(f"- {treatment.title}")
         else:
             st.write("**Treatments:** None")
     else:
