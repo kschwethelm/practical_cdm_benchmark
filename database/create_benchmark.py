@@ -27,6 +27,7 @@ from cdm.benchmark.data_models import (
     HadmCase,
     MicrobiologyEvent,
     RadiologyReport,
+    Treatment,
 )
 from cdm.database.connection import get_db_connection
 from cdm.database.queries import (
@@ -75,11 +76,18 @@ def create_hadm_case(cursor, hadm_id: int) -> HadmCase:
     ground_truth_treatments = get_ground_truth_treatments_coded(cursor, hadm_id)
     ground_truth_treatments_free_text = get_ground_truth_treatments_freetext(cursor, hadm_id)
     ground_truth_treatments.extend(ground_truth_treatments_free_text)
-    # Remove duplicates while preserving order
-    ground_truth_treatments = list(dict.fromkeys(ground_truth_treatments))
-    ground_truth = GroundTruth(
-        primary_diagnosis=ground_truth_diagnosis, treatments=ground_truth_treatments
-    )
+    # Remove duplicates based on title while preserving order
+    seen_titles = set()
+    unique_treatments = []
+    for treatment_dict in ground_truth_treatments:
+        title = treatment_dict["title"]
+        if title not in seen_titles:
+            seen_titles.add(title)
+            unique_treatments.append(treatment_dict)
+
+    treatments = [Treatment(**t) for t in unique_treatments]
+
+    ground_truth = GroundTruth(primary_diagnosis=ground_truth_diagnosis, treatments=treatments)
 
     # Data cleaning
     pathology_type = get_pathology_type_from_string(ground_truth_diagnosis)
