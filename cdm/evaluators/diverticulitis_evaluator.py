@@ -1,4 +1,4 @@
-from cdm.benchmark.data_models import GroundTruth, Pathology
+from cdm.benchmark.data_models import GroundTruth, Pathology, Treatment
 from cdm.evaluators.mappings import (
     ALTERNATE_COLECTOMY_KEYWORDS,
     ALTERNATE_DRAINAGE_KEYWORDS_DIVERTICULITIS,
@@ -6,6 +6,10 @@ from cdm.evaluators.mappings import (
     DRAINAGE_LOCATIONS_DIVERTICULITIS,
     DRAINAGE_PROCEDURES_KEYWORDS,
     INFLAMMATION_LAB_TESTS,
+    DRAINAGE_PROCEDURES_ALL_ICD10, 
+    DRAINAGE_PROCEDURES_ICD9, 
+    COLECTOMY_PROCEDURES_ICD10, 
+    COLECTOMY_PROCEDURES_ICD9
 )
 from cdm.evaluators.pathology_evaluator import PathologyEvaluator
 from cdm.evaluators.utils import alt_procedure_checker, keyword_positive, procedure_checker
@@ -97,6 +101,7 @@ class DiverticulitisEvaluator(PathologyEvaluator):
         return False
 
     def score_treatment(self):
+        procedure_icd_codes = [p.icd_code for p in self.grounded_treatment if isinstance(p, Treatment) and p.icd_code is not None]
         if keyword_positive(self.answers["Treatment"], "colonoscopy"):
             self.answers["Treatment Requested"]["Colonoscopy"] = True
 
@@ -109,9 +114,12 @@ class DiverticulitisEvaluator(PathologyEvaluator):
         ):
             self.answers["Treatment Requested"]["Support"] = True
 
-        if procedure_checker(
+        if (any(code in DRAINAGE_PROCEDURES_ICD9 for code in procedure_icd_codes) or 
+            any(code in DRAINAGE_PROCEDURES_ALL_ICD10 for code in procedure_icd_codes) or 
+            (
+                procedure_checker(
             DRAINAGE_PROCEDURES_KEYWORDS, self.grounded_treatment
-        ) and procedure_checker(DRAINAGE_LOCATIONS_DIVERTICULITIS, self.grounded_treatment):
+        ) and procedure_checker(DRAINAGE_LOCATIONS_DIVERTICULITIS, self.grounded_treatment))):
             self.answers["Treatment Required"]["Drainage"] = True
 
         if alt_procedure_checker(
@@ -119,7 +127,9 @@ class DiverticulitisEvaluator(PathologyEvaluator):
         ):
             self.answers["Treatment Requested"]["Drainage"] = True
 
-        if procedure_checker(COLECTOMY_PROCEDURES_KEYWORDS, self.grounded_treatment):
+        if (any(code in COLECTOMY_PROCEDURES_ICD9 for code in procedure_icd_codes) or 
+            any(code in COLECTOMY_PROCEDURES_ICD10 for code in procedure_icd_codes) or 
+            procedure_checker(COLECTOMY_PROCEDURES_KEYWORDS, self.grounded_treatment)):
             self.answers["Treatment Required"]["Colectomy"] = True
 
         if procedure_checker(
