@@ -1,10 +1,10 @@
 from cdm.benchmark.data_models import GroundTruth, Pathology, Treatment
 from cdm.evaluators.mappings import (
     ALTERNATE_CHOLECYSTECTOMY_KEYWORDS,
+    CHOLECYSTECTOMY_PROCEDURES_ICD9,
+    CHOLECYSTECTOMY_PROCEDURES_ICD10,
     CHOLECYSTECTOMY_PROCEDURES_KEYWORDS,
     INFLAMMATION_LAB_TESTS,
-    CHOLECYSTECTOMY_PROCEDURES_ICD10,
-    CHOLECYSTECTOMY_PROCEDURES_ICD9,
 )
 from cdm.evaluators.pathology_evaluator import PathologyEvaluator
 from cdm.evaluators.utils import alt_procedure_checker, keyword_positive, procedure_checker

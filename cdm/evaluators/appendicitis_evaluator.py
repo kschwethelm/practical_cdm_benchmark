@@ -1,10 +1,10 @@
 from cdm.benchmark.data_models import GroundTruth, Pathology, Treatment
 from cdm.evaluators.mappings import (
     ALTERNATE_APPENDECTOMY_KEYWORDS,
+    APPENDECTOMY_PROCEDURES_ICD9,
+    APPENDECTOMY_PROCEDURES_ICD10,
     APPENDECTOMY_PROCEDURES_KEYWORDS,
     INFLAMMATION_LAB_TESTS,
-    APPENDECTOMY_PROCEDURES_ICD10,
-    APPENDECTOMY_PROCEDURES_ICD9,
 )
 from cdm.evaluators.pathology_evaluator import PathologyEvaluator
 from cdm.evaluators.utils import alt_procedure_checker, keyword_positive, procedure_checker

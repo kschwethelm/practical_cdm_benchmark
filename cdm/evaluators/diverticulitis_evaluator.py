@@ -2,14 +2,14 @@ from cdm.benchmark.data_models import GroundTruth, Pathology, Treatment
 from cdm.evaluators.mappings import (
     ALTERNATE_COLECTOMY_KEYWORDS,
     ALTERNATE_DRAINAGE_KEYWORDS_DIVERTICULITIS,
+    COLECTOMY_PROCEDURES_ICD9,
+    COLECTOMY_PROCEDURES_ICD10,
     COLECTOMY_PROCEDURES_KEYWORDS,
     DRAINAGE_LOCATIONS_DIVERTICULITIS,
-    DRAINAGE_PROCEDURES_KEYWORDS,
-    INFLAMMATION_LAB_TESTS,
     DRAINAGE_PROCEDURES_ALL_ICD10,
     DRAINAGE_PROCEDURES_ICD9,
-    COLECTOMY_PROCEDURES_ICD10,
-    COLECTOMY_PROCEDURES_ICD9,
+    DRAINAGE_PROCEDURES_KEYWORDS,
+    INFLAMMATION_LAB_TESTS,
 )
 from cdm.evaluators.pathology_evaluator import PathologyEvaluator
 from cdm.evaluators.utils import alt_procedure_checker, keyword_positive, procedure_checker
