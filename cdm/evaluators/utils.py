@@ -35,9 +35,10 @@ def keyword_positive(sentence: str | list, keyword: str):
 
 
 def procedure_checker(valid_procedures: list, done_procedures: list):
-    print(f"PROCEDURES: {done_procedures}")
-    done_titles = [procedure.title if not isinstance(procedure, str) else procedure for procedure in done_procedures]
-    print(f"PROCEDURES: {done_titles}")
+    done_titles = [
+        procedure.title if not isinstance(procedure, str) else procedure
+        for procedure in done_procedures
+    ]
     return any(keyword_positive(done_titles, proc) for proc in valid_procedures)
 
 

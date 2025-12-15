@@ -3,8 +3,8 @@ from cdm.evaluators.mappings import (
     ALTERNATE_CHOLECYSTECTOMY_KEYWORDS,
     CHOLECYSTECTOMY_PROCEDURES_KEYWORDS,
     INFLAMMATION_LAB_TESTS,
-    CHOLECYSTECTOMY_PROCEDURES_ICD10, 
-    CHOLECYSTECTOMY_PROCEDURES_ICD9
+    CHOLECYSTECTOMY_PROCEDURES_ICD10,
+    CHOLECYSTECTOMY_PROCEDURES_ICD9,
 )
 from cdm.evaluators.pathology_evaluator import PathologyEvaluator
 from cdm.evaluators.utils import alt_procedure_checker, keyword_positive, procedure_checker
@@ -86,10 +86,16 @@ class CholecystitisEvaluator(PathologyEvaluator):
         return False
 
     def score_treatment(self):
-        procedure_icd_codes = [p.icd_code for p in self.grounded_treatment if isinstance(p, Treatment) and p.icd_code is not None]
-        if (any(code in CHOLECYSTECTOMY_PROCEDURES_ICD10 for code in procedure_icd_codes) or 
-            any(code in CHOLECYSTECTOMY_PROCEDURES_ICD9 for code in procedure_icd_codes) or 
-            procedure_checker(CHOLECYSTECTOMY_PROCEDURES_KEYWORDS, self.grounded_treatment)):
+        procedure_icd_codes = [
+            p.icd_code
+            for p in self.grounded_treatment
+            if isinstance(p, Treatment) and p.icd_code is not None
+        ]
+        if (
+            any(code in CHOLECYSTECTOMY_PROCEDURES_ICD10 for code in procedure_icd_codes)
+            or any(code in CHOLECYSTECTOMY_PROCEDURES_ICD9 for code in procedure_icd_codes)
+            or procedure_checker(CHOLECYSTECTOMY_PROCEDURES_KEYWORDS, self.grounded_treatment)
+        ):
             self.answers["Treatment Required"]["Cholecystectomy"] = True
 
         if procedure_checker(

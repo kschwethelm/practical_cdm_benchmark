@@ -3,8 +3,8 @@ from cdm.evaluators.mappings import (
     ALTERNATE_APPENDECTOMY_KEYWORDS,
     APPENDECTOMY_PROCEDURES_KEYWORDS,
     INFLAMMATION_LAB_TESTS,
-    APPENDECTOMY_PROCEDURES_ICD10, 
-    APPENDECTOMY_PROCEDURES_ICD9
+    APPENDECTOMY_PROCEDURES_ICD10,
+    APPENDECTOMY_PROCEDURES_ICD9,
 )
 from cdm.evaluators.pathology_evaluator import PathologyEvaluator
 from cdm.evaluators.utils import alt_procedure_checker, keyword_positive, procedure_checker
@@ -90,10 +90,16 @@ class AppendicitisEvaluator(PathologyEvaluator):
         return False
 
     def score_treatment(self):
-        procedure_icd_codes = [p.icd_code for p in self.grounded_treatment if isinstance(p, Treatment) and p.icd_code is not None]
-        if (any(code in APPENDECTOMY_PROCEDURES_ICD10 for code in procedure_icd_codes) or 
-            any(code in APPENDECTOMY_PROCEDURES_ICD9 for code in procedure_icd_codes) or 
-            procedure_checker(APPENDECTOMY_PROCEDURES_KEYWORDS, self.grounded_treatment)):
+        procedure_icd_codes = [
+            p.icd_code
+            for p in self.grounded_treatment
+            if isinstance(p, Treatment) and p.icd_code is not None
+        ]
+        if (
+            any(code in APPENDECTOMY_PROCEDURES_ICD10 for code in procedure_icd_codes)
+            or any(code in APPENDECTOMY_PROCEDURES_ICD9 for code in procedure_icd_codes)
+            or procedure_checker(APPENDECTOMY_PROCEDURES_KEYWORDS, self.grounded_treatment)
+        ):
             self.answers["Treatment Required"]["Appendectomy"] = True
 
         if procedure_checker(
