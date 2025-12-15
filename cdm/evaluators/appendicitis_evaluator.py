@@ -1,11 +1,18 @@
 from cdm.benchmark.data_models import GroundTruth, Pathology
 from cdm.evaluators.mappings import (
     ALTERNATE_APPENDECTOMY_KEYWORDS,
+    APPENDECTOMY_PROCEDURES_ICD9,
+    APPENDECTOMY_PROCEDURES_ICD10,
     APPENDECTOMY_PROCEDURES_KEYWORDS,
     INFLAMMATION_LAB_TESTS,
 )
 from cdm.evaluators.pathology_evaluator import PathologyEvaluator
-from cdm.evaluators.utils import alt_procedure_checker, keyword_positive, procedure_checker
+from cdm.evaluators.utils import (
+    alt_procedure_checker,
+    extract_procedure_icd_codes,
+    keyword_positive,
+    procedure_checker,
+)
 from cdm.tools.lab_mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
 
 
@@ -88,7 +95,12 @@ class AppendicitisEvaluator(PathologyEvaluator):
         return False
 
     def score_treatment(self):
-        if procedure_checker(APPENDECTOMY_PROCEDURES_KEYWORDS, self.grounded_treatment):
+        procedure_icd_codes = extract_procedure_icd_codes(self.grounded_treatment)
+        if (
+            any(code in APPENDECTOMY_PROCEDURES_ICD10 for code in procedure_icd_codes)
+            or any(code in APPENDECTOMY_PROCEDURES_ICD9 for code in procedure_icd_codes)
+            or procedure_checker(APPENDECTOMY_PROCEDURES_KEYWORDS, self.grounded_treatment)
+        ):
             self.answers["Treatment Required"]["Appendectomy"] = True
 
         if procedure_checker(

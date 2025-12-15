@@ -2,13 +2,22 @@ from cdm.benchmark.data_models import GroundTruth, Pathology
 from cdm.evaluators.mappings import (
     ALTERNATE_COLECTOMY_KEYWORDS,
     ALTERNATE_DRAINAGE_KEYWORDS_DIVERTICULITIS,
+    COLECTOMY_PROCEDURES_ICD9,
+    COLECTOMY_PROCEDURES_ICD10,
     COLECTOMY_PROCEDURES_KEYWORDS,
     DRAINAGE_LOCATIONS_DIVERTICULITIS,
+    DRAINAGE_PROCEDURES_ALL_ICD10,
+    DRAINAGE_PROCEDURES_ICD9,
     DRAINAGE_PROCEDURES_KEYWORDS,
     INFLAMMATION_LAB_TESTS,
 )
 from cdm.evaluators.pathology_evaluator import PathologyEvaluator
-from cdm.evaluators.utils import alt_procedure_checker, keyword_positive, procedure_checker
+from cdm.evaluators.utils import (
+    alt_procedure_checker,
+    extract_procedure_icd_codes,
+    keyword_positive,
+    procedure_checker,
+)
 from cdm.tools.lab_mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
 
 
@@ -97,6 +106,8 @@ class DiverticulitisEvaluator(PathologyEvaluator):
         return False
 
     def score_treatment(self):
+        procedure_icd_codes = extract_procedure_icd_codes(self.grounded_treatment)
+
         if keyword_positive(self.answers["Treatment"], "colonoscopy"):
             self.answers["Treatment Requested"]["Colonoscopy"] = True
 
@@ -109,9 +120,14 @@ class DiverticulitisEvaluator(PathologyEvaluator):
         ):
             self.answers["Treatment Requested"]["Support"] = True
 
-        if procedure_checker(
-            DRAINAGE_PROCEDURES_KEYWORDS, self.grounded_treatment
-        ) and procedure_checker(DRAINAGE_LOCATIONS_DIVERTICULITIS, self.grounded_treatment):
+        if (
+            any(code in DRAINAGE_PROCEDURES_ICD9 for code in procedure_icd_codes)
+            or any(code in DRAINAGE_PROCEDURES_ALL_ICD10 for code in procedure_icd_codes)
+            or (
+                procedure_checker(DRAINAGE_PROCEDURES_KEYWORDS, self.grounded_treatment)
+                and procedure_checker(DRAINAGE_LOCATIONS_DIVERTICULITIS, self.grounded_treatment)
+            )
+        ):
             self.answers["Treatment Required"]["Drainage"] = True
 
         if alt_procedure_checker(
@@ -119,7 +135,11 @@ class DiverticulitisEvaluator(PathologyEvaluator):
         ):
             self.answers["Treatment Requested"]["Drainage"] = True
 
-        if procedure_checker(COLECTOMY_PROCEDURES_KEYWORDS, self.grounded_treatment):
+        if (
+            any(code in COLECTOMY_PROCEDURES_ICD9 for code in procedure_icd_codes)
+            or any(code in COLECTOMY_PROCEDURES_ICD10 for code in procedure_icd_codes)
+            or procedure_checker(COLECTOMY_PROCEDURES_KEYWORDS, self.grounded_treatment)
+        ):
             self.answers["Treatment Required"]["Colectomy"] = True
 
         if procedure_checker(

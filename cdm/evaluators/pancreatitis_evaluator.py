@@ -4,12 +4,22 @@ from cdm.evaluators.mappings import (
     ALTERNATE_DRAINAGE_KEYWORDS_PANCREATITIS,
     CHOLECYSTECTOMY_PROCEDURES_KEYWORDS,
     DRAINAGE_LOCATIONS_PANCREATITIS,
+    DRAINAGE_PROCEDURES_ALL_ICD10,
+    DRAINAGE_PROCEDURES_ICD9,
     DRAINAGE_PROCEDURES_KEYWORDS,
+    DRAINAGE_PROCEDURES_PANCREATITIS_ICD10,
+    ERCP_PROCEDURES_ICD9,
+    ERCP_PROCEDURES_ICD10,
     ERCP_PROCEDURES_KEYWORDS,
     INFLAMMATION_LAB_TESTS,
 )
 from cdm.evaluators.pathology_evaluator import PathologyEvaluator
-from cdm.evaluators.utils import alt_procedure_checker, keyword_positive, procedure_checker
+from cdm.evaluators.utils import (
+    alt_procedure_checker,
+    extract_procedure_icd_codes,
+    keyword_positive,
+    procedure_checker,
+)
 from cdm.tools.lab_mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
 
 
@@ -111,6 +121,8 @@ class PancreatitisEvaluator(PathologyEvaluator):
         return False
 
     def score_treatment(self):
+        procedure_icd_codes = extract_procedure_icd_codes(self.grounded_treatment)
+
         if (
             keyword_positive(self.answers["Treatment"], "fluid")
             and (
@@ -121,9 +133,15 @@ class PancreatitisEvaluator(PathologyEvaluator):
         ):
             self.answers["Treatment Requested"]["Support"] = True
 
-        if procedure_checker(
-            DRAINAGE_PROCEDURES_KEYWORDS, self.grounded_treatment
-        ) and procedure_checker(DRAINAGE_LOCATIONS_PANCREATITIS, self.grounded_treatment):
+        if (
+            any(code in DRAINAGE_PROCEDURES_PANCREATITIS_ICD10 for code in procedure_icd_codes)
+            or any(code in DRAINAGE_PROCEDURES_ALL_ICD10 for code in procedure_icd_codes)
+            or any(code in DRAINAGE_PROCEDURES_ICD9 for code in procedure_icd_codes)
+            or (
+                procedure_checker(DRAINAGE_PROCEDURES_KEYWORDS, self.grounded_treatment)
+                and procedure_checker(DRAINAGE_LOCATIONS_PANCREATITIS, self.grounded_treatment)
+            )
+        ):
             self.answers["Treatment Required"]["Drainage"] = True
 
         if alt_procedure_checker(
@@ -140,7 +158,11 @@ class PancreatitisEvaluator(PathologyEvaluator):
             ):
                 self.answers["Treatment Requested"]["Cholecystectomy"] = True
 
-        if procedure_checker(ERCP_PROCEDURES_KEYWORDS, self.grounded_treatment):
+        if (
+            any(code in ERCP_PROCEDURES_ICD10 for code in procedure_icd_codes)
+            or any(code in ERCP_PROCEDURES_ICD9 for code in procedure_icd_codes)
+            or procedure_checker(ERCP_PROCEDURES_KEYWORDS, self.grounded_treatment)
+        ):
             self.answers["Treatment Required"]["ERCP"] = True
 
         if procedure_checker(ERCP_PROCEDURES_KEYWORDS, self.answers["Treatment"]):

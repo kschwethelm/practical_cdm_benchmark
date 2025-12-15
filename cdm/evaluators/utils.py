@@ -1,6 +1,8 @@
 import json
 import re
 
+from cdm.benchmark.data_models import Treatment
+
 NEGATION_PATTERNS = [
     r"no\s+{}",
     r"not\s+{}",
@@ -27,6 +29,10 @@ def keyword_search(s: str, k: str):
     return True
 
 
+def extract_procedure_icd_codes(treatments: list) -> list[str]:
+    return [p.icd_code for p in treatments if isinstance(p, Treatment) and p.icd_code is not None]
+
+
 def keyword_positive(sentence: str | list, keyword: str):
     if isinstance(sentence, list):
         return any(keyword_search(s, keyword) for s in sentence)
@@ -35,7 +41,11 @@ def keyword_positive(sentence: str | list, keyword: str):
 
 
 def procedure_checker(valid_procedures: list, done_procedures: list):
-    return any(keyword_positive(done_procedures, proc) for proc in valid_procedures)
+    done_titles = [
+        procedure.title if not isinstance(procedure, str) else procedure
+        for procedure in done_procedures
+    ]
+    return any(keyword_positive(done_titles, proc) for proc in valid_procedures)
 
 
 def alt_procedure_checker(operation_keywords, text):
