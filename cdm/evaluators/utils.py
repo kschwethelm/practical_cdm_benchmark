@@ -1,6 +1,8 @@
 import json
 import re
 
+from cdm.benchmark.data_models import Treatment
+
 NEGATION_PATTERNS = [
     r"no\s+{}",
     r"not\s+{}",
@@ -25,6 +27,10 @@ def keyword_search(s: str, k: str):
         if re.search(neg_regex, s):
             return False
     return True
+
+
+def extract_procedure_icd_codes(treatments: list) -> list[str]:
+    return [p.icd_code for p in treatments if isinstance(p, Treatment) and p.icd_code is not None]
 
 
 def keyword_positive(sentence: str | list, keyword: str):

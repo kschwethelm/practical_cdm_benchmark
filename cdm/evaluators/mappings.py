@@ -102,36 +102,36 @@ ERCP_PROCEDURES_KEYWORDS = [
     "sphinctertomy",
 ]
 
-APPENDECTOMY_PROCEDURES_ICD9 = [4701, 4709]
+APPENDECTOMY_PROCEDURES_ICD9 = ["4701", "4709"]
 APPENDECTOMY_PROCEDURES_ICD10 = ["0DTJ4ZZ", "0DTJ0ZZ"]
 
-CHOLECYSTECTOMY_PROCEDURES_ICD9 = [5123, 5122, 5121, 5102, 5124, 5103]
+CHOLECYSTECTOMY_PROCEDURES_ICD9 = ["5123", "5122", "5121", "5102", "5124", "5103"]
 CHOLECYSTECTOMY_PROCEDURES_ICD10 = ["0FB44ZZ", "0FB40ZZ"]
 
 COLECTOMY_PROCEDURES_ICD9 = [
-    4575,
-    4576,
-    4863,
-    4562,
-    4542,
-    4579,
-    4531,
-    4530,
-    4533,
-    4562,
-    1739,
-    1734,
-    1736,
-    4572,
-    4573,
-    4576,
-    1733,
-    4541,
-    1732,
-    5459,
-    5451,
-    4574,
-    9624,
+    "4575",
+    "4576",
+    "4863",
+    "4562",
+    "4542",
+    "4579",
+    "4531",
+    "4530",
+    "4533",
+    "4562",
+    "1739",
+    "1734",
+    "1736",
+    "4572",
+    "4573",
+    "4576",
+    "1733",
+    "4541",
+    "1732",
+    "5459",
+    "5451",
+    "4574",
+    "9624",
 ]
 
 COLECTOMY_PROCEDURES_ICD10 = [
@@ -189,7 +189,7 @@ COLECTOMY_PROCEDURES_ICD10 = [
     "0DT80ZZ",
 ]
 
-DRAINAGE_PROCEDURES_ICD9 = [5491]
+DRAINAGE_PROCEDURES_ICD9 = ["5491"]
 
 DRAINAGE_PROCEDURES_ALL_ICD10 = [
     "0W2JX0Z",
@@ -229,16 +229,16 @@ ERCP_PROCEDURES_ICD10 = [
 
 
 ERCP_PROCEDURES_ICD9 = [
-    8766,
-    5181,
-    5184,
-    5221,
-    5187,
-    5293,
-    5188,
-    5110,
-    5185,
-    8754,
-    5114,
-    9705,
+    "8766",
+    "5181",
+    "5184",
+    "5221",
+    "5187",
+    "5293",
+    "5188",
+    "5110",
+    "5185",
+    "8754",
+    "5114",
+    "9705",
 ]

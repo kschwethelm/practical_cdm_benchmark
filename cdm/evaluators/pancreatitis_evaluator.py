@@ -1,4 +1,4 @@
-from cdm.benchmark.data_models import GroundTruth, Pathology, Treatment
+from cdm.benchmark.data_models import GroundTruth, Pathology
 from cdm.evaluators.mappings import (
     ALTERNATE_CHOLECYSTECTOMY_KEYWORDS,
     ALTERNATE_DRAINAGE_KEYWORDS_PANCREATITIS,
@@ -14,7 +14,12 @@ from cdm.evaluators.mappings import (
     INFLAMMATION_LAB_TESTS,
 )
 from cdm.evaluators.pathology_evaluator import PathologyEvaluator
-from cdm.evaluators.utils import alt_procedure_checker, keyword_positive, procedure_checker
+from cdm.evaluators.utils import (
+    alt_procedure_checker,
+    extract_procedure_icd_codes,
+    keyword_positive,
+    procedure_checker,
+)
 from cdm.tools.lab_mappings import ADDITIONAL_LAB_TEST_MAPPING as LAB_MAP
 
 
@@ -116,11 +121,8 @@ class PancreatitisEvaluator(PathologyEvaluator):
         return False
 
     def score_treatment(self):
-        procedure_icd_codes = [
-            p.icd_code
-            for p in self.grounded_treatment
-            if isinstance(p, Treatment) and p.icd_code is not None
-        ]
+        procedure_icd_codes = extract_procedure_icd_codes(self.grounded_treatment)
+
         if (
             keyword_positive(self.answers["Treatment"], "fluid")
             and (
