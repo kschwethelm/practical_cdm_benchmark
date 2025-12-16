@@ -12,6 +12,7 @@ import hydra
 from langchain_openai import ChatOpenAI
 from loguru import logger
 from omegaconf import DictConfig
+from openai import BadRequestError, LengthFinishReasonError
 from tqdm.asyncio import tqdm
 
 from cdm.benchmark.data_models import BenchmarkOutputFullInfo, EvalOutputFullInfo, HadmCase
@@ -31,8 +32,20 @@ async def process_case(
     async with semaphore:
         patient_info_dict = gather_all_info(case)
         user_prompt = create_user_prompt(patient_info_dict)
-        output = await run_llm_async(llm, system_prompt, user_prompt)
-
+        if not case.pathology:
+            logger.warning(f"No pathology for case: {case.hadm_id}")
+            return None
+        try:
+            output = await run_llm_async(llm, system_prompt, user_prompt)
+        except BadRequestError as e:
+            if "maximum context length" in str(e).lower():
+                logger.error(f"Skipping case {case.hadm_id} due to context length overflow.")
+            else:
+                logger.error(f"{case.hadm_id} resulted in error {e}")
+            return None
+        except LengthFinishReasonError:
+            logger.error(f"Skipping case {case.hadm_id} due to model output token overflow")
+            return None
         return case, output
 
 
@@ -64,7 +77,11 @@ async def run_benchmark(cfg: DictConfig):
     # Process with async progress bar and write results incrementally
     results = []
     for coro in tqdm.as_completed(tasks, total=len(tasks), desc="Processing cases"):
-        case, output = await coro
+        result = await coro
+        if result is None:
+            continue
+
+        case, output = result
         results.append((case, output))
 
         print(case.pathology)
@@ -93,8 +110,18 @@ def main(cfg: DictConfig):
     The LLM is provided all information upfront (LLM as second reader).
     Cases are processed concurrently to maximize throughput.
     """
+    model_name = cfg.model_name
+    cfg.results_output_path = cfg.results_output_paths.get(model_name)
+
     asyncio.run(run_benchmark(cfg))
 
 
+# Run example: "python scripts/run_benchmark_full_info.py model_name=qwen3"
 if __name__ == "__main__":
     main()
+
+
+# Errors:
+# openai.BadRequestError: Error code: 400 - {'error': {'message': "This model's maximum context length is 16384 tokens.
+# However, your request has 17118 input tokens. Please reduce the length of the input messages.
+# None", 'type': 'BadRequestError', 'param': None, 'code': 400}}
