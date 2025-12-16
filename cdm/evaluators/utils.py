@@ -72,18 +72,19 @@ def count_unnecessary(results: list, field: str):
         patient["scores"][field] = len(patient["answers"][field])
     return results
 
-def count_treatment(results: list): 
+
+def count_treatment(results: list):
     for patient in results:
         required = patient["answers"].get("Treatment Required", {})
         requested = patient["answers"].get("Treatment Requested", {})
 
         required_true = [k for k, v in required.items() if v]
         if not required_true:
-            score = 0.0  
+            score = 0.0
         else:
             correct = sum(1 for k in required_true if requested.get(k))
             score = correct / len(required_true)
-            
+
         patient["scores"]["Treatment Requested"] = score
     return results
 

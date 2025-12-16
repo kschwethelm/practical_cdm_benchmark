@@ -4,4 +4,15 @@ defaults:
 
 # Path to save benchmark results in JSONL format (one result per line)
 # Set to null to disable output file writing
-results_output_path: outputs/results_full_info.jsonl
+model_name: null
+results_output_path: null 
+results_output_paths:
+  qwen3: outputs/results_qwen3_4b_full_info.jsonl
+  openbio: outputs/results_openbio_8b_full_info.jsonl
+  medgemma_4b: outputs/results_medgemma_4b_full_info.jsonl
+  deepseek_14b: outputs/results_deepseekr1_14b_full_info.jsonl
+  oasst: outputs/results_oasst_70b_full_info.jsonl
+  wizardlm: outputs/results_wizardlm_70b_full_info.jsonl
+  medgemma_27b: outputs/results_medgemma_27b_full_info.jsonl
+  deepseek_70b: outputs/results_deepseekr1_70b_full_info.jsonl
+  

@@ -1,6 +1,6 @@
 benchmark_data_path: database/output/benchmark_data.json
 
-num_cases: 10
+num_cases: 2398
 
 # vLLM server configuration
 base_url: http://localhost:8000/v1
