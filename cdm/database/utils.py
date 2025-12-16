@@ -85,9 +85,9 @@ def scrub_text(text: str, pathology_type: str | None, is_physical_exam: bool = F
         )
         text = discharge_pattern.sub("", text).strip()
 
-        # Remove labs, imaging, and diagnostics sections
+        # Remove labs, imaging, and diagnostics sections (but keep ADMISSION LABS)
         text = re.sub(
-            r"\b(?:Labs|Laboratory|Imaging|Diagnostics)\s*:.*",
+            r"(?<!ADMISSION\s)\b(?:Labs|Laboratory|Imaging|Diagnostics)\s*:.*",
             "",
             text,
             flags=re.IGNORECASE | re.DOTALL,
