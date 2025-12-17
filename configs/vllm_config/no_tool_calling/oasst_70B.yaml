@@ -5,7 +5,7 @@ host: "localhost"
 port: 8000
 
 enable-prefix-caching: true
-quantization: bitsandbytes
+quantization: gptq_marlin
 
 # Max size for llama-2 based models are 4096, can only be increased using rope-scaling
 rope-scaling: '{"type":"linear","factor":2.0}'
