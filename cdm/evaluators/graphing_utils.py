@@ -1,3 +1,4 @@
+import csv
 import json
 from collections import defaultdict
 
@@ -28,25 +29,11 @@ def read_jsonl(results_path: str) -> tuple[dict[list], list]:
     return results, fields
 
 
-def plot_graphs(run_type: str = "cdm"):
+def plot_graphs(model_paths: dict):
     avg_scores = defaultdict(lambda: defaultdict(dict))
     avg_samples = defaultdict(lambda: defaultdict(dict))
     percentages = defaultdict(lambda: defaultdict(dict))
-    if run_type == "cdm":
-        model_paths = {
-            "qwen3-4B": "outputs/results_qwen3_4b_cdm.jsonl",
-        }
-    elif run_type == "full_info":
-        model_paths = {
-            "Qwen3-4B": "outputs/results_qwen3_4b_full_info.jsonl",
-            "OpenBio-8B": "outputs/results_openbio_8b_full_info.jsonl",
-            "MedGemma-4B": "outputs/results_medgemma_4b_full_info.jsonl",
-            "DeppSeek-14B": "outputs/results_deepseekr1_14b_full_info.jsonl",
-            "OASST-70B": "outputs/results_oasst_70b_full_info.jsonl",
-            "WizardLM-70B": "outputs/results_wizardlm_70b_full_info.jsonl",
-            "MedGemma-27B": "outputs/results_medgemma_27b_full_info.jsonl",
-            "DeepSeek-70B": "outputs/results_deepseekr1_70b_full_info.jsonl",
-        }
+
     for model_name, result_path in model_paths.items():
         results, fields = read_jsonl(results_path=result_path)
         for field in fields:
@@ -68,7 +55,7 @@ def plot_graphs(run_type: str = "cdm"):
 
 def plot_grouped_bar_chart(data: dict, title: str, ylabel: str, save_path: str | None = None):
     pathologies = ["appendicitis", "cholecystitis", "pancreatitis", "diverticulitis"]
-    x_labels = pathologies + ["Mean"]
+    x_labels = [p.capitalize() for p in pathologies] + ["Mean"]
     models = list(data.keys())
     n_models = len(models)
     x = np.arange(len(x_labels))
@@ -88,7 +75,7 @@ def plot_grouped_bar_chart(data: dict, title: str, ylabel: str, save_path: str |
     plt.title(title)
     plt.ylim(0, 100)
     plt.grid(axis="y", linestyle="--", alpha=0.6)
-    plt.legend()
+    plt.legend(loc="upper left", bbox_to_anchor=(1, 1))
     plt.tight_layout()
 
     if save_path:
@@ -96,16 +83,50 @@ def plot_grouped_bar_chart(data: dict, title: str, ylabel: str, save_path: str |
     plt.show()
 
 
-if __name__ == "__main__":
-    # _, _, cdm_percentages = plot_graphs()
-    _, _, full_info_percentages = plot_graphs(run_type="full_info")
+def write_avg_samples_to_csv(avg_samples: dict, output_path: str):
+    pathologies = ["appendicitis", "cholecystitis", "pancreatitis", "diverticulitis"]
 
-    # plot_grouped_bar_chart(
-    #     data=cdm_percentages["Diagnosis"],
-    #     title="Diagnostic Accuracy (%) by Pathology",
-    #     ylabel="Accuracy (%)",
-    #     save_path="outputs/diagnosis_accuracy.png"
-    # )
+    with open(output_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Field", "Model"] + [p.capitalize() for p in pathologies] + ["Total_N"])
+
+        for field, models in avg_samples.items():
+            for model, pathology_counts in models.items():
+                counts = [pathology_counts.get(p, 0) for p in pathologies]
+                total_n = sum(counts)
+
+                writer.writerow([field, model] + counts + [total_n])
+
+
+if __name__ == "__main__":
+    model_paths = {}
+    model_paths["cdm"] = {
+        "Qwen3-30B": "outputs/results_qwen3_30b_cdm.jsonl",
+        "LLama3.3-70B": "outputs/results_llama3_70b_cdm.jsonl",
+    }
+    model_paths["full_info"] = {
+        "OASST-70B": "outputs/results_oasst_70b_full_info.jsonl",
+        "WizardLM-70B": "outputs/results_wizardlm_70b_full_info.jsonl",
+        "OpenBioLLM-70B": "outputs/results_openbio_70b_full_info.jsonl",
+        "LLama3.3-70B": "outputs/results_llama3_70b_full_info.jsonl",
+        "ClinicalCamel-70B": "outputs/results_clinical_camel_70b_full_info.jsonl",
+    }
+    model_paths["new"] = {
+        "Qwen3-30B": "outputs/results_qwen3_30b_full_info.jsonl",
+        "DeepSeek-R1-Distill-Llama-70B": "outputs/results_deepseekr1_70b_full_info.jsonl",
+        "DeepSeek-R1-Distill-Qwen-14B": "outputs/results_deepseekr1_14b_full_info.jsonl",
+    }
+
+    _, _, cdm_percentages = plot_graphs(model_paths["cdm"])
+    _, _, full_info_percentages = plot_graphs(model_paths["full_info"])
+    _, _, new_model_percentages = plot_graphs(model_paths["new"])
+
+    plot_grouped_bar_chart(
+        data=cdm_percentages["Diagnosis"],
+        title="Diagnostic Accuracy (%) by Pathology",
+        ylabel="Accuracy (%)",
+        save_path="outputs/diagnosis_accuracy.png",
+    )
 
     plot_grouped_bar_chart(
         data=full_info_percentages["Diagnosis"],
@@ -114,9 +135,9 @@ if __name__ == "__main__":
         save_path="outputs/diagnosis_full_info_accuracy.png",
     )
 
-    # plot_grouped_bar_chart(
-    #     data=cdm_percentages["Treatment Requested"],
-    #     title="Treatment Request Accuracy (%) by Pathology",
-    #     ylabel="Accuracy (%)",
-    #     save_path="outputs/treatment_requested.png"
-    # )
+    plot_grouped_bar_chart(
+        data=new_model_percentages["Diagnosis"],
+        title="Diagnostic Accuracy (%) by Pathology",
+        ylabel="Accuracy (%)",
+        save_path="outputs/diagnosis_full_info_new_accuracy.png",
+    )
