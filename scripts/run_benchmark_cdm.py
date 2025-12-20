@@ -37,6 +37,8 @@ async def process_case(
             return None
         try:
             output = await run_agent_async(agent, patient_info)
+            if output is None:
+                return None
         except BadRequestError as e:
             if "maximum context length" in str(e).lower():
                 logger.error(f"Skipping case {case.hadm_id} due to context length overflow.")
@@ -118,6 +120,7 @@ def main(cfg: DictConfig):
     """
     model_name = cfg.model_name
     cfg.results_output_path = cfg.results_output_paths.get(model_name)
+    asyncio.run(run_benchmark(cfg))
 
 
 if __name__ == "__main__":

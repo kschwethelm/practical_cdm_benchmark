@@ -110,7 +110,10 @@ async def run_agent_async(agent, patient_info: str) -> AgentRunResult:
             ]
         }
     )
-
-    parsed_output = BenchmarkOutputCDM.model_validate_json(response["messages"][-1].content)
-    messages_as_dicts = [msg.dict() for msg in response["messages"]]
-    return AgentRunResult(parsed_output=parsed_output, messages=messages_as_dicts)
+    try:
+        parsed_output = BenchmarkOutputCDM.model_validate_json(response["messages"][-1].content)
+        messages_as_dicts = [msg.dict() for msg in response["messages"]]
+        return AgentRunResult(parsed_output=parsed_output, messages=messages_as_dicts)
+    except Exception as e:
+        logger.warning(f"Skipping case due to error: {e}")
+        return None
