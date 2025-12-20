@@ -26,6 +26,7 @@ dependencies = [
     "tqdm>=4.67.1",
     "vllm>=0.10.2",
     "thefuzz>=0.22.1",
+    "bitsandbytes>=0.43.1"
 ]
 
 [dependency-groups]
