@@ -44,100 +44,164 @@ def get_pathology_type_from_string(ground_truth_diagnosis: str) -> str | None:
     return None
 
 
-def scrub_text(text: str, pathology_type: str | None, is_physical_exam: bool = False) -> str:
+def scrub_physical_exam_text(text: str) -> str:
     """
-    Removes mentions of the diagnosis and related procedures from
-    a block of text, replacing them with '___' as per CDMv1.
-    Also special handling for physical exams.
+    Removes discharge exams and additional physical exams from physical examination text.
+    Should be called before scrub_text() for physical exam data.
 
     Args:
-        text: The text to scrub
-        pathology_type: The type of pathology (e.g., 'pancreatitis')
-        is_physical_exam: If True, removes discharge exams and additional physical exams
+        text: The physical exam text to scrub
+
+    Returns:
+        Cleaned physical exam text with discharge exams and duplicates removed
     """
     if not text:
         return ""
 
-    if is_physical_exam:
-        # Manually checked the physical exams with the comparison script so that the following patterns don't remove too much text
+    # Manually checked the physical exams with the comparison script so that the following patterns don't remove too much text
 
-        # Remove text after discharge-related phrases, but avoid discharge in normal sentences
-        # For "on/upon/at/day of discharge"
-        text = re.sub(
-            r"\b(?:on|upon|at|day\s+of)\s+discharge\b.*", "", text, flags=re.IGNORECASE | re.DOTALL
-        ).strip()
+    # Remove text after discharge-related phrases, but avoid discharge in normal sentences
+    # For "on/upon/at/in discharge" or "on/upon/at/in day of discharge" or "day of discharge" (optionally preceded by exam-related headers)
+    # Handles common misspellings: Physical, Phsyical, Physcial
+    text = re.sub(
+        r"(?:\b(?:(?:Physical|Phsyical|Physcial)\s+Exam(?:ination)?|Exam(?:ination)?|PE|Patient\s+examined)\s+)?\b(?:(?:on|upon|at|in)\s+(?:(day|time)\s+of\s+)?|day\s+of\s+)discharge\b.*",
+        "",
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    ).strip()
 
-        # Handle "discharge vs" case
-        text = re.sub(r"\bdischarge\s+vs\b.*", "", text, flags=re.IGNORECASE | re.DOTALL).strip()
+    # Handle "discharge vs" case
+    text = re.sub(r"\bdischarge\s+vs\b.*", "", text, flags=re.IGNORECASE | re.DOTALL).strip()
 
-        # Handle "discharge physical" case, also catch typos like "phsycial"
-        text = re.sub(
-            r"\bdischarge\s+ph[sy]+[sy]?[iyc]+a?l\b.*", "", text, flags=re.IGNORECASE | re.DOTALL
-        ).strip()
+    # Handle "discharge physical" case, also catch typos like "phsycial"
+    text = re.sub(
+        r"\bdischarge\s+ph[sy]+[sy]?[iyc]+a?l\b.*", "", text, flags=re.IGNORECASE | re.DOTALL
+    ).strip()
 
-        # Handle standalone all-caps "DISCHARGE"
-        text = re.sub(r"\bDISCHARGE\b.*", "", text, flags=re.DOTALL).strip()
+    # Handle specific discharge-related "Physical:" patterns (including literal "___")
+    # Also removes "ACS Discharge Physical Exam ___:"
+    text = re.sub(
+        r"(?:\b(?:ACS\s+)?(?:Discharge|Transfer|D/C)\s+(?:Physical\s+Exam\s+)?|___\s*)Physical\s*:.*",
+        "",
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    ).strip()
 
-        # Then handle "discharge" with colon, colon optional for "discharge exam"/"discharge pe"
-        discharge_pattern = re.compile(
-            r"\b(?:discharge\s*:|discharge\s+exam|discharge\s+pe|discharge\s+labs|D/C\s*:|DISPO).*",
-            re.IGNORECASE | re.DOTALL,
-        )
-        text = discharge_pattern.sub("", text).strip()
+    # Handle "at [prefix]ischarge Exam" pattern (corrupted discharge text)
+    text = re.sub(
+        r"\bat\s+.{0,3}ischarge\s+exam\b.*", "", text, flags=re.IGNORECASE | re.DOTALL
+    ).strip()
 
-        # Remove labs, imaging, and diagnostics sections (but keep ADMISSION LABS)
-        text = re.sub(
-            r"(?<!ADMISSION\s)\b(?:Labs|Laboratory|Imaging|Diagnostics)\s*:.*",
-            "",
-            text,
-            flags=re.IGNORECASE | re.DOTALL,
-        ).strip()
+    # Handle "Discharge" as a standalone section header (at start of line)
+    text = re.sub(r"(?:^|\n)\s*Discharge\b.*", "", text, flags=re.IGNORECASE | re.DOTALL).strip()
 
-        # Pattern matches major section headers for additional physical exam sections:
-        physical_exam_pattern = re.compile(
-            r"(?:^|\n.{0,15})(?:PHYSICAL\s+EXAM:?|TRANSFER\s+EXAM:|EXAMINATION:|EXAM:|P/E:|PE:|VS:|Vital\s+signs:|AMA:)",
-            re.IGNORECASE,
-        )
-        matches = list(physical_exam_pattern.finditer(text))
+    # Handle "--DISCHARGE--" pattern
+    text = re.sub(r"--DISCHARGE--.*", "", text, flags=re.IGNORECASE | re.DOTALL).strip()
 
-        # Find any additional physical exam section that appears after the first ~200 characters and remove
-        # Trial and error with the comparison script resulted in 200 character cutoff
-        # If "Gen:" appears shortly after the header, keep it (it's likely a continuation)
-        for match in matches:
-            if match.start() > 200:
-                # Check if "Gen:" or "HEENT:" appears within 22 (cutoff to avoid false positives but get all false negatives) characters after this header
-                # Very specific to catch only the few false positives following this pattern
-                remaining_text = text[match.start() :]
-                if not re.search(r"\b(?:Gen|HEENT)\s*:", remaining_text[:22], re.IGNORECASE):
-                    text = text[: match.start()].strip()
-                    break
+    # Handle standalone all-caps "DISCHARGE"
+    text = re.sub(r"\bDISCHARGE\b.*", "", text, flags=re.DOTALL).strip()
 
-        # Special case for one case with only AMA exam
-        text = text.replace("Prior to leaving AMA...", "").strip()
+    # Then handle "discharge" with colon, colon optional for "discharge exam"/"discharge pe"
+    # Also removes "Prior Discharge:" and "On D/C:"
+    discharge_pattern = re.compile(
+        r"\b(?:Prior\s+discharge\s*:|discharge\s*:|discharge\s+exam|discharge\s+pe|discharge\s+labs|on\s+discharged\s*:|On\s+D/C\s*:|Time\s+of\s+Discharge\s*:|D/C\s*:|DISPO).*",
+        re.IGNORECASE | re.DOTALL,
+    )
+    text = discharge_pattern.sub("", text).strip()
 
-        # False negatives that miss the above patterns
-        # Remove duplicate HEENT sections (keep only first occurrence)
-        heent_pattern = re.compile(r"\bHEENT\s*:", re.IGNORECASE)
-        heent_matches = list(heent_pattern.finditer(text))
-        if len(heent_matches) > 1:
-            # Remove everything from the second HEENT onwards
-            text = text[: heent_matches[1].start()].strip()
+    # Remove labs, imaging, and diagnostics sections (but keep ADMISSION LABS)
+    text = re.sub(
+        r"(?<!ADMISSION\s)\b(?:Labs and imaging|Labs|Laboratory|Imaging|Diagnostics)\s*:.*",
+        "",
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    ).strip()
 
-        # Remove duplicate exam starting with vital signs pattern
-        # This catches exams that don't have a header but start with temperature later in the text
-        duplicate_vitals_pattern = re.compile(
-            r"\s+T\d+\.?\d*\s+HR\s+\d+\s+BP\s+\d+/\d+", re.IGNORECASE
-        )
-        vitals_match = duplicate_vitals_pattern.search(text)
-        if vitals_match and vitals_match.start() > 200:
-            text = text[: vitals_match.start()].strip()
+    # Pattern matches major section headers for additional physical exam sections:
+    # Excludes "Scrotal exam:" and "Pelvic exam:" from being matched
+    physical_exam_pattern = re.compile(
+        r"(?:^|\n.{0,15})(?:PHYSICAL\s+EXAM:?|TRANSFER\s+EXAM:|EXAMINATION:|(?<!Scrotal\s)(?<!Pelvic\s)EXAM:|P/E:|PE:|VS:|Vital\s+signs:|AMA:)",
+        re.IGNORECASE,
+    )
+    matches = list(physical_exam_pattern.finditer(text))
 
-        # Remove lab values that appear without header
-        # Pattern matches common lab value format: WBC followed by number
-        lab_values_pattern = re.compile(r"\s+WBC\s+\d+\.?\d*,?\s+", re.IGNORECASE)
-        lab_match = lab_values_pattern.search(text)
-        if lab_match:
-            text = text[: lab_match.start()].strip()
+    # Find any additional physical exam section that appears after the first ~200 characters and remove
+    # Trial and error with the comparison script resulted in 200 character cutoff
+    # If "Gen:" appears shortly after the header, keep it (it's likely a continuation)
+    for match in matches:
+        if match.start() > 200:
+            # Check if "Gen:" or "HEENT:" appears within 22 (cutoff to avoid false positives but get all false negatives) characters after this header
+            # Very specific to catch only the few false positives following this pattern
+            remaining_text = text[match.start() :]
+            if not re.search(r"\b(?:Gen|HEENT)\s*:", remaining_text[:22], re.IGNORECASE):
+                text = text[: match.start()].strip()
+                break
+
+    # Special case for one case with only AMA exam
+    text = text.replace("Prior to leaving AMA...", "").strip()
+
+    # False negatives that miss the above patterns
+    # Remove duplicate HEENT sections (keep only first occurrence)
+    heent_pattern = re.compile(r"\bHEENT\s*:", re.IGNORECASE)
+    heent_matches = list(heent_pattern.finditer(text))
+    if len(heent_matches) > 1:
+        # Remove everything from the second HEENT onwards
+        text = text[: heent_matches[1].start()].strip()
+
+    # Remove duplicate exam starting with vital signs pattern
+    # This catches exams that don't have a header but start with temperature later in the text
+    duplicate_vitals_pattern = re.compile(r"\s+T\d+\.?\d*\s+HR\s+\d+\s+BP\s+\d+/\d+", re.IGNORECASE)
+    vitals_match = duplicate_vitals_pattern.search(text)
+    if vitals_match and vitals_match.start() > 200:
+        text = text[: vitals_match.start()].strip()
+
+    # Remove lab values that appear without header
+    # Pattern matches common lab value format: WBC followed by number
+    lab_values_pattern = re.compile(r"\s+WBC\s+\d+\.?\d*,?\s+", re.IGNORECASE)
+    lab_match = lab_values_pattern.search(text)
+    if lab_match:
+        text = text[: lab_match.start()].strip()
+
+    # Remove section headers that may appear in the text
+    text = re.sub(
+        r"\b(?:PE|Physical\s+Exam|Physical\s+Examination)\s*:\s*",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    ).strip()
+
+    # Remove specific string about 10 system review
+    text = text.replace("10 system review negative, except as stated above in HPI.", "").strip()
+
+    # Replace sequences of more than 4 "x" characters with "___"
+    text = re.sub(r"x{5,}", "___", text, flags=re.IGNORECASE).strip()
+
+    # Remove multiple "=", "_" symbols (more than 1) at the beginning and end of text
+    text = re.sub(r"^=={2,}", "", text).strip()
+    text = re.sub(r"=={2,}$", "", text).strip()
+    text = re.sub(r"^__{4,}", "", text).strip()
+    text = re.sub(r"__{4,}$", "", text).strip()
+
+    # Remove "___:" pattern from beginning and end
+    text = re.sub(r"^___:", "", text).strip()
+    text = re.sub(r"___:$", "", text).strip()
+
+    return text
+
+
+def scrub_text(text: str, pathology_type: str | None) -> str:
+    """
+    Removes mentions of the diagnosis and related procedures from
+    a block of text, replacing them with '___' as per CDMv1.
+
+    For physical exam text, call scrub_physical_exam_text() first.
+
+    Args:
+        text: The text to scrub
+        pathology_type: The type of pathology (e.g., 'pancreatitis')
+    """
+    if not text:
+        return ""
 
     # Replace newlines with spaces
     text = text.replace("\n", " ")
@@ -154,7 +218,9 @@ def scrub_text(text: str, pathology_type: str | None, is_physical_exam: bool = F
         r"\b(" + "|".join(re.escape(kw) for kw in keywords_to_scrub) + r")\b", re.IGNORECASE
     )
 
-    return pattern.sub("___", text)
+    text = pattern.sub("___", text)
+
+    return text
 
 
 def parse_report(report: str) -> dict:
