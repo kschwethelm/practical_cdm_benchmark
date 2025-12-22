@@ -26,19 +26,24 @@ def get_pathology_type_from_string(ground_truth_diagnosis: str) -> str | None:
     """
     Finds the matching 'pathology_type' (e.g., 'diverticulitis')
     from a specific ground_truth string (e.g., 'Complicated diverticulitis...').
+    If multiple diagnoses are separated by commas, checks each part.
     """
     if not ground_truth_diagnosis:
         return None
 
-    search_string = ground_truth_diagnosis.lower()
+    # Split by comma and check each part
+    diagnosis_parts = [part.strip() for part in ground_truth_diagnosis.split(",")]
 
-    # Iterate through our keyword dictionary
-    for category, keywords in DIAGNOSIS_SCRUB_KEYWORDS.items():
-        # Check if any keyword for this category is in the ground truth string
-        for keyword in keywords:
-            # Use regex word boundaries to match whole words
-            if re.search(r"\b" + re.escape(keyword.lower()) + r"\b", search_string):
-                return category  # Found it!
+    for diagnosis_part in diagnosis_parts:
+        search_string = diagnosis_part.lower()
+
+        # Iterate through our keyword dictionary
+        for category, keywords in DIAGNOSIS_SCRUB_KEYWORDS.items():
+            # Check if any keyword for this category is in the ground truth string
+            for keyword in keywords:
+                # Use regex word boundaries to match whole words
+                if re.search(r"\b" + re.escape(keyword.lower()) + r"\b", search_string):
+                    return category
 
     # If no match is found (e.g., for a new negative control case)
     return None
