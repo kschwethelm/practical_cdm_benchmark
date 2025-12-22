@@ -356,10 +356,32 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
             if new_results - cdm_results:
                 comparison["micro_extra_values"] = list(new_results - cdm_results)
 
-        # 6. Diagnosis (keyword match)
-        cdm_diag = cdm_case.get("Discharge Diagnosis", "").lower()
-        new_diag = case.get("ground_truth", {}).get("primary_diagnosis", "").lower()
-        comparison["diagnosis_in_discharge"] = new_diag in cdm_diag or cdm_diag in new_diag
+        # 6. Diagnosis
+        cdm_diag = cdm_case.get("Discharge Diagnosis", "")
+        new_diag = case.get("ground_truth", {}).get("primary_diagnosis", "")
+
+        # Normalize: censoring patterns, whitespace, lowercase, newlines...
+        cdm_diag_normalized = cdm_diag.replace("___", "")
+        cdm_diag_normalized = " ".join(cdm_diag_normalized.split()).strip().lower()
+
+        new_diag_normalized = new_diag.replace("[REDACTED]", "")
+        new_diag_normalized = " ".join(new_diag_normalized.split()).strip().lower()
+
+        # Split new diagnosis by comma and check if any part contains CDM diagnosis
+        new_diag_parts = [d.strip() for d in new_diag_normalized.split(",") if d.strip()]
+
+        # Check if CDM diagnosis is contained in any part of new diagnosis
+        diagnosis_match = False
+        if new_diag_parts:
+            for part in new_diag_parts:
+                if part in cdm_diag_normalized or cdm_diag_normalized in part:
+                    diagnosis_match = True
+                    break
+
+        comparison["diagnosis_in_discharge"] = diagnosis_match
+
+        # Count diagnoses by commas for statistics
+        comparison["num_diagnoses"] = len([d.strip() for d in new_diag.split(",") if d.strip()])
 
         # 7. Demographics comparison
         new_demo = case.get("demographics", {})
@@ -685,18 +707,21 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
 
         add_line("\nDiagnosis:")
         diag_matches = sum(1 for r in found_cases if r.get("diagnosis_in_discharge", False))
+        avg_num_diagnoses = sum(r.get("num_diagnoses", 1) for r in found_cases) / len(found_cases)
         add_line(
-            f"  Diagnosis found in discharge: {diag_matches}/{len(found_cases)} ({diag_matches / len(found_cases):.1%})"
+            f"  Diagnosis match:           {diag_matches}/{len(found_cases)} ({diag_matches / len(found_cases):.1%})"
         )
+        add_line(f"  Avg diagnoses per case:    {avg_num_diagnoses:.1f}")
 
         # Cases with diagnosis not found
         diag_not_found = [
             r["hadm_id"] for r in found_cases if not r.get("diagnosis_in_discharge", False)
         ]
         if diag_not_found:
-            add_line(f"\n  Cases where diagnosis not found in discharge ({len(diag_not_found)}):")
+            add_line(f"\n  Cases with diagnosis not found ({len(diag_not_found)}):")
             for hadm_id in diag_not_found[:10]:
-                diag = next(r.get("diagnosis") for r in found_cases if r["hadm_id"] == hadm_id)
+                r = next(x for x in found_cases if x["hadm_id"] == hadm_id)
+                diag = r.get("diagnosis")
                 add_line(f"    - {hadm_id} ({diag})")
             if len(diag_not_found) > 10:
                 add_line(f"    ... and {len(diag_not_found) - 10} more")
