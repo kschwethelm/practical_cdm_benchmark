@@ -41,7 +41,7 @@ from cdm.database.queries import (
     get_physical_examination,
     get_radiology_reports,
 )
-from cdm.database.utils import get_pathology_type_from_string, scrub_text
+from cdm.database.utils import get_pathology_type_from_string, scrub_physical_exam_text, scrub_text
 
 
 def load_hadm_ids(filepath: Path) -> list[int]:
@@ -92,7 +92,8 @@ def create_hadm_case(cursor, hadm_id: int) -> HadmCase:
     # Data cleaning
     pathology_type = get_pathology_type_from_string(ground_truth_diagnosis)
     history_of_present_illness = scrub_text(history_of_present_illness, pathology_type)
-    physical_examination = scrub_text(physical_examination, pathology_type, is_physical_exam=True)
+    physical_examination = scrub_physical_exam_text(physical_examination)
+    physical_examination = scrub_text(physical_examination, pathology_type)
     for report in radiology_reports:
         report.text = scrub_text(report.text, pathology_type)
 
