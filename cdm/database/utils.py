@@ -22,23 +22,34 @@ REGION_KEYWORDS = _config["region_keywords"]
 BAD_RAD_FIELDS = _config["bad_rad_fields"]
 
 
-def get_pathology_type_from_string(ground_truth_diagnosis: str) -> str | None:
+def get_pathology_type_from_string(ground_truth_diagnoses: list[str]) -> str | None:
     """
     Finds the matching 'pathology_type' (e.g., 'diverticulitis')
-    from a specific ground_truth string (e.g., 'Complicated diverticulitis...').
+    from a list of ground truth diagnoses.
+
+    Args:
+        ground_truth_diagnoses: List of diagnosis strings
+
+    Returns:
+        Pathology type string if found, None otherwise
     """
-    if not ground_truth_diagnosis:
+    if not ground_truth_diagnoses:
         return None
 
-    search_string = ground_truth_diagnosis.lower()
+    # Check each diagnosis in the list
+    for diagnosis in ground_truth_diagnoses:
+        if not diagnosis:
+            continue
 
-    # Iterate through our keyword dictionary
-    for category, keywords in DIAGNOSIS_SCRUB_KEYWORDS.items():
-        # Check if any keyword for this category is in the ground truth string
-        for keyword in keywords:
-            # Use regex word boundaries to match whole words
-            if re.search(r"\b" + re.escape(keyword.lower()) + r"\b", search_string):
-                return category  # Found it!
+        search_string = diagnosis.lower()
+
+        # Iterate through our keyword dictionary
+        for category, keywords in DIAGNOSIS_SCRUB_KEYWORDS.items():
+            # Check if any keyword for this category is in the ground truth string
+            for keyword in keywords:
+                # Use regex word boundaries to match whole words
+                if re.search(r"\b" + re.escape(keyword.lower()) + r"\b", search_string):
+                    return category
 
     # If no match is found (e.g., for a new negative control case)
     return None

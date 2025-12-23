@@ -241,6 +241,15 @@ def load_benchmark_dataset(file_path: str) -> BenchmarkDataset:
     """Load benchmark dataset from JSON file using Pydantic model."""
     with open(file_path) as f:
         data = json.load(f)
+
+    # Compatibility fix: ensure primary_diagnosis is a list
+    for case in data.get("cases", []):
+        if "ground_truth" in case and "primary_diagnosis" in case["ground_truth"]:
+            diagnosis = case["ground_truth"]["primary_diagnosis"]
+            if isinstance(diagnosis, str):
+                # Convert string to list for compatibility
+                case["ground_truth"]["primary_diagnosis"] = [diagnosis] if diagnosis else []
+
     return BenchmarkDataset(**data)
 
 
@@ -393,7 +402,12 @@ def render_ground_truth(case: HadmCase, label: str):
     """Render ground truth data."""
     st.markdown(f"**{label}**")
     if case.ground_truth:
-        st.write(f"**Primary Diagnosis:** {case.ground_truth.primary_diagnosis or 'N/A'}")
+        st.write("**Primary Diagnosis:**")
+        if case.ground_truth.primary_diagnosis:
+            for diagnosis in case.ground_truth.primary_diagnosis:
+                st.write(f"- {diagnosis}")
+        else:
+            st.write("N/A")
         if case.ground_truth.treatments:
             st.write("**Treatments:**")
             for treatment in case.ground_truth.treatments:

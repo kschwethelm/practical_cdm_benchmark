@@ -461,31 +461,31 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     return reports
 
 
-def get_ground_truth_diagnosis(cursor: psycopg.Cursor, hadm_id: int) -> str | None:
+def get_ground_truth_diagnosis(cursor: psycopg.Cursor, hadm_id: int) -> list[str]:
     """
-    Get the first primary discharge diagnosis for a given admission.
-    This represents the ground truth diagnosis.
+    Get all primary discharge diagnoses for a given admission.
 
     Args:
         cursor: Database cursor
         hadm_id: Hospital admission ID
 
     Returns:
-        Primary diagnosis string, or None if not found
+        List of primary diagnosis strings, empty list if not found
     """
     query = """
         SELECT title AS primary_diagnosis
         FROM cdm_note_extract.discharge_diagnosis
         WHERE hadm_id = %s
            AND is_primary = true
-           AND seq_num = 1
+        ORDER BY seq_num
     """
     cursor.execute(query, (hadm_id,))
-    result = cursor.fetchone()
+    results = cursor.fetchall()
 
-    if result:
-        return result[0]
-    return None
+    if not results:
+        return []
+
+    return [row[0] for row in results]
 
 
 def get_ground_truth_treatments_coded(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
