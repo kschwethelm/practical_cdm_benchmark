@@ -68,7 +68,7 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
                 {
                     "hadm_id": hadm_id,
                     "found": False,
-                    "diagnosis": case.get("ground_truth", {}).get("primary_diagnosis", "Unknown"),
+                    "diagnosis": case.get("ground_truth", {}).get("primary_diagnosis", []),
                 }
             )
             continue
@@ -79,7 +79,7 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
         comparison = {
             "hadm_id": hadm_id,
             "found": True,
-            "diagnosis": case.get("ground_truth", {}).get("primary_diagnosis", "Unknown"),
+            "diagnosis": case.get("ground_truth", {}).get("primary_diagnosis", []),
         }
 
         # 1. Patient History (text similarity)
@@ -358,30 +358,30 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
 
         # 6. Diagnosis
         cdm_diag = cdm_case.get("Discharge Diagnosis", "")
-        new_diag = case.get("ground_truth", {}).get("primary_diagnosis", "")
+        new_diagnoses = case.get("ground_truth", {}).get("primary_diagnosis", [])
 
-        # Normalize: censoring patterns, whitespace, lowercase, newlines...
+        # Normalize CDM diagnosis
         cdm_diag_normalized = cdm_diag.replace("___", "")
         cdm_diag_normalized = " ".join(cdm_diag_normalized.split()).strip().lower()
 
-        new_diag_normalized = new_diag.replace("[REDACTED]", "")
-        new_diag_normalized = " ".join(new_diag_normalized.split()).strip().lower()
-
-        # Split new diagnosis by comma and check if any part contains CDM diagnosis
-        new_diag_parts = [d.strip() for d in new_diag_normalized.split(",") if d.strip()]
-
-        # Check if CDM diagnosis is contained in any part of new diagnosis
+        # Check if any of the new diagnoses match the CDM diagnosis
         diagnosis_match = False
-        if new_diag_parts:
-            for part in new_diag_parts:
-                if part in cdm_diag_normalized or cdm_diag_normalized in part:
+        if new_diagnoses:
+            for new_diag in new_diagnoses:
+                new_diag_normalized = new_diag.replace("[REDACTED]", "")
+                new_diag_normalized = " ".join(new_diag_normalized.split()).strip().lower()
+
+                if (
+                    new_diag_normalized in cdm_diag_normalized
+                    or cdm_diag_normalized in new_diag_normalized
+                ):
                     diagnosis_match = True
                     break
 
         comparison["diagnosis_in_discharge"] = diagnosis_match
 
-        # Count diagnoses by commas for statistics
-        comparison["num_diagnoses"] = len([d.strip() for d in new_diag.split(",") if d.strip()])
+        # Count diagnoses
+        comparison["num_diagnoses"] = len(new_diagnoses)
 
         # 7. Demographics comparison
         new_demo = case.get("demographics", {})

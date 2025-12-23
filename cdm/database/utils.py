@@ -22,20 +22,26 @@ REGION_KEYWORDS = _config["region_keywords"]
 BAD_RAD_FIELDS = _config["bad_rad_fields"]
 
 
-def get_pathology_type_from_string(ground_truth_diagnosis: str) -> str | None:
+def get_pathology_type_from_string(ground_truth_diagnoses: list[str]) -> str | None:
     """
     Finds the matching 'pathology_type' (e.g., 'diverticulitis')
-    from a specific ground_truth string (e.g., 'Complicated diverticulitis...').
-    If multiple diagnoses are separated by commas, checks each part.
+    from a list of ground truth diagnoses.
+
+    Args:
+        ground_truth_diagnoses: List of diagnosis strings
+
+    Returns:
+        Pathology type string if found, None otherwise
     """
-    if not ground_truth_diagnosis:
+    if not ground_truth_diagnoses:
         return None
 
-    # Split by comma and check each part
-    diagnosis_parts = [part.strip() for part in ground_truth_diagnosis.split(",")]
+    # Check each diagnosis in the list
+    for diagnosis in ground_truth_diagnoses:
+        if not diagnosis:
+            continue
 
-    for diagnosis_part in diagnosis_parts:
-        search_string = diagnosis_part.lower()
+        search_string = diagnosis.lower()
 
         # Iterate through our keyword dictionary
         for category, keywords in DIAGNOSIS_SCRUB_KEYWORDS.items():

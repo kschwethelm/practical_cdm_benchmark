@@ -461,16 +461,16 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     return reports
 
 
-def get_ground_truth_diagnosis(cursor: psycopg.Cursor, hadm_id: int) -> str | None:
+def get_ground_truth_diagnosis(cursor: psycopg.Cursor, hadm_id: int) -> list[str]:
     """
-    Get all primary discharge diagnoses for a given admission, concatenated.
+    Get all primary discharge diagnoses for a given admission.
 
     Args:
         cursor: Database cursor
         hadm_id: Hospital admission ID
 
     Returns:
-        Primary diagnosis string, or None if not found
+        List of primary diagnosis strings, empty list if not found
     """
     query = """
         SELECT title AS primary_diagnosis
@@ -483,10 +483,9 @@ def get_ground_truth_diagnosis(cursor: psycopg.Cursor, hadm_id: int) -> str | No
     results = cursor.fetchall()
 
     if not results:
-        return None
+        return []
 
-    all_diagnoses = [row[0] for row in results]
-    return ", ".join(all_diagnoses)
+    return [row[0] for row in results]
 
 
 def get_ground_truth_treatments_coded(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
