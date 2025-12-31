@@ -5,6 +5,7 @@ host: "localhost"
 port: 8000
 
 enable-prefix-caching: true
+quantization: bitsandbytes
 
 max-model-len: 16384
 max_num_batched_tokens: 16384

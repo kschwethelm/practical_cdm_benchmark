@@ -81,7 +81,7 @@ class Treatment(BaseModel):
 class GroundTruth(BaseModel):
     """The ground truth for evaluation."""
 
-    primary_diagnosis: str | None = None
+    primary_diagnosis: list[str] = Field(default_factory=list)
     treatments: list[Treatment]
 
 
