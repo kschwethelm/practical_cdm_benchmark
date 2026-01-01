@@ -1,8 +1,10 @@
 import logging
+from json import JSONDecodeError
 
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 from loguru import logger
+from pydantic import ValidationError
 
 from cdm.benchmark.data_models import AgentRunResult, BenchmarkOutputCDM, BenchmarkOutputFullInfo
 from cdm.prompts.gen_prompt_cdm import create_system_prompt, create_user_prompt
@@ -114,6 +116,6 @@ async def run_agent_async(agent, patient_info: str) -> AgentRunResult:
         parsed_output = BenchmarkOutputCDM.model_validate_json(response["messages"][-1].content)
         messages_as_dicts = [msg.dict() for msg in response["messages"]]
         return AgentRunResult(parsed_output=parsed_output, messages=messages_as_dicts)
-    except Exception as e:
-        logger.warning(f"Skipping case due to error: {e}")
+    except (ValidationError, JSONDecodeError) as e:
+        logger.warning(f"Skipping case due to parsing error: {e}")
         return None
