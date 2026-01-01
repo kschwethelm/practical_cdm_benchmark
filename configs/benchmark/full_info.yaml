@@ -8,7 +8,7 @@ model_name: null
 results_output_path: null 
 results_output_paths:
   qwen3: outputs/results_qwen3_4b_full_info.jsonl
-  qwen3_30b: output/results_qwen3_30b_full_info.jsonl
+  qwen3_30b: outputs/results_qwen3_30b_full_info.jsonl
   openbio: outputs/results_openbio_8b_full_info.jsonl
   openbio_70b: outputs/results_openbio_70b_full_info.jsonl
   medgemma_4b: outputs/results_medgemma_4b_full_info.jsonl
