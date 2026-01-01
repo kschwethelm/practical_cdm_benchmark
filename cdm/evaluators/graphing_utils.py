@@ -5,13 +5,21 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 
-from cdm.evaluators.utils import calculate_avergae, count_treatment, count_unnecessary
+from cdm.evaluators.utils import calculate_average, count_treatment, count_unnecessary
 
 
-# Get scores from the jsonl results file for a specific model per pathology
-def read_jsonl(results_path: str) -> tuple[dict[list], list]:
+def read_jsonl(results_path: str) -> tuple[dict[str, list], list]:
+    """
+    Reads a jsonl results file for a specific model and groups results by pathology
+
+    :param results_path: Path to jsonl file
+    :type results_path: str
+    :return: Results group by pathology, list of scoring fields in the file
+    :rtype: tuple[dict[str, list], list]
+    """
     results = {"appendicitis": [], "cholecystitis": [], "diverticulitis": [], "pancreatitis": []}
     fields = []
+
     with open(results_path) as f:
         for line in f:
             if line.strip():
@@ -29,7 +37,16 @@ def read_jsonl(results_path: str) -> tuple[dict[list], list]:
     return results, fields
 
 
-def plot_graphs(model_paths: dict):
+def plot_graphs(model_paths: dict) -> tuple[dict, dict, dict]:
+    """
+    Compute average scores, sample counts, and percentages for given models.
+
+    :param model_paths: Mapping of model names to their jsonl results files.
+    :type model_paths: dict
+    :return: Average scores per field, model and pathology; Sample counts per field, model, and pathology;
+        Percentage scores per field, model, and pathology
+    :rtype: Tuple[dict, dict, dict]
+    """
     avg_scores = defaultdict(lambda: defaultdict(dict))
     avg_samples = defaultdict(lambda: defaultdict(dict))
     percentages = defaultdict(lambda: defaultdict(dict))
@@ -43,7 +60,7 @@ def plot_graphs(model_paths: dict):
                         results[pathology] = count_unnecessary(results[pathology], field)
                     if field == "Treatment Requested":
                         results[pathology] = count_treatment(results[pathology])
-                    avg, n = calculate_avergae(results[pathology], field)
+                    avg, n = calculate_average(results[pathology], field)
                     avg_scores[field][model_name][pathology] = avg
                     avg_samples[field][model_name][pathology] = n
                     if field == "Diagnosis":
@@ -53,7 +70,21 @@ def plot_graphs(model_paths: dict):
     return avg_scores, avg_samples, percentages
 
 
-def plot_grouped_bar_chart(data: dict, title: str, ylabel: str, save_path: str | None = None):
+def plot_grouped_bar_chart(
+    data: dict, title: str, ylabel: str, save_path: str | None = None
+) -> None:
+    """
+    Plot a grouped bar chart showing model performance per pathology
+
+    :param data: Data to plot per field, model and pathology
+    :type data: dict
+    :param title: Title of chart
+    :type title: str
+    :param ylabel: Label of y-axis
+    :type ylabel: str
+    :param save_path: Path to save chart to.
+    :type save_path: str | None
+    """
     pathologies = ["appendicitis", "cholecystitis", "pancreatitis", "diverticulitis"]
     x_labels = [p.capitalize() for p in pathologies] + ["Mean"]
     models = list(data.keys())
@@ -83,19 +114,33 @@ def plot_grouped_bar_chart(data: dict, title: str, ylabel: str, save_path: str |
     plt.show()
 
 
-def write_avg_samples_to_csv(avg_samples: dict, output_path: str):
-    pathologies = ["appendicitis", "cholecystitis", "pancreatitis", "diverticulitis"]
+def write_stats_to_csv(avg_samples: dict, output_path: str) -> None:
+    """
+    Save the breakdown of sample counts per pathology and model.
 
+    :param avg_samples: Sample counts per field, model and pathology.
+    :type avg_samples: dict
+    :param output_path: Path to output csv file.
+    :type output_path: str
+    """
+    pathologies = ["appendicitis", "cholecystitis", "pancreatitis", "diverticulitis"]
+    model_counts = {}
+    for _, models in avg_samples.items():
+        for model, pathology_counts in models.items():
+            if model not in model_counts:
+                model_counts[model] = {p: 0 for p in pathologies}
+
+            for p in pathologies:
+                model_counts[model][p] += pathology_counts.get(p, 0)
     with open(output_path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["Field", "Model"] + [p.capitalize() for p in pathologies] + ["Total_N"])
+        writer.writerow(["Model"] + [p.capitalize() for p in pathologies] + ["Total"])
 
-        for field, models in avg_samples.items():
-            for model, pathology_counts in models.items():
-                counts = [pathology_counts.get(p, 0) for p in pathologies]
-                total_n = sum(counts)
+        for model, pathology_counts in models.items():
+            counts = [pathology_counts.get(p, 0) for p in pathologies]
+            total_n = sum(counts)
 
-                writer.writerow([field, model] + counts + [total_n])
+            writer.writerow([model] + counts + [total_n])
 
 
 if __name__ == "__main__":
@@ -118,7 +163,7 @@ if __name__ == "__main__":
     }
 
     _, _, cdm_percentages = plot_graphs(model_paths["cdm"])
-    _, _, full_info_percentages = plot_graphs(model_paths["full_info"])
+    _, sample_count, full_info_percentages = plot_graphs(model_paths["full_info"])
     _, _, new_model_percentages = plot_graphs(model_paths["new"])
 
     plot_grouped_bar_chart(
@@ -141,3 +186,4 @@ if __name__ == "__main__":
         ylabel="Accuracy (%)",
         save_path="outputs/diagnosis_full_info_new_accuracy.png",
     )
+    write_stats_to_csv(sample_count, "outputs/full_info_sample_count.csv")

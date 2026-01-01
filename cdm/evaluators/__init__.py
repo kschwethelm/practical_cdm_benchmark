@@ -6,6 +6,14 @@ from cdm.evaluators.pancreatitis_evaluator import PancreatitisEvaluator
 
 
 def get_evaluator(pathology: Pathology, ground_truth: GroundTruth):
+    """
+    Returns the appropriate evaluator for given pathology
+
+    :param pathology: Pathology object specifying which evaluator to use.
+    :type pathology: Pathology
+    :param ground_truth: Case ground truth to instantiate evaluator
+    :type ground_truth: GroundTruth
+    """
     evaluator_map = {
         Pathology.APPENDICITIS: AppendicitisEvaluator,
         Pathology.CHOLECYSTITIS: CholecystitisEvaluator,

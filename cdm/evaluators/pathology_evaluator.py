@@ -13,6 +13,11 @@ LAB_TEST_MAPPING_DF = load_lab_test_mapping()
 
 
 class PathologyEvaluator:
+    """
+    Base evaluator class that implements evaluation pipeline + general evaluation for diagnosis and labs.
+    Subclasses define how imaging and treatments are evaluated.
+    """
+
     FUZZY_MATCH_THRESHOLD = 90
     pathology: str = ""
     alternative_pathology_names: list[dict] = []
@@ -21,6 +26,14 @@ class PathologyEvaluator:
     neutral_lab_tests: list[str] = []
 
     def __init__(self, ground_truth: GroundTruth, pathology: Pathology):
+        """
+        Initialize evaluator with ground truth data and ground truth pathology.
+
+        :param ground_truth: Ground truth diagnosis and treatments.
+        :type ground_truth: GroundTruth
+        :param pathology: Pathology corresponding to evaluator type.
+        :type pathology: Pathology
+        """
         self.grounded_treatment = ground_truth.treatments
         self.grounded_diagnosis = ground_truth.primary_diagnosis
         if pathology:
@@ -50,7 +63,15 @@ class PathologyEvaluator:
 
         self.explanations = {"Imaging": "", "Physical": "", "Diagnosis": ""}
 
-    def evaluate_case(self, output: AgentRunResult | BenchmarkOutputFullInfo):
+    def evaluate_case(self, output: AgentRunResult | BenchmarkOutputFullInfo) -> dict:
+        """
+        Evaluate model's predictions for a single case against ground truth.
+
+        :param output: Model's output (either final prediction, or a tool call)
+        :type output: AgentRunResult | BenchmarkOutputFullInfo
+        :return: Evaluation for diagnosis accuracy + tool calling, if available
+        :rtype: dict
+        """
         if isinstance(output, BenchmarkOutputFullInfo):
             self.answers["Diagnosis"] = output.diagnosis
             self.score_diagnosis()
@@ -93,6 +114,12 @@ class PathologyEvaluator:
         return self.answers, self.scores
 
     def score_physical_exam(self, idx: int):
+        """
+        Score physical exam tool.
+
+        :param idx: Index of the tool call in the sequence of tool calls made by model.
+        :type idx: int
+        """
         if idx == 0:  # physical exam is the first tool called
             self.scores["Physical Examination"] = 1
             self.scores["Late Physical Examination"] = 1
@@ -105,6 +132,12 @@ class PathologyEvaluator:
                 )
 
     def score_lab(self, tool_call: dict):
+        """
+        Score lab tool call.
+
+        :param tool_call: the tool call made by the model, contains the name of the lab requested.
+        :type tool_call: dict
+        """
         args = tool_call.get("args")
         test_name = args.get("test_name")
         test_id = convert_labs_to_itemid(test_name, LAB_TEST_MAPPING_DF)
@@ -119,6 +152,12 @@ class PathologyEvaluator:
                 self.answers["Unnecessary Laboratory Tests"].append(test_id)
 
     def score_imaging_action(self, tool_call: dict):
+        """
+        Check whether imaging requested was necessary.
+
+        :param tool_call: the tool call made by the model, contains the modality of the imaging and the region to image.
+        :type tool_call: dict
+        """
         args = tool_call.get("args")
         modality = args.get("modality").lower()
         region = args.get("region").lower()
@@ -133,6 +172,10 @@ class PathologyEvaluator:
             self.answers["Correct Imaging"].append(imaging_dict)
 
     def score_diagnosis(self):
+        """
+        Check whether predicted diagnosis matches ground truth diagnosis, and to what degree.
+
+        """
         answer = self.answers["Diagnosis"].lower()
         for word in answer.split():
             if fuzz.ratio(word, self.pathology) > self.FUZZY_MATCH_THRESHOLD and keyword_positive(
@@ -175,7 +218,20 @@ class PathologyEvaluator:
                     return
 
     def score_imaging(self, region: str, modality: str) -> bool:
+        """
+        Score the imaging based on what modality was requested and if the imaged region is correct.
+
+        :param region: Requested region to image (e.g., "Abdomen")
+        :type region: str
+        :param modality: Requested imaging modality (e.g., "US", "CT", etc)
+        :type modality: str
+        :return: return True if correct region and one of correct modalities (even if not preferred modality)
+        :rtype: bool
+        """
         return
 
     def score_treatment(self):
+        """
+        Score the treatments requested based on necessity and correctness.
+        """
         return
