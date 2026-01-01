@@ -119,9 +119,3 @@ def main(cfg: DictConfig):
 # Run example: "python scripts/run_benchmark_full_info.py model_name=qwen3"
 if __name__ == "__main__":
     main()
-
-
-# Errors:
-# openai.BadRequestError: Error code: 400 - {'error': {'message': "This model's maximum context length is 16384 tokens.
-# However, your request has 17118 input tokens. Please reduce the length of the input messages.
-# None", 'type': 'BadRequestError', 'param': None, 'code': 400}}
