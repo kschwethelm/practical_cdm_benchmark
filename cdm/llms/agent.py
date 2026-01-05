@@ -87,6 +87,18 @@ def build_agent(llm: ChatOpenAI, enabled_tools: list[str]):
     return agent
 
 
+def strip_markdown_json(content: str) -> str:
+    """Remove markdown code block wrapper from JSON content."""
+    content = content.strip()
+    if content.startswith("```json"):
+        content = content[7:]  # Remove ```json
+    elif content.startswith("```"):
+        content = content[3:]  # Remove ```
+    if content.endswith("```"):
+        content = content[:-3]  # Remove trailing ```
+    return content.strip()
+
+
 async def run_agent_async(agent, patient_info: str) -> AgentRunResult:
     """Invoke agent with patient information and return parsed diagnosis output and full conversation history.
 
@@ -111,6 +123,9 @@ async def run_agent_async(agent, patient_info: str) -> AgentRunResult:
         }
     )
 
-    parsed_output = BenchmarkOutputCDM.model_validate_json(response["messages"][-1].content)
+    last_message_content = response["messages"][-1].content
+    cleaned_content = strip_markdown_json(last_message_content)
+    parsed_output = BenchmarkOutputCDM.model_validate_json(cleaned_content)
+
     messages_as_dicts = [msg.dict() for msg in response["messages"]]
     return AgentRunResult(parsed_output=parsed_output, messages=messages_as_dicts)

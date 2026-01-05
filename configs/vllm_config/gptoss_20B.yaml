@@ -1,0 +1,15 @@
+model: "openai/gpt-oss-20b" 
+download_dir: /srv/llm-weights
+served-model-name: "default"
+host: "localhost"
+port: 8000
+
+enable-prefix-caching: true
+quantization: mxfp4
+
+tensor-parallel-size: 1
+
+max-model-len: 16384
+
+enable-auto-tool-choice: true
+tool-call-parser: openai
