@@ -109,15 +109,6 @@ def main(cfg: DictConfig):
     The LLM is provided all information upfront (LLM as second reader).
     Cases are processed concurrently to maximize throughput.
     """
-    model_name = cfg.model_name
-    if model_name is None:
-        raise ValueError("model_name must be specified in config or via command line override")
-    if model_name not in cfg.results_output_paths:
-        raise ValueError(
-            f"Unknown model_name: {model_name}. Available: {list(cfg.results_output_paths.keys())}"
-        )
-    cfg.results_output_path = cfg.results_output_paths.get(model_name)
-
     asyncio.run(run_benchmark(cfg))
 
 

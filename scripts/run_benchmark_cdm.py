@@ -118,8 +118,6 @@ def main(cfg: DictConfig):
     make a diagnosis based on the patient's history. Cases are processed
     concurrently to maximize throughput.
     """
-    model_name = cfg.model_name
-    cfg.results_output_path = cfg.results_output_paths.get(model_name)
     asyncio.run(run_benchmark(cfg))
 
 

@@ -5,11 +5,4 @@ defaults:
 # Path to save benchmark results in JSONL format (one result per line)
 # Set to null to disable output file writing
 model_name: null
-results_output_path: null 
-results_output_paths:
-  qwen3: outputs/results_qwen3_4b_cdm.jsonl
-  qwen3_30b: outputs/results_qwen3_30b_cdm.jsonl
-  openbio: outputs/results_openbio_cdm.jsonl
-  openbio_70b: outputs/results_openbio_70b_cdm.jsonl
-  medgemma: outputs/results_medgemma_4b_cdm.jsonl
-  llama3: outputs/results_llama3_70b_cdm.jsonl
+results_output_path: outputs/results_${model_name}_cdm.jsonl 
