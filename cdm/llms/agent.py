@@ -1,10 +1,8 @@
 import logging
-from json import JSONDecodeError
 
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 from loguru import logger
-from pydantic import ValidationError
 
 from cdm.benchmark.data_models import AgentRunResult, BenchmarkOutputCDM, BenchmarkOutputFullInfo
 from cdm.prompts.gen_prompt_cdm import create_system_prompt, create_user_prompt
