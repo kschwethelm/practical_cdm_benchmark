@@ -1,0 +1,18 @@
+model: nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16 
+download_dir: /srv/llm-weights
+served-model-name: "default"
+host: "localhost"
+port: 8000
+
+enable-prefix-caching: true
+
+max-model-len: 16384 
+tensor-parallel-size: 1 
+
+# Required since it has custom HuggingFace code
+trust-remote-code: true
+
+hf-overrides: '{"rms_norm_eps": 1e-5}'
+
+enable-auto-tool-choice: true
+tool-call-parser: "pythonic"
