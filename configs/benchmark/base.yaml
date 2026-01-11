@@ -1,5 +1,6 @@
 benchmark_data_path: database/output/benchmark_data.json
 
+# num_cases: 2398
 num_cases: 10
 
 # vLLM server configuration
