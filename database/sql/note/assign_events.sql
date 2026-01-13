@@ -17,7 +17,14 @@ SET CLIENT_ENCODING TO 'utf8';
 DROP TABLE IF EXISTS mimiciv_note.radiology_assigned;
 CREATE TABLE mimiciv_note.radiology_assigned AS
 SELECT
-    r.*
+    r.note_id,
+    r.subject_id,
+    subquery.hadm_id,
+    r.note_type,
+    r.note_seq,
+    r.charttime,
+    r.storetime,
+    r.text
 FROM mimiciv_note.radiology r
 INNER JOIN (
     SELECT
