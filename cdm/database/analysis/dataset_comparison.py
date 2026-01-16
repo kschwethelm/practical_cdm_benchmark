@@ -198,13 +198,9 @@ def compare_datasets(new_dataset_path, cdm_v1_dir="/srv/student/cdm_v1", output_
         new_rad_with_note_id = [r for r in new_rad_reports if "note_id" in r and r["note_id"]]
         comparison["new_radiology_have_note_id"] = len(new_rad_with_note_id)
 
-        # Compare exam names
-        cdm_exams = {
-            r.get("Exam Name", "").strip().lower() for r in cdm_rad_reports if r.get("Exam Name")
-        }
-        new_exams = {
-            r.get("exam_name", "").strip().lower() for r in new_rad_reports if r.get("exam_name")
-        }
+        # Compare note IDs
+        cdm_exams = {str(r.get("Note ID", "")) for r in cdm_rad_reports if r.get("Note ID")}
+        new_exams = {str(r.get("note_id", "")) for r in new_rad_reports if r.get("note_id")}
 
         if cdm_exams or new_exams:
             comparison["radiology_exam_overlap"] = len(cdm_exams & new_exams)
