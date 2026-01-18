@@ -120,6 +120,30 @@ def add_imaging_reports(case: HadmCase) -> dict:
     return {"imaging_reports": imaging_results}
 
 
+def add_imaging_reports_abdomen_only(case: HadmCase) -> dict:
+    """Format imaging reports filtered to abdomen region only (MIMIC-CDM approach).
+
+    This matches the MIMIC-CDM paper's approach of only including abdominal imaging
+    for the full information task.
+
+    Args:
+        case: HadmCase Pydantic model containing radiology reports.
+
+    Returns:
+        dict: Dictionary with formatted imaging reports string (abdomen only).
+    """
+    imaging_results = ""
+    for imaging in case.radiology_reports:
+        if imaging.region == "Abdomen":
+            modality = imaging.modality or ""
+            reports = imaging.text or "Unknown"
+
+            imaging_results += f"{modality} {imaging.region}\n"
+            imaging_results += f"{reports}\n\n"
+
+    return {"imaging_reports": imaging_results.strip()}
+
+
 def add_microbiology_results(case: HadmCase) -> dict:
     """Format microbiology test results from case.
 
@@ -157,6 +181,27 @@ def gather_all_info(case: HadmCase) -> dict:
     info.update(add_clinical_history(case))
     info.update(add_laboratory_tests(case))
     info.update(add_imaging_reports(case))
+    info.update(add_microbiology_results(case))
+
+    return info
+
+
+def gather_all_info_abdomen_only(case: HadmCase) -> dict:
+    """Gather clinical information with abdomen-only imaging (MIMIC-CDM approach).
+
+    This matches the MIMIC-CDM paper's approach of only including abdominal imaging
+    for the full information task.
+
+    Args:
+        case: HadmCase Pydantic model containing all clinical data.
+
+    Returns:
+        dict: Dictionary with all formatted clinical information (abdomen imaging only).
+    """
+    info = {}
+    info.update(add_clinical_history(case))
+    info.update(add_laboratory_tests(case))
+    info.update(add_imaging_reports_abdomen_only(case))
     info.update(add_microbiology_results(case))
 
     return info
