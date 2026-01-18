@@ -295,7 +295,9 @@ def derive_modality(exam_name: str, text: str) -> str:
     # Derive Modality from exam_name
     modality = "Unknown"
     for mod, keywords in MODALITY_KEYWORDS.items():
-        pattern = r"\b(" + "|".join(re.escape(kw) for kw in keywords) + r")\b"
+        # Use word boundary at start, but lookahead for non-word or end at the end
+        # This handles keywords with punctuation like "U.S."
+        pattern = r"\b(" + "|".join(re.escape(kw) for kw in keywords) + r")(?=\W|$)"
         if re.search(pattern, exam_upper):
             modality = mod
             break
@@ -306,7 +308,7 @@ def derive_modality(exam_name: str, text: str) -> str:
     if modality == "Unknown" and text:
         text_upper = text.upper()
         for mod, keywords in MODALITY_KEYWORDS.items():
-            pattern = r"\b(" + "|".join(re.escape(kw) for kw in keywords) + r")\b"
+            pattern = r"\b(" + "|".join(re.escape(kw) for kw in keywords) + r")(?=\W|$)"
             if re.search(pattern, text_upper):
                 modality = mod
                 break

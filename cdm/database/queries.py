@@ -1,4 +1,5 @@
 import re
+from itertools import groupby
 
 import psycopg
 from loguru import logger
@@ -387,6 +388,7 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     """
     Get the first entry of each radiology report for a given admission.
     Uses window function to find earliest report for each unique note_id.
+    If the first report has unknown modality/region, tries the next rank.
 
     Args:
         cursor: Database cursor
@@ -397,26 +399,27 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     """
     query = """
         WITH CombinedRadiology AS (
-            SELECT note_id, hadm_id, text, charttime
+            SELECT note_id, hadm_id, text, charttime, storetime
             FROM cdm_note.radiology
             WHERE hadm_id = %s
 
             UNION ALL
 
-            SELECT note_id, hadm_id, text, charttime
+            SELECT note_id, hadm_id, text, charttime, storetime
             FROM cdm_note.radiology_assigned
             WHERE hadm_id = %s
         ),
         FilteredRadiology AS (
             SELECT
                 rad.charttime,
+                rad.storetime,
                 det.field_value AS exam_name,
                 rad.text AS findings,
                 rad.note_id
             FROM CombinedRadiology rad
             JOIN cdm_note.radiology_detail det ON rad.note_id = det.note_id
             WHERE rad.text IS NOT NULL
-                AND det.field_name = 'exam_name'
+                AND (det.field_name = 'exam_name' OR det.field_name = 'parent_note_id')
         ),
         RankedRadiology AS (
             SELECT
@@ -424,39 +427,46 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
                 exam_name,
                 findings,
                 note_id,
-                ROW_NUMBER() OVER(PARTITION BY note_id ORDER BY charttime ASC) as rn
+                ROW_NUMBER() OVER(PARTITION BY note_id ORDER BY charttime ASC, storetime ASC NULLS LAST) as rn
             FROM FilteredRadiology
         )
         SELECT
             exam_name,
             findings,
-            note_id
+            note_id,
+            rn,
+            charttime
         FROM RankedRadiology
-        WHERE rn = 1
-        ORDER BY charttime;
+        ORDER BY note_id, rn;
     """
     cursor.execute(query, (hadm_id, hadm_id))
     results = cursor.fetchall()
 
+    # Group by note_id and select first valid report per note
     reports = []
-    for row in results:
-        modality = derive_modality(row[0], row[1])
-        region = derive_region(row[0], row[1])
-        text = extract_findings_from_report(row[1])
 
-        # Skip reports with unknown modality/region or empty text
-        if modality == "Unknown" or region == "Unknown" or not text or not text.strip():
-            continue
+    for note_id, group in groupby(results, key=lambda x: x[2]):
+        # Try each rank in order until we find one with valid modality/region
+        for row in group:
+            modality = derive_modality(row[0], row[1])
+            region = derive_region(row[0], row[1])
+            text = extract_findings_from_report(row[1])
 
-        reports.append(
-            {
-                "exam_name": row[0],
-                "modality": modality,
-                "region": region,
-                "text": text,
-                "note_id": row[2],
-            }
-        )
+            # Skip if unknown modality/region or empty text, try next rank
+            if modality == "Unknown" or region == "Unknown" or not text or not text.strip():
+                continue
+
+            # Found valid report, add it and stop looking at other ranks for this note_id
+            reports.append(
+                {
+                    "exam_name": row[0],
+                    "modality": modality,
+                    "region": region,
+                    "text": text,
+                    "note_id": note_id,
+                }
+            )
+            break  # Only take first valid report per note_id
 
     return reports
 
