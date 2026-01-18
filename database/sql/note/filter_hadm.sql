@@ -64,9 +64,11 @@ INNER JOIN temp_discharge_note_filter f ON d.note_id = f.note_id;
 
 SELECT 'Filtered discharge_detail: ' || COUNT(*) AS status FROM cdm_note.discharge_detail;
 
--- Filter radiology_detail (references radiology note_id)
+-- Filter radiology_detail (references radiology note_id from both radiology tables)
 CREATE TEMP TABLE temp_radiology_note_filter AS
-SELECT DISTINCT note_id FROM cdm_note.radiology;
+SELECT DISTINCT note_id FROM cdm_note.radiology
+UNION
+SELECT DISTINCT note_id FROM cdm_note.radiology_assigned;
 
 CREATE TABLE cdm_note.radiology_detail AS
 SELECT r.* FROM mimiciv_note.radiology_detail r

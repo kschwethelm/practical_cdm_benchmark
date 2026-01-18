@@ -31,24 +31,41 @@ modality_keywords:
   CT:
     - CT
     - CTA
+    - CTU
+    - MDCT
     - COMPUTED TOMOGRAPHY
   MRI:
     - MR
     - MRI
     - MRA
+    - MRE
     - MAGNETIC RESONANCE
+    - TESLA
+    - GADAVIST
   Ultrasound:
     - US
+    - U.S.
+    - DUP
     - ULTRASOUND
     - SONOGRAM
     - DUPLEX
+    - DOPPLER
+    - ECHOGENIC
+    - ECHOTEXTURE
   Radiograph:
     - XR
     - X-RAY
     - RADIOGRAPH
-    - CHEST (
-    - ABDOMEN (
-    - PELVIS (
+    - CHEST
+    - ABDOMEN
+    - PELVIS
+    - AP
+    - PA
+    - CXR
+    - PORT.
+    - PORTABLE
+    - SINGLE VIEW
+    - TWO VIEWS
   NM:
     - NM
     - NUCLEAR
@@ -61,6 +78,9 @@ modality_keywords:
     - ERCP
   MRCP:
     - MRCP
+  Mammogram:
+    - MAMMO
+    - MAMMOGRAM
   Upper GI Series:
     - BAS/UGI
     - SBFT
@@ -77,10 +97,41 @@ region_keywords:
     - SPLEEN
     - RENAL
     - KIDNEY
+    - RETROPERITONEAL
+    - PERITONEAL
+    - PERITINEAL
+    - GI
+    - UGI
+    - UPPER GI
+    - SMALL BOWEL
+    - STOMACH
+    - BOWEL
+    - COLON
+    - RECTUM
+    - ILEUM
+    - DUODENUM
+    - APPENDIX
+    - URINARY
+    - BLADDER
+    - URETER
+    - ADRENAL
+    - ASCITES
+    - PROSTATE
+    - UTERUS
+    - PELVI
+    - HEPATIC
+    - GASTRO
+    - QUADRANT
+    - PSOAS
   Chest:
     - CHEST
     - THORAX
     - LUNG
+    - HEART
+    - CARDIAC
+    - MEDIASTIN
+    - PLEURA
+    - BREAST
   Pelvis:
     - PELVIS
     - PELVIC
@@ -88,15 +139,18 @@ region_keywords:
     - HEAD
     - BRAIN
     - CRANIUM
+    - SKULL
     - SINUS
   Neck:
     - NECK
     - CERVICAL
+    - THYROID
   Spine:
     - SPINE
     - LUMBAR
     - THORACIC
   Extremity:
+    - EXTREMITY
     - KNEE
     - SHOULDER
     - HIP
@@ -104,6 +158,29 @@ region_keywords:
     - LEG
     - FOOT
     - HAND
+    - ANKLE
+    - WRIST
+    - FINGER
+    - THIGH
+    - FEMUR
+  Scrotum:
+    - SCROTUM
+    - SCROTAL
+    - TESTIC
+  Venous:
+    - VENOUS
+    - VEIN
+    - VEINS
+    - VASCULAR
+    - DOPPLER
+    - JUGULAR
+    - CEPHALIC
+    - AXILLARY
+    - BASILIC
+    - BRACHIAL
+    - POPLITEAL
+    - FEMORAL
+    - TIBIAL
 
 # Radiology report sections to exclude when extracting findings
 # These sections typically contain information that should not be used for diagnosis
