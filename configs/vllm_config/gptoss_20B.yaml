@@ -1,12 +1,15 @@
-model: "google/gemma-3-27b-it" 
+model: "openai/gpt-oss-20b" 
 download_dir: /srv/llm-weights
 served-model-name: "default"
 host: "localhost"
 port: 8000
 
 enable-prefix-caching: true
-quantization: bitsandbytes
+quantization: mxfp4
+
+tensor-parallel-size: 1
 
 max-model-len: 16384
-max_num_batched_tokens: 16384
-tensor-parallel-size: 1
+
+enable-auto-tool-choice: true
+tool-call-parser: openai

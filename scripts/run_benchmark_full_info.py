@@ -12,6 +12,7 @@ import hydra
 from langchain_openai import ChatOpenAI
 from loguru import logger
 from omegaconf import DictConfig
+from openai import BadRequestError, LengthFinishReasonError
 from tqdm.asyncio import tqdm
 from transformers import PreTrainedTokenizerBase
 
@@ -59,8 +60,20 @@ async def process_case(
             )
 
         user_prompt = create_user_prompt(patient_info_dict)
-        output = await run_llm_async(llm, system_prompt, user_prompt)
-
+        if not case.pathology:
+            logger.warning(f"No pathology for case: {case.hadm_id}")
+            return None
+        try:
+            output = await run_llm_async(llm, system_prompt, user_prompt)
+        except BadRequestError as e:
+            if "maximum context length" in str(e).lower():
+                logger.error(f"Skipping case {case.hadm_id} due to context length overflow.")
+            else:
+                logger.error(f"{case.hadm_id} resulted in error {e}")
+            return None
+        except LengthFinishReasonError:
+            logger.error(f"Skipping case {case.hadm_id} due to model output token overflow")
+            return None
         return case, output
 
 
@@ -111,10 +124,13 @@ async def run_benchmark(cfg: DictConfig):
     # Process with async progress bar and write results incrementally
     results = []
     for coro in tqdm.as_completed(tasks, total=len(tasks), desc="Processing cases"):
-        case, output = await coro
+        result = await coro
+        if result is None:
+            continue
+
+        case, output = result
         results.append((case, output))
 
-        print(case.pathology)
         evaluator = PathologyEvaluator(case.ground_truth, case.pathology)
         scores = evaluator.evaluate_case(output)
 
@@ -145,5 +161,6 @@ def main(cfg: DictConfig):
     asyncio.run(run_benchmark(cfg))
 
 
+# Run example: "python scripts/run_benchmark_full_info.py model_name=qwen3"
 if __name__ == "__main__":
     main()
