@@ -1,4 +1,4 @@
-model: "mistralai/Devstral-Small-2-24B-Instruct-2512" 
+model: "mistralai/Mistral-Small-3.2-24B-Instruct-2506" 
 download_dir: /srv/llm-weights
 served-model-name: "default"
 host: "localhost"
