@@ -14,7 +14,6 @@ from loguru import logger
 from omegaconf import DictConfig
 from openai import BadRequestError, LengthFinishReasonError
 from tqdm.asyncio import tqdm
-from transformers import PreTrainedTokenizerBase
 
 from cdm.benchmark.data_models import BenchmarkOutputFullInfo, EvalOutputFullInfo, HadmCase
 from cdm.benchmark.utils import (
@@ -34,7 +33,7 @@ async def process_case(
     system_prompt: str,
     case: HadmCase,
     semaphore: asyncio.Semaphore,
-    tokenizer: PreTrainedTokenizerBase | None,
+    tokenizer,
     max_context_length: int,
     cfg: DictConfig,
 ) -> tuple[HadmCase, BenchmarkOutputFullInfo]:
@@ -92,7 +91,7 @@ async def run_benchmark(cfg: DictConfig):
         logger.info("Summarization enabled, querying vLLM server for model info...")
         try:
             model_name, max_context_length = get_model_info_from_server(cfg.base_url)
-            tokenizer = load_tokenizer(model_name)
+            tokenizer = load_tokenizer(cfg.base_url, model_name)
         except RuntimeError as e:
             logger.error(f"Failed to get model info from server: {e}")
             logger.warning("Falling back to no summarization")

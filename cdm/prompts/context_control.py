@@ -15,11 +15,10 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 from langchain_openai import ChatOpenAI
 from loguru import logger
-from transformers import PreTrainedTokenizerBase
 
 from cdm.benchmark.data_models import HadmCase
 from cdm.prompts.gen_prompt_full_info import create_user_prompt
-from cdm.prompts.text_utils import calculate_num_tokens, truncate_text
+from cdm.prompts.text_utils import VLLMTokenizer, calculate_num_tokens, truncate_text
 
 # Load Jinja2 environment for templates
 TEMPLATE_DIR = Path(__file__).parent
@@ -82,7 +81,7 @@ async def summarize_single_report(
 async def summarize_imaging_reports(
     llm: ChatOpenAI,
     case: HadmCase,
-    tokenizer: PreTrainedTokenizerBase,
+    tokenizer: VLLMTokenizer,
     max_imaging_tokens: int,
     summarization_prompt: str,
 ) -> str:
@@ -152,7 +151,7 @@ async def control_context_length(
     patient_info: dict,
     case: HadmCase,
     system_prompt: str,
-    tokenizer: PreTrainedTokenizerBase,
+    tokenizer: VLLMTokenizer,
     max_context_length: int,
     final_diagnosis_tokens: int = 25,
 ) -> dict:
@@ -181,8 +180,7 @@ async def control_context_length(
 
     # Step 1: Check current token count (all imaging regions)
     user_prompt = create_user_prompt(patient_info)
-    full_prompt = system_prompt + user_prompt
-    initial_tokens = calculate_num_tokens(tokenizer, full_prompt)
+    initial_tokens = tokenizer.count_chat_tokens(system_prompt, user_prompt)
 
     logger.info(f"Step 1 - All imaging: {initial_tokens} / {available_tokens} tokens")
 
@@ -196,8 +194,7 @@ async def control_context_length(
     patient_info["imaging_reports"] = abdomen_only_imaging
 
     user_prompt = create_user_prompt(patient_info)
-    full_prompt = system_prompt + user_prompt
-    current_tokens = calculate_num_tokens(tokenizer, full_prompt)
+    current_tokens = tokenizer.count_chat_tokens(system_prompt, user_prompt)
 
     logger.info(f"Step 2 - Abdomen only: {current_tokens} / {available_tokens} tokens")
 
@@ -210,7 +207,7 @@ async def control_context_length(
     patient_info_no_imaging = patient_info.copy()
     patient_info_no_imaging["imaging_reports"] = ""
     user_prompt_no_imaging = create_user_prompt(patient_info_no_imaging)
-    tokens_without_imaging = calculate_num_tokens(tokenizer, system_prompt + user_prompt_no_imaging)
+    tokens_without_imaging = tokenizer.count_chat_tokens(system_prompt, user_prompt_no_imaging)
     max_imaging_tokens = available_tokens - tokens_without_imaging
 
     logger.info(f"Max tokens for imaging: {max_imaging_tokens}")
@@ -237,7 +234,7 @@ async def control_context_length(
 
     # Log final stats
     final_user_prompt = create_user_prompt(patient_info)
-    final_tokens = calculate_num_tokens(tokenizer, system_prompt + final_user_prompt)
+    final_tokens = tokenizer.count_chat_tokens(system_prompt, final_user_prompt)
     compression_ratio = (initial_tokens - final_tokens) / initial_tokens * 100
 
     logger.success(
