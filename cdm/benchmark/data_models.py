@@ -149,8 +149,18 @@ class AgentRunResult(BaseModel):
     messages: list[dict]  # Full conversation history with tool calls
 
     @property
-    def num_tool_calls(self) -> int:
-        return sum(1 for msg in self.messages if msg.get("type") == "tool")
+    def tool_calls(self) -> dict[str, int]:
+        """Count occurrences of each tool call type"""
+        counts: dict[str, int] = {}
+        total = 0
+        for msg in self.messages:
+            if "tool_calls" in msg and msg["tool_calls"]:
+                for tc in msg["tool_calls"]:
+                    name = tc.get("name", "unknown")
+                    counts[name] = counts.get(name, 0) + 1
+                    total += 1
+        counts["total"] = total
+        return counts
 
 
 class EvalOutput(BaseModel):
@@ -160,7 +170,7 @@ class EvalOutput(BaseModel):
     ground_truth: GroundTruth
     pathology: str
     prediction: BenchmarkOutputCDM
-    num_tool_calls: int
+    tool_calls: dict[str, int]
     answers: dict
     scores: dict
 

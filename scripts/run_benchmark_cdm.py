@@ -99,7 +99,7 @@ async def run_benchmark(cfg: DictConfig):
                 ground_truth=case.ground_truth,
                 pathology=case.pathology.value,
                 prediction=output.parsed_output,
-                num_tool_calls=output.num_tool_calls,
+                tool_calls=output.tool_calls,
                 answers=answers,
                 scores=scores,
             )
