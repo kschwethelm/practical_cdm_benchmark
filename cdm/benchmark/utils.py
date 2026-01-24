@@ -4,9 +4,8 @@ from pathlib import Path
 
 from loguru import logger
 
-from cdm.benchmark.data_models import BenchmarkDataset, HadmCase
+from cdm.benchmark.data_models import BenchmarkDataset, HadmCase, Pathology
 from cdm.prompts.utils import get_diagnosis_criteria
-from cdm.benchmark.data_models import Pathology
 
 
 def load_cases(benchmark_path: Path, num_cases: int = None) -> BenchmarkDataset:

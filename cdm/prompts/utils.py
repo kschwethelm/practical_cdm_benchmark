@@ -1,8 +1,8 @@
 import enum
+from pathlib import Path
 from typing import Any, Literal, get_args, get_origin
 
 from pydantic import BaseModel
-from pathlib import Path
 
 CRITERIA_DIR = Path(__file__).parent / "diagnosis_criterias"
 
