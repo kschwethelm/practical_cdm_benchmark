@@ -1,6 +1,6 @@
 from cdm.tools.context import get_current_case, set_current_case
-from cdm.tools.labs import request_lab_test
 from cdm.tools.diagnosis_criteria import retrieve_diagnosis_criteria
+from cdm.tools.labs import request_lab_test
 from cdm.tools.physical_exam import physical_examination
 from cdm.tools.radiology import request_imaging
 
