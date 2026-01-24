@@ -6,6 +6,7 @@ from loguru import logger
 
 from cdm.benchmark.data_models import BenchmarkDataset, HadmCase
 from cdm.prompts.utils import get_diagnosis_criteria
+from cdm.benchmark.data_models import Pathology
 
 
 def load_cases(benchmark_path: Path, num_cases: int = None) -> BenchmarkDataset:
@@ -151,17 +152,16 @@ def add_diagnosis_criteria() -> dict:
     Returns:
         dict: Dictionary with combined diagnosis criteria for all pathologies.
     """
-    pathologies = ["appendicitis", "cholecystitis", "diverticulitis", "pancreatitis"]
-    
+
     criteria_parts = []
-    for pathology in pathologies:
-        criteria = get_diagnosis_criteria(pathology)
+    for pathology in Pathology:
+        criteria = get_diagnosis_criteria(pathology.value)
         if criteria:
             criteria_parts.append(criteria)
-    
+
     if criteria_parts:
         return {"diagnosis_criteria": "\n\n".join(criteria_parts)}
-    
+
     return {}
 
 
