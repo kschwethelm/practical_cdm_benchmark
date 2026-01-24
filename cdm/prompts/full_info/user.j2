@@ -1,5 +1,11 @@
 Provide the most likely final diagnosis of the following patient.
 
+{%- if diagnosis_criteria %}
+
+@@@ DIAGNOSIS CRITERIA @@@
+{{ diagnosis_criteria | trim }}
+{%- endif %}
+
 @@@ PATIENT HISTORY @@@
 {{ patient_history | trim }}
 
