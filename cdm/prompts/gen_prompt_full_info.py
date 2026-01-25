@@ -33,6 +33,7 @@ def create_user_prompt(case: dict, template_name: str = "full_info/user.j2") -> 
             - laboratory_results: str (optional)
             - imaging_reports: str (optional)
             - microbiology_results: str (optional)
+            - diagnosis_criteria: str (optional)
         template_name: Path to Jinja2 template file (default: "full_info/user.j2")
 
     Returns:
@@ -45,4 +46,5 @@ def create_user_prompt(case: dict, template_name: str = "full_info/user.j2") -> 
         laboratory_results=case.get("laboratory_results"),
         imaging_reports=case.get("imaging_reports"),
         microbiology_results=case.get("microbiology_results"),
+        diagnosis_criteria=case.get("diagnosis_criteria"),
     )
