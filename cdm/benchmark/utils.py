@@ -4,7 +4,8 @@ from pathlib import Path
 
 from loguru import logger
 
-from cdm.benchmark.data_models import BenchmarkDataset, HadmCase
+from cdm.benchmark.data_models import BenchmarkDataset, HadmCase, Pathology
+from cdm.prompts.utils import get_diagnosis_criteria
 
 
 def load_cases(benchmark_path: Path, num_cases: int = None) -> BenchmarkDataset:
@@ -168,6 +169,25 @@ def add_microbiology_results(case: HadmCase) -> dict:
     return {"microbiology_results": micro_results}
 
 
+def add_diagnosis_criteria() -> dict:
+    """Get all diagnosis criteria for supported pathologies.
+
+    Returns:
+        dict: Dictionary with combined diagnosis criteria for all pathologies.
+    """
+
+    criteria_parts = []
+    for pathology in Pathology:
+        criteria = get_diagnosis_criteria(pathology.value)
+        if criteria:
+            criteria_parts.append(criteria)
+
+    if criteria_parts:
+        return {"diagnosis_criteria": "\n\n".join(criteria_parts)}
+
+    return {}
+
+
 def gather_all_info(case: HadmCase) -> dict:
     """Gather all clinical information by combining all data sources.
 
@@ -182,6 +202,7 @@ def gather_all_info(case: HadmCase) -> dict:
     info.update(add_laboratory_tests(case))
     info.update(add_imaging_reports(case))
     info.update(add_microbiology_results(case))
+    info.update(add_diagnosis_criteria())
 
     return info
 

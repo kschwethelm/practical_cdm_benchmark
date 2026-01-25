@@ -17,3 +17,4 @@ enabled_tools:
   - physical_exam
   - lab
   - radiology
+  - diagnosis_criteria
