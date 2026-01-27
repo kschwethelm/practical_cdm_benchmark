@@ -99,7 +99,7 @@ def strip_markdown_json(content: str) -> str:
     return content.strip()
 
 
-async def run_agent_async(agent, patient_info: str) -> AgentRunResult:
+async def run_agent_async(agent, patient_info: str) -> AgentRunResult | None:
     """Invoke agent with patient information and return parsed diagnosis output and full conversation history.
 
     Args:
@@ -107,25 +107,31 @@ async def run_agent_async(agent, patient_info: str) -> AgentRunResult:
         patient_info: Patient's history of present illness
 
     Returns:
-        Parsed benchmark output and full conversation history
+        Parsed benchmark output and full conversation history, or None if parsing fails
     """
-    # Generate user prompt with patient information
     user_prompt = create_user_prompt(patient_info)
-
-    response = await agent.ainvoke(
-        {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                },
-            ]
-        }
-    )
+    try:
+        response = await agent.ainvoke(
+            {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": user_prompt,
+                    },
+                ]
+            }
+        )
+    except Exception as e:
+        logger.error(f"Agent invocation failed: {e}")
+        return None
 
     last_message_content = response["messages"][-1].content
     cleaned_content = strip_markdown_json(last_message_content)
-    parsed_output = BenchmarkOutputCDM.model_validate_json(cleaned_content)
+    try:
+        parsed_output = BenchmarkOutputCDM.model_validate_json(cleaned_content)
+    except Exception as e:
+        logger.error(f"Failed to validate agent output: {e}\nUnparsed output: {cleaned_content!r}")
+        return None
 
     messages_as_dicts = [msg.dict() for msg in response["messages"]]
     return AgentRunResult(parsed_output=parsed_output, messages=messages_as_dicts)
