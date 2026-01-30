@@ -2,7 +2,13 @@ defaults:
   - base
   - _self_
 
-# Path to save benchmark results in JSONL format (one result per line)
+# Path to save benchmark results in JSONL format
 # Set to null to disable output file writing
 model_name: null
 results_output_path: outputs/results_${model_name}_full_info.jsonl 
+
+# Summarization settings
+# When enabled, context length is controlled by summarizing imaging reports
+# Model info is auto-detected from the running vLLM server
+enable_summarization: true
+final_diagnosis_tokens: 25  # Reserve tokens for LLM output
