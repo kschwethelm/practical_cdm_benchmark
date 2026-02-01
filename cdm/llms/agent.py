@@ -87,7 +87,19 @@ def build_agent(llm: ChatOpenAI, enabled_tools: list[str]):
     return agent
 
 
-async def run_agent_async(agent, patient_info: str) -> AgentRunResult:
+def strip_markdown_json(content: str) -> str:
+    """Remove markdown code block wrapper from JSON content."""
+    content = content.strip()
+    if content.startswith("```json"):
+        content = content[7:]  # Remove ```json
+    elif content.startswith("```"):
+        content = content[3:]  # Remove ```
+    if content.endswith("```"):
+        content = content[:-3]  # Remove trailing ```
+    return content.strip()
+
+
+async def run_agent_async(agent, patient_info: str) -> AgentRunResult | None:
     """Invoke agent with patient information and return parsed diagnosis output and full conversation history.
 
     Args:
@@ -95,22 +107,31 @@ async def run_agent_async(agent, patient_info: str) -> AgentRunResult:
         patient_info: Patient's history of present illness
 
     Returns:
-        Parsed benchmark output and full conversation history
+        Parsed benchmark output and full conversation history, or None if parsing fails
     """
-    # Generate user prompt with patient information
     user_prompt = create_user_prompt(patient_info)
+    try:
+        response = await agent.ainvoke(
+            {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": user_prompt,
+                    },
+                ]
+            }
+        )
+    except Exception as e:
+        logger.error(f"Agent invocation failed: {e}")
+        return None
 
-    response = await agent.ainvoke(
-        {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                },
-            ]
-        }
-    )
+    last_message_content = response["messages"][-1].content
+    cleaned_content = strip_markdown_json(last_message_content)
+    try:
+        parsed_output = BenchmarkOutputCDM.model_validate_json(cleaned_content)
+    except Exception as e:
+        logger.error(f"Failed to validate agent output: {e}\nUnparsed output: {cleaned_content!r}")
+        return None
 
-    parsed_output = BenchmarkOutputCDM.model_validate_json(response["messages"][-1].content)
     messages_as_dicts = [msg.dict() for msg in response["messages"]]
     return AgentRunResult(parsed_output=parsed_output, messages=messages_as_dicts)

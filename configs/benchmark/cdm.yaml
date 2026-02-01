@@ -4,4 +4,5 @@ defaults:
 
 # Path to save benchmark results in JSONL format (one result per line)
 # Set to null to disable output file writing
-results_output_path: outputs/results_cdm.jsonl
+model_name: null
+results_output_path: outputs/results_${model_name}_cdm.jsonl 

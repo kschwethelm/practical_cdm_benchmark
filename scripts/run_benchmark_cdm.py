@@ -12,6 +12,7 @@ import hydra
 from langchain_core.runnables import Runnable
 from loguru import logger
 from omegaconf import DictConfig
+from openai import BadRequestError, LengthFinishReasonError
 from tqdm.asyncio import tqdm
 
 from cdm.benchmark.data_models import AgentRunResult, EvalOutput, HadmCase
@@ -30,7 +31,23 @@ async def process_case(
     async with semaphore:
         patient_info = case.patient_history
         set_current_case(case)
-        output = await run_agent_async(agent, patient_info)
+
+        if not case.pathology:
+            logger.warning(f"No pathology for case: {case.hadm_id}")
+            return None
+        try:
+            output = await run_agent_async(agent, patient_info)
+            if output is None:
+                return None
+        except BadRequestError as e:
+            if "maximum context length" in str(e).lower():
+                logger.error(f"Skipping case {case.hadm_id} due to context length overflow.")
+            else:
+                logger.error(f"{case.hadm_id} resulted in error {e}")
+            return None
+        except LengthFinishReasonError:
+            logger.error(f"Skipping case {case.hadm_id} due to model output token overflow")
+            return None
 
         return case, output
 
@@ -62,7 +79,11 @@ async def run_benchmark(cfg: DictConfig):
     # Process with async progress bar and write results incrementally
     results = []
     for coro in tqdm.as_completed(tasks, total=len(tasks), desc="Processing cases"):
-        case, output = await coro
+        result = await coro
+        if result is None:
+            continue
+
+        case, output = result
         results.append((case, output))
 
         try:
@@ -78,7 +99,7 @@ async def run_benchmark(cfg: DictConfig):
                 ground_truth=case.ground_truth,
                 pathology=case.pathology.value,
                 prediction=output.parsed_output,
-                num_tool_calls=output.num_tool_calls,
+                tool_calls=output.tool_calls,
                 answers=answers,
                 scores=scores,
             )

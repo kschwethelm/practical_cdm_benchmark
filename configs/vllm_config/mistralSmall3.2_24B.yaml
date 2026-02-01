@@ -1,0 +1,17 @@
+model: "mistralai/Mistral-Small-3.2-24B-Instruct-2506" 
+download_dir: /srv/llm-weights
+served-model-name: "default"
+host: "localhost"
+port: 8000
+
+enable-prefix-caching: true
+
+tensor-parallel-size: 1
+
+# Required since it has custom HuggingFace code
+trust-remote-code: true
+
+max-model-len: 16384
+
+enable-auto-tool-choice: true
+tool-call-parser: mistral

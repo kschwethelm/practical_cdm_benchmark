@@ -143,11 +143,8 @@ def convert_ground_truth(discharge_diagnosis: str, procedures_discharge: list[st
         if t is not None
     ]
 
-    # primary_diagnosis should be a list
-    primary_diagnosis_list = [discharge_diagnosis] if discharge_diagnosis else []
-
     return GroundTruth(
-        primary_diagnosis=primary_diagnosis_list,
+        primary_diagnosis=[discharge_diagnosis] if discharge_diagnosis else [],
         treatments=treatments,
     )
 

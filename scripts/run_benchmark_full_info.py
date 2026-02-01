@@ -12,13 +12,20 @@ import hydra
 from langchain_openai import ChatOpenAI
 from loguru import logger
 from omegaconf import DictConfig
+from openai import BadRequestError, LengthFinishReasonError
 from tqdm.asyncio import tqdm
 
 from cdm.benchmark.data_models import BenchmarkOutputFullInfo, EvalOutputFullInfo, HadmCase
-from cdm.benchmark.utils import gather_all_info, load_cases, write_result_to_jsonl
+from cdm.benchmark.utils import (
+    gather_all_info,
+    load_cases,
+    write_result_to_jsonl,
+)
 from cdm.evaluators.pathology_evaluator import PathologyEvaluator
 from cdm.llms.agent import build_llm, run_llm_async
+from cdm.prompts.context_control import control_context_length
 from cdm.prompts.gen_prompt_full_info import create_system_prompt, create_user_prompt
+from cdm.prompts.text_utils import get_model_info_from_server, load_tokenizer
 
 
 async def process_case(
@@ -26,13 +33,46 @@ async def process_case(
     system_prompt: str,
     case: HadmCase,
     semaphore: asyncio.Semaphore,
+    tokenizer,
+    max_context_length: int,
+    cfg: DictConfig,
 ) -> tuple[HadmCase, BenchmarkOutputFullInfo]:
-    """Process a single case with semaphore-based rate limiting."""
-    async with semaphore:
-        patient_info_dict = gather_all_info(case)
-        user_prompt = create_user_prompt(patient_info_dict)
-        output = await run_llm_async(llm, system_prompt, user_prompt)
+    """Process a single case with semaphore-based rate limiting.
 
+    If summarization is enabled, applies context length control to fit within
+    the model's context window using the MIMIC-CDM hierarchical summarization approach.
+    """
+    async with semaphore:
+        # Gather all info (all imaging regions)
+        patient_info_dict = gather_all_info(case)
+
+        # Apply context control if enabled
+        if cfg.enable_summarization and tokenizer is not None:
+            patient_info_dict = await control_context_length(
+                llm=llm,
+                patient_info=patient_info_dict,
+                case=case,
+                system_prompt=system_prompt,
+                tokenizer=tokenizer,
+                max_context_length=max_context_length,
+                final_diagnosis_tokens=cfg.final_diagnosis_tokens,
+            )
+
+        user_prompt = create_user_prompt(patient_info_dict)
+        if not case.pathology:
+            logger.warning(f"No pathology for case: {case.hadm_id}")
+            return None
+        try:
+            output = await run_llm_async(llm, system_prompt, user_prompt)
+        except BadRequestError as e:
+            if "maximum context length" in str(e).lower():
+                logger.error(f"Skipping case {case.hadm_id} due to context length overflow.")
+            else:
+                logger.error(f"{case.hadm_id} resulted in error {e}")
+            return None
+        except LengthFinishReasonError:
+            logger.error(f"Skipping case {case.hadm_id} due to model output token overflow")
+            return None
         return case, output
 
 
@@ -42,6 +82,22 @@ async def run_benchmark(cfg: DictConfig):
     llm = build_llm(cfg.base_url, cfg.temperature)
 
     system_prompt = create_system_prompt()
+
+    # Load tokenizer and context length from vLLM server (auto-detect)
+    tokenizer = None
+    max_context_length = 8192  # Default fallback
+
+    if cfg.enable_summarization:
+        logger.info("Summarization enabled, querying vLLM server for model info...")
+        try:
+            model_name, max_context_length = get_model_info_from_server(cfg.base_url)
+            tokenizer = load_tokenizer(cfg.base_url, model_name)
+        except RuntimeError as e:
+            logger.error(f"Failed to get model info from server: {e}")
+            logger.warning("Falling back to no summarization")
+            tokenizer = None
+    else:
+        logger.info("Summarization disabled")
 
     # Create semaphore for rate limiting concurrent requests
     max_concurrent = cfg.max_concurrent_requests
@@ -59,15 +115,21 @@ async def run_benchmark(cfg: DictConfig):
     logger.info(f"Processing {len(dataset)} cases with max concurrency: {max_concurrent}")
 
     # Create tasks for all cases
-    tasks = [process_case(llm, system_prompt, case, semaphore) for case in dataset]
+    tasks = [
+        process_case(llm, system_prompt, case, semaphore, tokenizer, max_context_length, cfg)
+        for case in dataset
+    ]
 
     # Process with async progress bar and write results incrementally
     results = []
     for coro in tqdm.as_completed(tasks, total=len(tasks), desc="Processing cases"):
-        case, output = await coro
+        result = await coro
+        if result is None:
+            continue
+
+        case, output = result
         results.append((case, output))
 
-        print(case.pathology)
         evaluator = PathologyEvaluator(case.ground_truth, case.pathology)
         scores = evaluator.evaluate_case(output)
 
@@ -92,9 +154,12 @@ def main(cfg: DictConfig):
 
     The LLM is provided all information upfront (LLM as second reader).
     Cases are processed concurrently to maximize throughput.
+
+    When summarization is enabled (default), context length is controlled
     """
     asyncio.run(run_benchmark(cfg))
 
 
+# Run example: "python scripts/run_benchmark_full_info.py model_name=qwen3"
 if __name__ == "__main__":
     main()

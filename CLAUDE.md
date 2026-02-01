@@ -101,8 +101,9 @@ The project uses a **library + scripts** pattern:
   - `database/` - Database connection and query functions
   - `llms/` - LLM client and agent builders (build_llm, build_agent, run_agent, run_llm)
   - `prompts/` - Jinja2 templates and prompt generation utilities
-  - `tools/` - Clinical information tools for agent (physical exam, labs, radiology)
+  - `tools/` - Clinical information tools for agent (physical exam, labs, radiology, diagnosis criteria)
     - `context.py` - Context variable management for current case
+    - `diagnosis_criteria.py` - Retrieves diagnostic guidelines from local .j2 files
     - `lab_mappings.py` - Lab test category mappings (mirrors CDM v1)
     - `lab_utils.py` - Lab result parsing and formatting utilities
     - `__init__.py` - AVAILABLE_TOOLS registry
@@ -225,7 +226,7 @@ Benefits:
 
 **Agent-Based Clinical Decision Making:**
 - **Agent** (`build_agent`) - LangChain agent with tool calling capabilities
-- **Tools** - Clinical information retrieval (physical exam, labs, radiology)
+- **Tools** - Clinical information retrieval (physical exam, labs, radiology, diagnosis_criteria)
   - **Note:** Microbiology data is now included in the lab tool (merged as of commit af27af2)
   - Tools use context variables (`get_current_case()`) to access case data
   - No case-specific tool initialization required
@@ -344,8 +345,8 @@ from cdm.tools import set_current_case
 llm = build_llm(base_url="http://localhost:8000/v1", temperature=0.0)
 
 # Build agent once with enabled tools
-# Available tools: physical_exam, lab, radiology (microbiology merged into lab)
-agent = build_agent(llm, enabled_tools=["physical_exam", "lab", "radiology"])
+# Available tools: physical_exam, lab, radiology, diagnosis_criteria (microbiology merged into lab)
+agent = build_agent(llm, enabled_tools=["physical_exam", "lab", "radiology", "diagnosis_criteria"])
 
 # Set context and run agent for each case
 for case in cases:
@@ -435,7 +436,7 @@ These utilities help with:
   - **Pathology** enum defines the condition type (appendicitis, cholecystitis, diverticulitis, pancreatitis)
 - **vLLM is server-client** - Start server first, then run benchmark scripts
 - **Context-based tools** - Use `set_current_case()` before running agent, tools access via `get_current_case()`
-- **Available tools** - Only 3 tools: `physical_exam`, `lab`, `radiology` (microbiology merged into lab)
+- **Available tools** - Only 4 tools: `physical_exam`, `lab`, `radiology`, `diagnosis_criteria` (microbiology merged into lab)
 - **Register new tools** - Add to `AVAILABLE_TOOLS` in `cdm/tools/__init__.py`
 - **Jinja2 templates** - Prompts are in `cdm/prompts/` as `.j2` files, not hardcoded strings
 - **Async processing** - Configure `max_concurrent_requests` for optimal performance

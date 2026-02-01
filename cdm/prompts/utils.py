@@ -1,7 +1,10 @@
 import enum
+from pathlib import Path
 from typing import Any, Literal, get_args, get_origin
 
 from pydantic import BaseModel
+
+CRITERIA_DIR = Path(__file__).parent / "diagnosis_criterias"
 
 
 def types_to_str(type_annotation: Any) -> str:
@@ -219,3 +222,27 @@ def pydantic_to_prompt(
         body += "\n".join(deduplicated_subtypes)
 
     return body
+
+
+def get_diagnosis_criteria(pathology: str) -> str | None:
+    """Load diagnosis criteria from .j2 file.
+
+    Args:
+        pathology: Pathology name (e.g., 'pancreatitis', 'appendicitis')
+
+    Returns:
+        Diagnosis criteria text, or None if not found
+    """
+    criteria_file = CRITERIA_DIR / f"{pathology.lower()}.j2"
+    if criteria_file.exists():
+        return criteria_file.read_text().strip()
+    return None
+
+
+def get_all_diagnosis_criteria() -> dict[str, str]:
+    """Load all diagnosis criteria from .j2 files.
+
+    Returns:
+        Dictionary mapping pathology name to criteria text
+    """
+    return {f.stem: f.read_text().strip() for f in CRITERIA_DIR.glob("*.j2")}
