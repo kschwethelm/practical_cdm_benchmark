@@ -469,7 +469,7 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     cursor.execute(query, (hadm_id, hadm_id, hadm_id))
     results = cursor.fetchall()
 
-    # Group by note_id and select first valid report per note
+    # Group by note_id and select up to 3 valid reports per note
     reports = []
 
     for note_id, group in groupby(results, key=lambda x: x[2]):
@@ -483,7 +483,7 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
             if modality == "Unknown" or region == "Unknown" or not text or not text.strip():
                 continue
 
-            # Found valid report, add it and stop looking at other ranks for this note_id
+            # Found valid report, add it
             reports.append(
                 {
                     "exam_name": row[0],
@@ -491,10 +491,9 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
                     "region": region,
                     "text": text,
                     "note_id": note_id,
-                    "sequence_num": row[3],  # rn from the query
+                    "sequence_num": row[3],
                 }
             )
-            break  # Only take first valid report per note_id
 
     return reports
 

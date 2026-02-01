@@ -71,7 +71,7 @@ part of the diagnostic process (preferably first action).
 - **Labs:** `cdm_hosp.labevents`, `cdm_hosp.d_labitems`
   (test_name, value, unit, ref_range_lower, ref_range_upper, flag, sequence_num)
 - **Microbiology:** `cdm_hosp.microbiologyevents`
-  (test_name, spec_type_desc, organism_name, interpretation, charttime, sequence_num)
+  (test_name, spec_type_desc, organism_name, comments, charttime, sequence_num)
 
 **Processing:**
 - Keep **up to 3 results per test type**
