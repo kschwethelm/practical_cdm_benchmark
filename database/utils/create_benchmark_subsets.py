@@ -171,8 +171,12 @@ OUTPUT_DIR = Path("database/output")
 def load_benchmark_json(filepath: Path) -> dict:
     """Load benchmark dataset from JSON file as raw dict."""
     logger.info(f"Loading benchmark from {filepath}")
-    with open(filepath) as f:
-        return json.load(f)
+    try:
+        with open(filepath, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        logger.error(f"Failed to load benchmark JSON from {filepath}: {e}")
+        raise
 
 
 def create_dr_eval_subset(dataset: dict) -> dict:
@@ -227,7 +231,7 @@ def create_low_similarity_subset(dataset: dict) -> dict:
 def save_benchmark(dataset: dict, filepath: Path):
     """Save benchmark dataset to JSON file."""
     logger.info(f"Saving benchmark to {filepath}")
-    with open(filepath, "w") as f:
+    with open(filepath, "w", encoding="utf-8") as f:
         json.dump(dataset, f, indent=2)
     logger.success(f"Saved {len(dataset['cases'])} cases to {filepath}")
 
