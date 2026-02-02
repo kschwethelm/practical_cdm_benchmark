@@ -63,23 +63,27 @@ class PathologyEvaluator:
 
         self.explanations = {"Imaging": "", "Physical": "", "Diagnosis": ""}
 
-    def evaluate_case(self, output: AgentRunResult | BenchmarkOutputFullInfo) -> dict:
+    def evaluate_case(
+        self, output: AgentRunResult | BenchmarkOutputFullInfo
+    ) -> tuple[dict, dict]:
         """
         Evaluate model's predictions for a single case against ground truth.
 
         :param output: Model's output (either final prediction, or a tool call)
         :type output: AgentRunResult | BenchmarkOutputFullInfo
-        :return: Evaluation for diagnosis accuracy + tool calling, if available
-        :rtype: dict
+        :return: Answers and scores for diagnosis accuracy + tool calling, if available
+        :rtype: tuple[dict, dict]
         """
         if isinstance(output, BenchmarkOutputFullInfo):
             self.answers["Diagnosis"] = output.diagnosis
             self.score_diagnosis()
-            evaluation = {
+            self.answers["Treatment"] = output.treatment
+            self.score_treatment()
+            full_info_scores = {
                 "Diagnosis": self.scores["Diagnosis"],
                 "Gracious Diagnosis": self.scores["Gracious Diagnosis"],
             }
-            return evaluation
+            return self.answers, full_info_scores
         else:
             self.answers["Diagnosis"] = output.parsed_output.final_diagnosis
             self.score_diagnosis()

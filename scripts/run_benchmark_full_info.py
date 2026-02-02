@@ -21,7 +21,7 @@ from cdm.benchmark.utils import (
     load_cases,
     write_result_to_jsonl,
 )
-from cdm.evaluators.pathology_evaluator import PathologyEvaluator
+from cdm.evaluators import get_evaluator
 from cdm.llms.agent import build_llm, run_llm_async
 from cdm.prompts.context_control import control_context_length
 from cdm.prompts.gen_prompt_full_info import create_system_prompt, create_user_prompt
@@ -130,8 +130,12 @@ async def run_benchmark(cfg: DictConfig):
         case, output = result
         results.append((case, output))
 
-        evaluator = PathologyEvaluator(case.ground_truth, case.pathology)
-        scores = evaluator.evaluate_case(output)
+        try:
+            evaluator = get_evaluator(case.pathology, case.ground_truth)
+            answers, scores = evaluator.evaluate_case(output)
+        except ValueError as e:
+            logger.error(e)
+            answers, scores = None, None
 
         if output_path:
             eval_output = EvalOutputFullInfo(
@@ -139,6 +143,7 @@ async def run_benchmark(cfg: DictConfig):
                 ground_truth=case.ground_truth,
                 pathology=case.pathology.value,
                 prediction=output,
+                answers=answers,
                 scores=scores,
             )
             await write_result_to_jsonl(output_path, eval_output.model_dump(), write_lock)
