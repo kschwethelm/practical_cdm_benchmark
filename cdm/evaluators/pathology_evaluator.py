@@ -63,9 +63,7 @@ class PathologyEvaluator:
 
         self.explanations = {"Imaging": "", "Physical": "", "Diagnosis": ""}
 
-    def evaluate_case(
-        self, output: AgentRunResult | BenchmarkOutputFullInfo
-    ) -> tuple[dict, dict]:
+    def evaluate_case(self, output: AgentRunResult | BenchmarkOutputFullInfo) -> tuple[dict, dict]:
         """
         Evaluate model's predictions for a single case against ground truth.
 
