@@ -333,7 +333,9 @@ def plot_treatment_requests(model_paths: dict, save_path: str | None = None):
 
             offsets = x + (i - (n_models - 1) / 2) * width
 
-            bars = ax.bar(offsets, values, width=width, label=model, color=MODEL_COLOUR.get(model, "#999999"))
+            bars = ax.bar(
+                offsets, values, width=width, label=model, color=MODEL_COLOUR.get(model, "#999999")
+            )
 
             for bar, val in zip(bars, values, strict=False):
                 if np.isnan(val):
