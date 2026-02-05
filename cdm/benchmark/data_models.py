@@ -142,7 +142,8 @@ class BenchmarkOutputCDM(BaseModel):
 class BenchmarkOutputFullInfo(BaseModel):
     """Structured output from LLM clinical decision-making with full information"""
 
-    diagnosis: str
+    diagnosis: str = Field(description="The final diagnosis to the original case")
+    treatment: list[str] = Field(description="The treatment for the given diagnosis")
 
 
 class AgentRunResult(BaseModel):
@@ -189,4 +190,5 @@ class EvalOutputFullInfo(BaseModel):
     ground_truth: GroundTruth
     pathology: str
     prediction: BenchmarkOutputFullInfo
+    answers: dict
     scores: dict
