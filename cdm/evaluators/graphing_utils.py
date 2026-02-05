@@ -1,6 +1,7 @@
 import csv
 import json
 from collections import defaultdict
+from collections.abc import Iterable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -8,7 +9,11 @@ import pandas as pd
 
 from cdm.evaluators.utils import calculate_average, count_treatment, count_unnecessary
 
-color_map = {
+PATHOLOGIES = ["appendicitis", "cholecystitis", "diverticulitis", "pancreatitis"]
+
+MODALITY_ORDER = ["CT", "Ultrasound", "MRI", "Radiograph", "Other", "None"]
+
+MODEL_COLOUR = {
     "Llama3.3-70B": "#0077B6",
     "OASST-70B": "#00B4D8",
     "WizardLM-70B": "#90E0EF",
@@ -18,8 +23,59 @@ color_map = {
     "Mean": "#e56b6f",
 }
 
+MODALITY_COLOUR = {
+    "CT": "#C2C2C2",
+    "Ultrasound": "#8A817C",
+    "MRI": "#58534B",
+    "Radiograph": "#4F5B62",
+    "Other": "#FE6D73",
+    "None": "#D6CCC2",
+}
 
-def read_jsonl(results_path: str) -> tuple[dict[str, list], list]:
+CORRECT_MODALITY_COLOUR = "#4CAF50"
+
+PREFERRED_MODALITIES = {
+    "Appendicitis": {"Ultrasound"},
+    "Pancreatitis": {"Ultrasound"},
+    "Diverticulitis": {"CT"},
+    "Cholecystitis": {"Ultrasound"},
+}
+
+IMAGING_MODALITY_MAP = {
+    "ct": "CT",
+    "ctu": "CT",
+    "mri": "MRI",
+    "mra": "MRI",
+    "mrcp": "MRI",
+    "mre": "MRI",
+    "ultrasound": "Ultrasound",
+    "eus": "Ultrasound",
+    "carotid ultrasound": "Ultrasound",
+    "radiograph": "Radiograph",
+    "ercp": "Radiograph",
+    "upper gi series": "Radiograph",
+    "hida": "Other",
+    "ptc": "Other",
+    "drainage": "Other",
+}
+
+
+def read_jsonl(path: str) -> Iterable[dict]:
+    """
+    Convert jsonl file to Iterable dict.
+
+    :param path: jsonl file path
+    :type path: str
+    :return: iterable dict object
+    :rtype: Iterable[dict]
+    """
+    with open(path) as f:
+        for line in f:
+            if line.strip():
+                yield json.loads(line)
+
+
+def aggregate_jsonl(results_path: str) -> tuple[dict[str, list], list]:
     """
     Reads a jsonl results file for a specific model and groups results by pathology
 
@@ -31,20 +87,17 @@ def read_jsonl(results_path: str) -> tuple[dict[str, list], list]:
     results = {"appendicitis": [], "cholecystitis": [], "diverticulitis": [], "pancreatitis": []}
     fields = []
 
-    with open(results_path) as f:
-        for line in f:
-            if line.strip():
-                obj = json.loads(line)
-                if not fields:
-                    fields = list(obj.get("scores").keys())
-                    if "answers" in obj:
-                        fields += [
-                            "Unnecessary Laboratory Tests",
-                            "Unnecessary Imaging",
-                            "Treatment Requested",
-                        ]
-                if obj.get("pathology") in results.keys():
-                    results[obj.get("pathology")].append(obj)
+    for obj in read_jsonl(results_path):
+        if not fields:
+            fields = list(obj.get("scores").keys())
+            if "answers" in obj:
+                fields += [
+                    "Unnecessary Laboratory Tests",
+                    "Unnecessary Imaging",
+                    "Treatment Requested",
+                ]
+        if obj.get("pathology") in results.keys():
+            results[obj.get("pathology")].append(obj)
     return results, fields
 
 
@@ -62,7 +115,7 @@ def aggregate_results(model_paths: dict) -> tuple[dict, dict, dict]:
     avg_samples = defaultdict(lambda: defaultdict(dict))
 
     for model_name, result_path in model_paths.items():
-        results, fields = read_jsonl(results_path=result_path)
+        results, fields = aggregate_jsonl(results_path=result_path)
         for field in fields:
             for pathology in ["appendicitis", "cholecystitis", "pancreatitis", "diverticulitis"]:
                 if pathology in results.keys():
@@ -131,9 +184,7 @@ def plot_grouped_bar_chart(
             values.append(mean)
         offsets = x + (i - (n_models - 1) / 2) * width
 
-        bars = plt.bar(
-            offsets, values, width=width, label=model, color=color_map.get(model, "#999999")
-        )
+        bars = plt.bar(offsets, values, width=width, label=model)
 
         for bar, val in zip(bars, values, strict=False):
             if np.isnan(val):
@@ -203,29 +254,25 @@ def extract_treatment_request_df(model_paths: dict) -> tuple[pd.DataFrame, dict]
     treatment_required_counts = defaultdict(lambda: defaultdict(int))
 
     for model, path in model_paths.items():
-        with open(path) as f:
-            for line in f:
-                if not line.strip():
+        for obj in read_jsonl(path):
+            pathology = obj["pathology"]
+            answers = obj.get("answers", {})
+            scores = obj.get("scores", {})
+
+            treatment_required = answers.get("Treatment Required", {})
+            treatment_requested = answers.get("Treatment Requested", {})
+            correctly_diagnosed = scores.get("Diagnosis", False)
+
+            for treatment, required in treatment_required.items():
+                # if treatment is not required then don't count it even if requested
+                if not required:
                     continue
-                obj = json.loads(line)
-                pathology = obj["pathology"]
-                answers = obj.get("answers", {})
-                scores = obj.get("scores", {})
 
-                treatment_required = answers.get("Treatment Required", {})
-                treatment_requested = answers.get("Treatment Requested", {})
-                correctly_diagnosed = scores.get("Diagnosis", False)
-
-                for treatment, required in treatment_required.items():
-                    # if treatment is not required then don't count it even if requested
-                    if not required:
-                        continue
-
-                    treatment_required_counts[pathology][treatment] += 1
-                    # if treatment is required and case is correctly diagnosed then add to df
-                    if correctly_diagnosed:
-                        requested = treatment_requested.get(treatment, False)
-                        rows.append([model, pathology, treatment, requested])
+                treatment_required_counts[pathology][treatment] += 1
+                # if treatment is required and case is correctly diagnosed then add to df
+                if correctly_diagnosed:
+                    requested = treatment_requested.get(treatment, False)
+                    rows.append([model, pathology, treatment, requested])
 
     df = pd.DataFrame(rows, columns=["Model", "Pathology", "Treatment", "Requested"])
     return df
@@ -247,15 +294,17 @@ def aggregate_treatment_requests(df: pd.DataFrame) -> pd.DataFrame:
     return df_agg.merge(df_counts, on=["Pathology", "Treatment", "Model"], how="left")
 
 
-def plot_treatment_request_grid_matplotlib(df_agg: pd.DataFrame, save_path: str | None = None):
+def plot_treatment_requests(model_paths: dict, save_path: str | None = None):
     """
     Plot a grid with the 4 different pathologies and each required treatment.
 
-    :param df_agg: dataframe with aggregated data
-    :type df_agg: pd.DataFrame
+    :param model_paths: dictionary of models and the paths to their result files
+    :type dict
     :param save_path: path to save plot to
     :type save_path: str | None
     """
+    df = extract_treatment_request_df(model_paths)
+    df_agg = aggregate_treatment_requests(df)
     pathologies = ["appendicitis", "cholecystitis", "pancreatitis", "diverticulitis"]
     models = sorted(df_agg["Model"].unique())
 
@@ -284,11 +333,8 @@ def plot_treatment_request_grid_matplotlib(df_agg: pd.DataFrame, save_path: str 
 
             offsets = x + (i - (n_models - 1) / 2) * width
 
-            bars = ax.bar(
-                offsets, values, width=width, label=model, color=color_map.get(model, "#999999")
-            )
+            bars = ax.bar(offsets, values, width=width, label=model, color=MODEL_COLOUR.get(model, "#999999"))
 
-            # Annotate bars
             for bar, val in zip(bars, values, strict=False):
                 if np.isnan(val):
                     continue
@@ -301,7 +347,6 @@ def plot_treatment_request_grid_matplotlib(df_agg: pd.DataFrame, save_path: str 
                     fontsize=12,
                 )
 
-        # Vertical separators
         for j in range(n_treatments - 1):
             ax.axvline(j + 0.5, color="gray", linestyle="--", linewidth=1)
 
@@ -332,11 +377,247 @@ def plot_treatment_request_grid_matplotlib(df_agg: pd.DataFrame, save_path: str 
     plt.show()
 
 
+def aggregate_lab_requests(model_paths: dict) -> dict:
+    """
+    Calculates percentage of required labs requested per pathology and model.
+
+    :param model_paths: dictionary of models and the paths to their result files
+    :type model_paths: dict
+    :return: Dictionary of calculated percentages
+    :rtype: dict
+    """
+    counts = defaultdict(lambda: defaultdict(int))
+    hits = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+
+    for model, path in model_paths.items():
+        for obj in read_jsonl(path):
+            pathology = obj["pathology"]
+            answers = obj.get("answers", {})
+            correct_labs = answers.get("Correct Laboratory Tests", {})
+
+            counts[model][pathology] += 1
+
+            for category, requested in correct_labs.items():
+                if requested:
+                    hits[model][pathology][category] += 1
+
+    percentages = defaultdict(lambda: defaultdict(dict))
+    for model in hits:
+        for pathology in hits[model]:
+            n = counts[model][pathology]
+            for category, c in hits[model][pathology].items():
+                percentages[model][pathology][category] = (c / n) * 100 if n > 0 else np.nan
+    return percentages
+
+
+def plot_lab_requests(model_paths: dict, save_path: str | None = None):
+    """
+    Plot a grid with the 4 different pathologies and each required lab category.
+
+    :param model_paths: dictionary of models and the paths to their result files
+    :type model_paths: dict
+    :param save_path: path to save plot to
+    :type save_path: str | None
+    """
+    data = aggregate_lab_requests(model_paths)
+    print(data)
+    models = list(data.keys())
+    pathologies = ["appendicitis", "cholecystitis", "pancreatitis", "diverticulitis"]
+
+    fig, axes = plt.subplots(2, 2, figsize=(18, 12), sharey=True)
+    axes = axes.flatten()
+
+    for ax, pathology in zip(axes, pathologies, strict=False):
+        categories = sorted({cat for model in data for cat in data[model].get(pathology, {})})
+        x = np.arange(len(categories))
+        width = 0.8 / len(models)
+        for i, model in enumerate(models):
+            values = [data[model].get(pathology, {}).get(cat, np.nan) for cat in categories]
+
+            offsets = x + (i - (len(models) - 1) / 2) * width
+
+            bars = ax.bar(
+                offsets, values, width=width, label=model, color=MODEL_COLOUR.get(model, "#999999")
+            )
+
+            for bar, val in zip(bars, values, strict=False):
+                if np.isnan(val):
+                    continue
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height(),
+                    f"{val:.1f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=11,
+                )
+
+        ax.set_title(pathology.capitalize(), fontsize=15)
+        ax.set_xticks(x)
+        ax.set_xticklabels(categories, fontsize=13)
+        ax.set_ylabel("Lab Test Requested (%)")
+        ax.set_ylim(0, 100)
+        ax.grid(axis="y", linestyle="--", alpha=0.6)
+
+        for j in range(len(categories) - 1):
+            ax.axvline(j + 0.5, color="gray", linestyle="--", linewidth=1)
+
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.05),
+        ncol=len(models),
+        frameon=False,
+    )
+
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.show()
+
+
+def aggregate_imaging_requests(model_paths: dict) -> pd.DataFrame:
+    """
+    Aggregate imaging requests per model and pathology.
+
+    :param model_paths: dictionary of models and the paths to their result files
+    :type model_paths: dict
+    :return: dataframe with coloums model, pathology, modality
+    :rtype: DataFrame
+    """
+    rows = []
+    for model, path in model_paths.items():
+        for obj in read_jsonl(path):
+            pathology = obj["pathology"]
+            answers = obj.get("answers", {})
+
+            imaging_list = answers.get("Correct Imaging", [])
+            modality = "None"
+
+            for img in imaging_list:
+                if img.get("region", "").lower() == "abdomen":
+                    modality = img.get("modality", "").lower()
+                    modality = IMAGING_MODALITY_MAP.get(modality, "Other")
+                    break
+
+            rows.append({"Model": model, "Pathology": pathology.capitalize(), "Modality": modality})
+
+    df = pd.DataFrame(rows)
+
+    counts = df.groupby(["Model", "Pathology", "Modality"]).size().reset_index(name="Counts")
+    totals = counts.groupby(["Model", "Pathology"])["Counts"].transform("sum")
+    counts["Percentage"] = counts["Counts"] / totals * 100
+    return counts
+
+
+def plot_imaging_requests(model_paths: dict, save_path: str | None = None):
+    """
+    Plot stacked bar charts of imaging modality requests by pathology and model.
+
+    :param model_paths: dictionary of models and the paths to their result files
+    :type model_paths: dict
+    :param save_path: path to save plot to
+    :type save_path: str | None
+    """
+
+    df = aggregate_imaging_requests(model_paths)
+
+    models = list(df["Model"].unique())
+    pathologies = ["Appendicitis", "Cholecystitis", "Diverticulitis", "Pancreatitis"]
+    model_hatches = {
+        model: hatch
+        for model, hatch in zip(models, ["", "//", "xx", "..", "++", "oo"], strict=False)
+    }
+    n_models = len(models)
+    bar_width = 0.18
+    x = np.arange(len(pathologies))
+
+    plt.figure(figsize=(14, 6))
+
+    for i, model in enumerate(models):
+        offsets = x + (i - (n_models - 1) / 2) * bar_width
+        bottom = np.zeros(len(pathologies))
+
+        for modality in MODALITY_ORDER:
+            vals = (
+                df[(df["Model"] == model) & (df["Modality"] == modality)]
+                .set_index("Pathology")
+                .reindex(pathologies)["Percentage"]
+                .fillna(0)
+                .values
+            )
+
+            bar_colors = []
+
+            for pathology in pathologies:
+                is_preferred = (
+                    pathology in PREFERRED_MODALITIES
+                    and modality in PREFERRED_MODALITIES[pathology]
+                )
+                bar_colors.append(
+                    CORRECT_MODALITY_COLOUR if is_preferred else MODALITY_COLOUR[modality]
+                )
+
+            bars = plt.bar(
+                offsets,
+                vals,
+                width=bar_width,
+                bottom=bottom,
+                color=bar_colors,
+                edgecolor="black",
+                hatch=model_hatches[model],
+                label=modality if i == 0 else "",
+            )
+
+            for bar, v in zip(bars, vals, strict=False):
+                if v >= 5:
+                    plt.text(
+                        bar.get_x() + bar.get_width() / 2,
+                        bar.get_y() + v / 2,
+                        f"{v:.0f}",
+                        ha="center",
+                        va="center",
+                        fontsize=9,
+                        color="white" if modality in {"MRI", "Radiograph"} else "black",
+                        weight="bold",
+                    )
+
+            bottom += vals
+
+    plt.xticks(x, pathologies)
+    plt.ylabel("Imaging Modality Requested (%)")
+    plt.ylim(0, 100)  # percentages must add up to 100
+
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles, strict=False))
+    from matplotlib.patches import Patch
+
+    model_legend = [
+        Patch(facecolor="white", edgecolor="black", hatch=model_hatches[m], label=m) for m in models
+    ]
+
+    plt.legend(
+        handles=list(by_label.values()) + model_legend,
+        labels=list(by_label.keys()) + models,
+        bbox_to_anchor=(0.95, 1.25),
+        ncol=3,
+        frameon=False,
+        fontsize=12,
+    )
+
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.show()
+
+
 if __name__ == "__main__":
     model_paths = {}
 
     model_paths["tool_calling"] = {
-        "Qwen3-30B": "outputs/presentation3/results_qwen3_30b_thinking_cdm.jsonl",
+        "Qwen3-30B": "outputs/presentation3/results_qwen3_30b_nothinking_cdm.jsonl",
         "Mistral-24B": "outputs/presentation3/results_mistral_24b_cdm.jsonl",
         "GPTOSS-20B": "outputs/presentation3/results_gptoss_cdm.jsonl",
     }
@@ -347,20 +628,23 @@ if __name__ == "__main__":
     }
 
     model_paths["full_info"] = {
-        "Llama3.3-70B": "outputs/results_llama3_70b_full_info.jsonl",
-        "OASST-70B": "outputs/results_oasst_70b_full_info.jsonl",
-        "WizardLM-70B": "outputs/results_wizardlm_70b_full_info.jsonl",
+        "Qwen3-30B": "outputs/results_qwen3_30b_full_info.jsonl",
+        "DeepSeek-R1-Distill-Llama-70B": "outputs/results_deepseekr1_70b_full_info.jsonl",
+        "MedGemma-27B": "outputs/results_medgemma_27b_full_info.jsonl",
     }
 
     tool_call_averages, tool_call_n = aggregate_results(model_paths["tool_calling"])
     rag_tool_call_averages, rag_tool_call_n = aggregate_results(model_paths["rag_tool_calling"])
+    full_info_averages, full_info_n = aggregate_results(model_paths["full_info"])
 
-    df = extract_treatment_request_df(model_paths["rag_tool_calling"])
-    df_agg = aggregate_treatment_requests(df)
-
-    plot_treatment_request_grid_matplotlib(
-        df_agg,
-        save_path="outputs/presentation3/treatment_requested_tool_calling_rag.png",
+    x_labels = [p.capitalize() for p in PATHOLOGIES] + ["Mean"]
+    plot_grouped_bar_chart(
+        data=full_info_averages["Diagnosis"],
+        title="Diagnostic Accuracy (%) by Pathology - Full Info",
+        ylabel="Diagnostic Accuracy (%)",
+        groups=PATHOLOGIES,
+        x_labels=x_labels,
+        save_path="outputs/presentation3/diagnosis_full_info_pres3_accuracy.png",
     )
 
     phys = ["Physical Examination", "Late Physical Examination"]
@@ -368,29 +652,16 @@ if __name__ == "__main__":
     phys_data = aggregate_phys(tool_call_averages)
     plot_grouped_bar_chart(
         data=phys_data,
-        title="Whatever",
         ylabel="Diagnostic Accuracy (%)",
         groups=phys,
         x_labels=phys_x_labels,
         save_path="outputs/presentation3/physical_examination.png",
     )
 
-    pathologies = ["appendicitis", "cholecystitis", "pancreatitis", "diverticulitis"]
-    x_labels = [p.capitalize() for p in pathologies] + ["Mean"]
-    plot_grouped_bar_chart(
-        data=tool_call_averages["Diagnosis"],
-        title="Diagnostic Accuracy for Agentic Models",
-        ylabel="Diagnostic Accuracy (%)",
-        groups=pathologies,
-        x_labels=x_labels,
-        save_path="outputs/presentation3/diagnosis_tool_calling_pres3_accuracy.png",
+    plot_imaging_requests(
+        model_paths["rag_tool_calling"], save_path="outputs/presentation3/imaging_requests.png"
     )
 
-    plot_grouped_bar_chart(
-        data=rag_tool_call_averages["Diagnosis"],
-        title="Diagnostic Accuracy for Agentic Models + RAG",
-        ylabel="Diagnostic Accuracy (%)",
-        groups=pathologies,
-        x_labels=x_labels,
-        save_path="outputs/presentation3/diagnosis_rag_tool_calling_pres3_accuracy.png",
+    plot_lab_requests(
+        model_paths["rag_tool_calling"], save_path="outputs/presentation3/lab_requests.png"
     )
