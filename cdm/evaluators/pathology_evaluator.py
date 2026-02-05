@@ -48,7 +48,6 @@ class PathologyEvaluator:
             "Diagnostic Confidence": None,
             "Treatment": [],
             "Correct Laboratory Tests": {},
-            "Unnecessary Laboratory Tests": [],
             "Neutral Laboratory Tests": {},
             "Correct Imaging": [],
             "Unnecessary Imaging": [],
