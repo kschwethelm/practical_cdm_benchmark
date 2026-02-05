@@ -290,6 +290,7 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
             fluid,
             category,
             itemid,
+            charttime,
             rn
         FROM RankedLabEvents
         WHERE rn <= 3
@@ -308,7 +309,8 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
             "fluid": row[4],
             "category": row[5],
             "itemid": row[6],
-            "sequence_num": row[7],
+            "charttime": row[7],
+            "sequence_num": row[8],
         }
         for row in results
     ]
@@ -491,6 +493,7 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
                     "region": region,
                     "text": text,
                     "note_id": note_id,
+                    "charttime": row[4],
                     "sequence_num": row[3],
                 }
             )

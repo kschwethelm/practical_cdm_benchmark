@@ -25,6 +25,7 @@ class DetailedLabResult(BaseModel):
     value: str | None = None
     ref_range_lower: float | None = None
     ref_range_upper: float | None = None
+    charttime: datetime | None = None
     sequence_num: int | None = None
 
 
@@ -44,6 +45,7 @@ class RadiologyReport(BaseModel):
     region: str | None = None
     modality: str | None = None
     text: str | None = None
+    charttime: datetime | None = None
     sequence_num: int | None = None
 
 
