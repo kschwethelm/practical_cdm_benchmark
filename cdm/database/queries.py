@@ -207,8 +207,8 @@ def get_physical_examination(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]
 
 def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     """
-    Get the first entry of each lab test for a given admission.
-    Uses window function to find earliest test result for each unique itemid.
+    Get max. 3 lab tests for a given admission where charttime is before the first procedure.
+    Uses window function to rank test results for each unique itemid.
 
     Args:
         cursor: Database cursor
@@ -218,7 +218,12 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
         list of dicts with lab test details (may be empty)
     """
     query = """
-        WITH CombinedLabEvents AS (
+        WITH FirstProcedure AS (
+            SELECT MIN(chartdate) as first_procedure_time
+            FROM cdm_hosp.procedures_icd
+            WHERE hadm_id = %s
+        ),
+        CombinedLabEvents AS (
             SELECT itemid, charttime, valuenum, value, valueuom, flag, comments,
                    ref_range_lower, ref_range_upper, hadm_id, storetime
             FROM cdm_hosp.labevents
@@ -258,6 +263,9 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
                 di.category
             FROM CombinedLabEvents le
             JOIN cdm_hosp.d_labitems di ON le.itemid = di.itemid
+            CROSS JOIN FirstProcedure fp
+            WHERE le.charttime < fp.first_procedure_time
+               OR fp.first_procedure_time IS NULL
         ),
         RankedLabEvents AS (
             SELECT
@@ -281,13 +289,15 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
             ref_range_upper,
             fluid,
             category,
-            itemid
+            itemid,
+            charttime,
+            rn
         FROM RankedLabEvents
-        WHERE rn = 1
+        WHERE rn <= 3
         ORDER BY charttime
     """
 
-    cursor.execute(query, (hadm_id, hadm_id))
+    cursor.execute(query, (hadm_id, hadm_id, hadm_id))
     results = cursor.fetchall()
 
     lab_tests = [
@@ -299,6 +309,8 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
             "fluid": row[4],
             "category": row[5],
             "itemid": row[6],
+            "charttime": row[7],
+            "sequence_num": row[8],
         }
         for row in results
     ]
@@ -307,8 +319,8 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
 
 def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     """
-    Get microbiology tests for a given admission, merging multiple organisms/comments
-    for the same test_itemid and charttime.
+    Get max. 3 microbiology tests for a given admission where charttime is before the first procedure,
+    merging multiple organisms/comments for the same test_itemid and charttime.
 
     Args:
         cursor: Database cursor
@@ -318,7 +330,12 @@ def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
         list of dicts with microbiology event details (may be empty)
     """
     query = """
-        WITH CombinedMicroEvents AS (
+        WITH FirstProcedure AS (
+            SELECT MIN(chartdate) as first_procedure_time
+            FROM cdm_hosp.procedures_icd
+            WHERE hadm_id = %s
+        ),
+        CombinedMicroEvents AS (
             SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id, storetime
             FROM cdm_hosp.microbiologyevents
             WHERE hadm_id = %s
@@ -339,7 +356,9 @@ def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
                 micro.storetime,
                 micro.test_itemid
             FROM CombinedMicroEvents micro
+            CROSS JOIN FirstProcedure fp
             WHERE ((micro.org_name IS NOT NULL AND micro.org_name != 'CANCELLED') OR (micro.comments IS NOT NULL AND micro.comments != '___'))
+              AND (micro.charttime < fp.first_procedure_time OR fp.first_procedure_time IS NULL)
         ),
         RankedMicroEvents AS (
             SELECT
@@ -360,14 +379,15 @@ def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
             org_name,
             comments,
             charttime,
-            test_itemid
+            test_itemid,
+            rn
         FROM RankedMicroEvents
-        WHERE rn = 1
-            AND (org_name IS NOT NULL OR comments IS NOT NULL)
+        WHERE (org_name IS NOT NULL OR comments IS NOT NULL)
+          AND rn <= 3
         ORDER BY charttime
     """
 
-    cursor.execute(query, (hadm_id, hadm_id))
+    cursor.execute(query, (hadm_id, hadm_id, hadm_id))
     results = cursor.fetchall()
 
     microbiology_events = [
@@ -378,6 +398,7 @@ def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
             "comments": row[3],
             "charttime": row[4],
             "test_itemid": row[5],
+            "sequence_num": row[6],
         }
         for row in results
     ]
@@ -386,9 +407,9 @@ def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
 
 def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     """
-    Get the first entry of each radiology report for a given admission.
-    Uses window function to find earliest report for each unique note_id.
-    If the first report has unknown modality/region, tries the next rank.
+    Get max. 3 radiology reports for a given admission where charttime is before the first procedure.
+    Uses window function to rank reports for each unique note_id.
+    If a report has unknown modality/region, tries the next rank.
 
     Args:
         cursor: Database cursor
@@ -398,7 +419,12 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
         list of dicts with radiology report details (may be empty)
     """
     query = """
-        WITH CombinedRadiology AS (
+        WITH FirstProcedure AS (
+            SELECT MIN(chartdate) as first_procedure_time
+            FROM cdm_hosp.procedures_icd
+            WHERE hadm_id = %s
+        ),
+        CombinedRadiology AS (
             SELECT note_id, hadm_id, text, charttime, storetime
             FROM cdm_note.radiology
             WHERE hadm_id = %s
@@ -418,8 +444,10 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
                 rad.note_id
             FROM CombinedRadiology rad
             JOIN cdm_note.radiology_detail det ON rad.note_id = det.note_id
+            CROSS JOIN FirstProcedure fp
             WHERE rad.text IS NOT NULL
                 AND (det.field_name = 'exam_name' OR det.field_name = 'parent_note_id')
+                AND (rad.charttime < fp.first_procedure_time OR fp.first_procedure_time IS NULL)
         ),
         RankedRadiology AS (
             SELECT
@@ -437,12 +465,13 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
             rn,
             charttime
         FROM RankedRadiology
+        WHERE rn <= 3
         ORDER BY note_id, rn;
     """
-    cursor.execute(query, (hadm_id, hadm_id))
+    cursor.execute(query, (hadm_id, hadm_id, hadm_id))
     results = cursor.fetchall()
 
-    # Group by note_id and select first valid report per note
+    # Group by note_id and select up to 3 valid reports per note
     reports = []
 
     for note_id, group in groupby(results, key=lambda x: x[2]):
@@ -456,7 +485,7 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
             if modality == "Unknown" or region == "Unknown" or not text or not text.strip():
                 continue
 
-            # Found valid report, add it and stop looking at other ranks for this note_id
+            # Found valid report, add it
             reports.append(
                 {
                     "exam_name": row[0],
@@ -464,9 +493,10 @@ def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
                     "region": region,
                     "text": text,
                     "note_id": note_id,
+                    "charttime": row[4],
+                    "sequence_num": row[3],
                 }
             )
-            break  # Only take first valid report per note_id
 
     return reports
 

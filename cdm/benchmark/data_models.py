@@ -25,6 +25,8 @@ class DetailedLabResult(BaseModel):
     value: str | None = None
     ref_range_lower: float | None = None
     ref_range_upper: float | None = None
+    charttime: datetime | None = None
+    sequence_num: int | None = None
 
 
 class MicrobiologyEvent(BaseModel):
@@ -34,6 +36,7 @@ class MicrobiologyEvent(BaseModel):
     organism_name: str | None = None
     comments: str | None = None
     charttime: datetime | None = None
+    sequence_num: int | None = None
 
 
 class RadiologyReport(BaseModel):
@@ -42,6 +45,8 @@ class RadiologyReport(BaseModel):
     region: str | None = None
     modality: str | None = None
     text: str | None = None
+    charttime: datetime | None = None
+    sequence_num: int | None = None
 
 
 class ChiefComplaint(BaseModel):
@@ -139,7 +144,8 @@ class BenchmarkOutputCDM(BaseModel):
 class BenchmarkOutputFullInfo(BaseModel):
     """Structured output from LLM clinical decision-making with full information"""
 
-    diagnosis: str
+    diagnosis: str = Field(description="The final diagnosis to the original case")
+    treatment: list[str] = Field(description="The treatment for the given diagnosis")
 
 
 class AgentRunResult(BaseModel):
@@ -186,4 +192,5 @@ class EvalOutputFullInfo(BaseModel):
     ground_truth: GroundTruth
     pathology: str
     prediction: BenchmarkOutputFullInfo
+    answers: dict
     scores: dict
