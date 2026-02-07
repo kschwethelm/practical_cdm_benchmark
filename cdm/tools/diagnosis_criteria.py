@@ -2,7 +2,7 @@
 
 from langchain.tools import tool
 
-# Diagnosis criteria gathered from multiple authoritative sources like: World Journal of Emergency Surgery Guidelines, American College of Gastroenterology,  
+# Diagnosis criteria gathered from multiple authoritative sources like: World Journal of Emergency Surgery Guidelines, American College of Gastroenterology,
 # Infectious Diseases Society of America Clinical Practice, Guidelines of the World Society of Emergency Surgery.
 # For more detailed information, check out out paper
 DIAGNOSIS_CRITERIA = {
