@@ -4,7 +4,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from cdm.benchmark.data_models import BenchmarkDataset, HadmCase, Pathology
+from cdm.benchmark.data_models import BenchmarkDataset, HadmCase
 
 
 def load_cases(benchmark_path: Path, num_cases: int = None) -> BenchmarkDataset:
