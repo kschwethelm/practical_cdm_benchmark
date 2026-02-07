@@ -42,6 +42,8 @@ async def process_case(
         except BadRequestError as e:
             if "maximum context length" in str(e).lower():
                 logger.error(f"Skipping case {case.hadm_id} due to context length overflow.")
+            elif "function name" in str(e).lower():
+                logger.error(f"Skipping case {case.hadm_id} due to malformed tool call: {e}")
             else:
                 logger.error(f"{case.hadm_id} resulted in error {e}")
             return None

@@ -130,8 +130,34 @@ async def run_agent_async(agent, patient_info: str) -> AgentRunResult | None:
     try:
         parsed_output = BenchmarkOutputCDM.model_validate_json(cleaned_content)
     except Exception as e:
-        logger.error(f"Failed to validate agent output: {e}\nUnparsed output: {cleaned_content!r}")
-        return None
+        logger.warning(
+            f"Failed to validate agent output, attempting re-prompt: {e}"
+        )
+        # Re-prompt: ask the model to reformat its answer as valid JSON
+        try:
+            response["messages"].append(
+                {
+                    "role": "user",
+                    "content": (
+                        "Your response was not valid JSON. Please reformat your answer as a JSON object "
+                        "with exactly these fields:\n"
+                        '{"thought": "<your reasoning>", "final_diagnosis": "<diagnosis>", "treatment": ["<treatment1>", "<treatment2>"]}\n'
+                        "Output ONLY the JSON object, nothing else."
+                    ),
+                }
+            )
+            response = await agent.ainvoke(
+                {"messages": response["messages"]}
+            )
+            last_message_content = response["messages"][-1].content
+            cleaned_content = strip_markdown_json(last_message_content)
+            parsed_output = BenchmarkOutputCDM.model_validate_json(cleaned_content)
+            logger.info("Re-prompt succeeded, parsed output successfully")
+        except Exception as e2:
+            logger.error(
+                f"Re-prompt also failed: {e2}\nUnparsed output: {cleaned_content!r}"
+            )
+            return None
 
     messages_as_dicts = [msg.dict() for msg in response["messages"]]
     return AgentRunResult(parsed_output=parsed_output, messages=messages_as_dicts)

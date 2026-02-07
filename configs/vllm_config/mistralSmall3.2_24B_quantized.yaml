@@ -1,0 +1,22 @@
+model: "RedHatAI/Mistral-Small-3.2-24B-Instruct-2506-NVFP4" 
+download_dir: /srv/llm-weights
+served_model_name: "default"
+host: "localhost"
+port: 8000
+
+enable_prefix_caching: true
+
+tensor_parallel_size: 1
+
+# Required since it has custom HuggingFace code
+trust_remote_code: true
+
+max_model_len: 16384
+
+enable_auto_tool_choice: true
+tool_call_parser: mistral
+
+tokenizer_mode: mistral
+
+limit_mm_per_prompt: '{"image": 0, "video": 0}'
+
