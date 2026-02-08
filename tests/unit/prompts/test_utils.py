@@ -1,6 +1,6 @@
 """Unit tests for prompts/utils.py - Pydantic model to prompt conversion."""
 
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 import pytest
@@ -38,7 +38,7 @@ class TestPydanticToPrompt:
     def model_with_enum(self):
         """Create a Pydantic model with enum fields."""
 
-        class AnimalType(str, Enum):
+        class AnimalType(StrEnum):
             CAT = "Cat"
             DOG = "Dog"
             BIRD = "Bird"
