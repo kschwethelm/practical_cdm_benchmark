@@ -63,21 +63,20 @@ class PancreatitisEvaluator(PathologyEvaluator):
                 50822,
             ],
         }
-        neutral_labs = [
-            "Complete Blood Count (CBC)",
-            "Liver Function Panel (LFP)",
-            "Renal Function Panel (RFP)",
-            "Urinalysis",
-        ]
-        for lab in neutral_labs:
-            self.neutral_lab_tests += LAB_MAP[lab]
-        self.neutral_lab_tests = [
-            lab
-            for lab in self.neutral_lab_tests
-            if lab not in self.required_lab_tests["Inflammation"]
-            and lab not in self.required_lab_tests["Pancreas"]
-            and lab not in self.required_lab_tests["Seriousness"]
-        ]
+        self.neutral_lab_tests = {
+            "Complete Blood Count (CBC)": LAB_MAP["Complete Blood Count (CBC)"],
+            "Liver Function Panel (LFP)": LAB_MAP["Liver Function Panel (LFP)"],
+            "Renal Function Panel (RFP)": LAB_MAP["Renal Function Panel (RFP)"],
+            "Urinalysis": LAB_MAP["Urinalysis"],
+        }
+        all_required = {t for cat_tests in self.required_lab_tests.values() for t in cat_tests}
+        self.neutral_lab_tests = {
+            category: [lab for lab in labs if lab not in all_required]
+            for category, labs in self.neutral_lab_tests.items()
+        }
+
+        self.answers["Correct Laboratory Tests"] = {k: False for k in self.required_lab_tests}
+        self.answers["Neutral Laboratory Tests"] = {k: False for k in self.neutral_lab_tests}
 
         self.answers["Treatment Requested"] = {
             "Support": False,

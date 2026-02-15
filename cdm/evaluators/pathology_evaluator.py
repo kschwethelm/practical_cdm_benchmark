@@ -7,7 +7,11 @@ from cdm.benchmark.data_models import (
     Pathology,
 )
 from cdm.evaluators.utils import keyword_positive
-from cdm.tools.lab_utils import convert_labs_to_itemid, load_lab_test_mapping
+from cdm.tools.lab_utils import (
+    convert_labs_to_itemid,
+    load_lab_test_mapping,
+    parse_lab_tests_action_input,
+)
 
 LAB_TEST_MAPPING_DF = load_lab_test_mapping()
 
@@ -23,7 +27,7 @@ class PathologyEvaluator:
     alternative_pathology_names: list[dict] = []
     gracious_alternative_pathology_names: list[dict] = []
     required_lab_tests: dict[str, list[str]] = {}
-    neutral_lab_tests: list[str] = []
+    neutral_lab_tests: list[int] = []
 
     def __init__(self, ground_truth: GroundTruth, pathology: Pathology):
         """
@@ -43,9 +47,8 @@ class PathologyEvaluator:
             "Diagnosis": "",
             "Diagnostic Confidence": None,
             "Treatment": [],
-            "Correct Laboratory Tests": {k: [] for k in self.required_lab_tests},
-            "Unnecessary Laboratory Tests": [],
-            "Neutral Laboratory Tests": [],
+            "Correct Laboratory Tests": {},
+            "Neutral Laboratory Tests": {},
             "Correct Imaging": [],
             "Unnecessary Imaging": [],
             "Treatment Requested": {},
@@ -142,16 +145,23 @@ class PathologyEvaluator:
         """
         args = tool_call.get("args")
         test_name = args.get("test_name")
-        test_id = convert_labs_to_itemid(test_name, LAB_TEST_MAPPING_DF)
+        test_names = parse_lab_tests_action_input(test_name)
+        test_ids = convert_labs_to_itemid(test_names, LAB_TEST_MAPPING_DF)
+
+        numeric_ids = {t for t in test_ids if isinstance(t, int)}
+
         for test_category, valid_test_names in self.required_lab_tests.items():
-            if test_id in valid_test_names:
-                if len(self.answers["Correct Laboratory Tests"][test_category]) == 0:
+            matched_ids = numeric_ids & set(valid_test_names)
+
+            if matched_ids:
+                if not self.answers["Correct Laboratory Tests"][test_category]:
                     self.scores["Laboratory Tests"] += 1
-                self.answers["Correct Laboratory Tests"][test_category].append(test_id)
-                break
-        else:
-            if test_id in self.neutral_lab_tests:
-                self.answers["Unnecessary Laboratory Tests"].append(test_id)
+                self.answers["Correct Laboratory Tests"][test_category] = True
+
+        for test_category, valid_test_names in self.neutral_lab_tests.items():
+            matched_ids = numeric_ids & set(valid_test_names)
+            if matched_ids:
+                self.answers["Neutral Laboratory Tests"][test_category] = True
 
     def score_imaging_action(self, tool_call: dict):
         """

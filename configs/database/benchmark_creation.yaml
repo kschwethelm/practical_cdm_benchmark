@@ -11,3 +11,7 @@ output_filename: benchmark_data.json
 
 # Process number of admissions to include in the benchmark
 num_cases: null
+
+# Extended mode: get up to 3 results per test type with procedure time filtering
+# If false, uses original CDMv1 logic (first test only, no time filtering)
+extended: false

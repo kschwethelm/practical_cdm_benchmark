@@ -1,5 +1,5 @@
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
@@ -90,7 +90,7 @@ class GroundTruth(BaseModel):
     treatments: list[Treatment]
 
 
-class Pathology(str, Enum):
+class Pathology(StrEnum):
     """Pathology/condition type for benchmark cases."""
 
     APPENDICITIS = "appendicitis"
@@ -179,10 +179,6 @@ class EvalOutput(BaseModel):
     tool_calls: dict[str, int]
     answers: dict
     scores: dict
-
-    # TODO: uncomment once lab_id is passed
-    # lab_recall: float | None = None
-    # lab_precision: float | None = None
 
 
 class EvalOutputFullInfo(BaseModel):

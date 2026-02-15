@@ -14,6 +14,11 @@ For all admissions:
    uv run database/create_benchmark.py
    ```
 
+For getting a maximum of 3 tests (lab, microbiology and radiology results), which were performed before the first treatment:
+   ```bash
+   uv run database/create_benchmark.py extended=true
+   ```
+
 ---
 
 ## Data Overview
