@@ -1,12 +1,15 @@
+import json
 import logging
 
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 from loguru import logger
+from openai import AsyncOpenAI
+from pydantic import ValidationError
 
 from cdm.benchmark.data_models import AgentRunResult, BenchmarkOutputCDM, BenchmarkOutputFullInfo
 from cdm.prompts.gen_prompt_cdm import create_system_prompt, create_user_prompt
-from cdm.tools import AVAILABLE_TOOLS
+from cdm.tools import AVAILABLE_TOOLS, TOOL_SPECS
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
@@ -135,3 +138,130 @@ async def run_agent_async(agent, patient_info: str) -> AgentRunResult | None:
 
     messages_as_dicts = [msg.dict() for msg in response["messages"]]
     return AgentRunResult(parsed_output=parsed_output, messages=messages_as_dicts)
+
+
+def build_llama_llm(base_url: str) -> AsyncOpenAI:
+    """
+    Llama 3.3 with tool calling doesn't work with ChatOpenAI.
+
+    :param base_url: vLLM server URL (e.g., "http://localhost:8000/v1")
+    :type base_url: str
+    :return: AsynOpenAI model
+    :rtype: AsyncOpenAI
+    """
+    return AsyncOpenAI(
+        base_url=base_url,
+        api_key="EMPTY",
+    )
+
+
+def create_llama_system_prompt(enabled_tools: list[str]) -> str:
+    """
+    Create system prompt for Llama model with available tools and their descriptions + output formatting rules.
+
+    :param enabled_tools: List of available tools that the model can call
+    :type enabled_tools: list[str]
+    :return: System prompt
+    :rtype: str
+    """
+    tool_lines = [
+        (
+            f"- {tool_name}: {spec['description']}\n"
+            + (
+                "\n".join(f"  - {arg}: {desc}" for arg, desc in spec["args"].items())
+                if spec["args"]
+                else "  (no arguments)"
+            )
+        )
+        for tool_name, spec in TOOL_SPECS.items()
+    ]
+
+    rules_section = (
+        "RULES:\n"
+        "- Output ONLY valid JSON\n"
+        "- NO explanations\n"
+        "- NO markdown\n"
+        "- Tool arguments MUST match exactly\n"
+        "- If a required argument is missing, you MUST NOT call the tool\n\n"
+        "Tool call format:\n\n"
+        "{\n"
+        '  "tool": "<tool_name>",\n'
+        '  "arguments": {\n'
+        '    "<arg_name>": "<value>"\n'
+        "  }\n"
+        "}\n\n"
+        "When finished, output ONLY the final JSON that matches the schema."
+    )
+    tool_lines = "\n".join(tool_lines)
+    return f"{create_system_prompt()}\n\nAVAILABLE TOOLS:\n{tool_lines}\n\n{rules_section}"
+
+
+async def run_llama_async(
+    llm: AsyncOpenAI, patient_info: str, enabled_tools: list[str]
+) -> AgentRunResult:
+    """
+    Manual tool calling loop for llama3.3
+
+    :param llm: AsyncOpenAI model
+    :type llm: AsyncOpenAI
+    :param patient_info: The medical history of the patient to evaluate.
+    :type patient_info: str
+    :param enabled_tools: List of all available tools the model can call
+    :type enabled_tools: list[str]
+    :return: Parsed benchmark output and full conversation history, or None if parsing fails
+    :rtype: AgentRunResult | None
+    """
+    system_prompt = create_llama_system_prompt(enabled_tools)
+
+    messages: list[dict] = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": create_user_prompt(patient_info)},
+    ]
+
+    while True:
+        try:
+            response = await llm.chat.completions.create(
+                model="default",
+                messages=messages,
+                temperature=0.0,
+            )
+        except Exception as e:
+            logger.error(f"Llama request failed: {e}")
+            return None
+
+        content = response.choices[0].message.content
+        content = strip_markdown_json(content)
+
+        messages.append({"role": "assistant", "content": content})
+
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError:
+            logger.error(f"Wrong output format: \n{content}")
+            return None
+
+        if "tool" in data:
+            tool_name = data["tool"]
+            arguments = data.get("arguments", {})
+
+            if tool_name not in AVAILABLE_TOOLS:
+                logger.error(f"Invalid tool requested: {tool_name}")
+                return None
+
+            try:
+                tool = AVAILABLE_TOOLS[tool_name]
+                result = tool(**arguments)
+            except Exception as e:
+                logger.error(f"Tool '{tool_name}' failed: {e}")
+                return None
+
+            messages.append({"role": "tool", "name": tool_name, "content": str(result)})
+            continue
+
+        try:
+            parsed = BenchmarkOutputCDM.model_validate(data)
+        except ValidationError:
+            logger.error(f"Validation Error:{data}")
+            return None
+
+        return AgentRunResult(parsed_output=parsed, messages=messages)

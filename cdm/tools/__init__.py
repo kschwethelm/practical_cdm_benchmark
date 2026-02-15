@@ -11,6 +11,26 @@ AVAILABLE_TOOLS = {
     "diagnosis_criteria": retrieve_diagnosis_criteria,
 }
 
+TOOL_SPECS = {
+    "physical_exam": {"description": "Perform a physical examination", "args": {}},
+    "lab": {
+        "description": "Request a laboratory or microbiology test",
+        "args": {"test_name": "string (e.g. 'CBC', 'CRP', 'Lipase')"},
+    },
+    "radiology": {
+        "description": "Request an imaging study",
+        "args": {
+            "region": "string (e.g. Abdomen)",
+            "modality": "string (e.g.,CT, Ultrasound, MRI, X-ray)",
+        },
+    },
+    "diagnosis_criteria": {
+        "description": "Retrieve diagnostic criteria for specific pathology",
+        "args": {"pathology": "string (e.g. Appendicitis, Pneumonia)"},
+    },
+}
+
+
 __all__ = [
     "get_current_case",
     "set_current_case",
@@ -19,4 +39,5 @@ __all__ = [
     "request_imaging",
     "retrieve_diagnosis_criteria",
     "AVAILABLE_TOOLS",
+    "TOOL_SPECS",
 ]
