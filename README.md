@@ -21,46 +21,54 @@ This repository follows industry best practices for Python ML projects:
 
 ```
 practical_cdm_benchmark/
-├── cdm/                          # Main library (reusable components)
-│   ├── benchmark/                # Benchmark data models and utilities
-│   │   ├── data_models.py       # Pydantic models for cases
-│   │   └── utils.py             # Benchmark utility functions
-│   ├── database/                 # Database utilities
-│   │   ├── connection.py        # DB connection management
-│   │   ├── queries.py           # Reusable SQL queries
-│   │   └── utils.py             # Database helper functions
-│   ├── llms/                     # LLM agents and inference
-│   │   └── agent.py             # LLM agent implementation
-│   ├── prompts/                  # Prompt templates
-│   │   ├── cdm.py               # Clinical decision-making prompts
-│   │   └── full_info.py         # Full information baseline prompts
-│   └── tools/                    # Clinical tools for LLM agents
-│       ├── labs.py              # Laboratory test queries
-│       ├── microbiology.py      # Microbiology test queries
-│       └── physical_exam.py     # Physical examination queries
-├── configs/                      # Hydra configuration files
-│   ├── benchmark/               # Benchmark configs
-│   │   ├── base.yaml            # Base configuration
-│   │   ├── cdm.yaml             # CDM workflow config
-│   │   └── full_info.yaml       # Full information baseline config
-│   ├── database/                # Database configs
+├── cdm/                                  # Main library (reusable components)
+│   ├── benchmark/                        # Benchmark data models and utilities
+│   │   ├── data_models.py                # Pydantic models for cases
+│   │   └── utils.py                      # Benchmark utility functions
+│   ├── database/                         # Database utilities
+│   │   ├── connection.py                 # DB connection management
+│   │   ├── queries.py                    # Reusable SQL queries
+│   │   └── utils.py                      # Database helper functions
+│   ├── llms/                             # LLM agents and inference
+│   │   └── agent.py                      # LLM agent implementation
+│   ├── prompts/                          # Prompt templates
+│   │   ├── cdm.py                        # Clinical decision-making prompts
+│   │   └── full_info.py                  # Full information baseline prompts
+│   ├── evaluators/                       # Pathology-specific evaluation logic 
+│   │   ├── pathology_evaluator.py        # Base evaluator (shared scoring logic)
+│   │   ├── appendicitis_evaluator.py     # Appendicitis-specific rules 
+│   │   └── cholecystitis_evaluator.py    # Cholecystitis-specific rules    
+│   │   └── diverticulitis_evaluator.py   # Diverticulitis-specific rules    
+│   │   ├── pancreatitis_evaluator.py     # Pancreatitis-specific rules
+│   │   └── graphing_utils.py             # Evaluation result visualization
+│   └── tools/                            # Clinical tools for LLM agents
+│       ├── labs.py                       # Laboratory test queries
+│       ├── microbiology.py               # Microbiology test queries
+│       └── physical_exam.py              # Physical examination queries
+|       └── diagnosis_criteria.py         # RAG-style diagnostic criteria queries
+├── configs/                              # Hydra configuration files
+│   ├── benchmark/                        # Benchmark configs
+│   │   ├── base.yaml                     # Base configuration
+│   │   ├── cdm.yaml                      # CDM workflow config
+│   │   └── full_info.yaml                # Full information baseline config
+│   ├── database/                         # Database configs
 │   │   └── benchmark_creation.yaml
-│   └── vllm_config/             # vLLM model configs
+│   └── vllm_config/                      # vLLM model configs
 │       └── qwen3_4B.yaml
-├── database/                     # Database setup and creation
-│   ├── sql/                     # SQL scripts for DB creation
-│   ├── create_benchmark.py      # Script to create benchmark JSON
-│   └── README.md                # Database schema documentation
-├── scripts/                      # Executable scripts
-│   ├── run_benchmark_cdm.py     # Run CDM benchmark
-│   └── run_benchmark_full_info.py # Run full information baseline
-├── tests/                        # Test suite
-│   ├── integration/             # Integration tests (database, API)
-│   │   └── database/            # Database connection tests
-│   └── unit/                    # Unit tests
-│       └── llms/                # LLM agent tests
+├── database/                             # Database setup and creation
+│   ├── sql/                              # SQL scripts for DB creation
+│   ├── create_benchmark.py               # Script to create benchmark JSON
+│   └── README.md                         # Database schema documentation
+├── scripts/                              # Executable scripts
+│   ├── run_benchmark_cdm.py              # Run CDM benchmark
+│   └── run_benchmark_full_info.py        # Run full information baseline
+├── tests/                                # Test suite
+│   ├── integration/                      # Integration tests (database, API)
+│   │   └── database/                     # Database connection tests
+│   └── unit/                             # Unit tests
+│       └── llms/                         # LLM agent tests
 │           └── test_agent.py
-└── slurm/                        # Cluster job scripts
+└── slurm/                                # Cluster job scripts
 ```
 
 **Key Technologies:**

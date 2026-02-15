@@ -34,8 +34,11 @@ Imaging is scored out of 2 points:
 
 # Diagnosis Scoring 
 - 1: Predicted diagnosis and ground truth match almost perfectly  
-- 0.7: Predicted diagnosis matched ground truth to some degree (includes a modifier)
-- 0.4: Predicted diagnosis matched ground truth with alternative names/pathologies that can be considered equivalent 
+- 0: Predicted diagnosis and ground truth don't match 
+
+# Gracious Diagnosis Scoring
+- 1: Predicted diagnosis is an alternative name for the ground truth. 
+- 0: Predicated diagnosis is neither a match nor an alternative name for the ground truth. 
 
 
 
