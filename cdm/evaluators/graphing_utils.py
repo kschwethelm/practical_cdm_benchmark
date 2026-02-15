@@ -92,7 +92,6 @@ def aggregate_jsonl(results_path: str) -> tuple[dict[str, list], list]:
             fields = list(obj.get("scores").keys())
             if "answers" in obj:
                 fields += [
-                    "Unnecessary Laboratory Tests",
                     "Unnecessary Imaging",
                     "Treatment Requested",
                 ]
@@ -119,7 +118,7 @@ def aggregate_results(model_paths: dict) -> tuple[dict, dict, dict]:
         for field in fields:
             for pathology in ["appendicitis", "cholecystitis", "pancreatitis", "diverticulitis"]:
                 if pathology in results.keys():
-                    if field in ["Unnecessary Laboratory Tests", "Unnecessary Imaging"]:
+                    if field in ["Unnecessary Imaging"]:
                         results[pathology] = count_unnecessary(results[pathology], field)
                     if field == "Treatment Requested":
                         results[pathology] = count_treatment(results[pathology])
