@@ -53,8 +53,15 @@ def load_hadm_ids(filepath: Path) -> list[int]:
     return hadm_ids
 
 
-def create_hadm_case(cursor, hadm_id: int) -> HadmCase:
-    """Create a HadmCase by querying all relevant data for a given admission."""
+def create_hadm_case(cursor, hadm_id: int, extended: bool = False) -> HadmCase:
+    """Create a HadmCase by querying all relevant data for a given admission.
+
+    Args:
+        cursor: Database cursor
+        hadm_id: Hospital admission ID
+        extended: If True, get up to 3 results per test type with procedure filtering;
+                 if False, use original CDMv1 logic (1 test, no filtering)
+    """
 
     demographics_data = get_demographics(cursor, hadm_id)
     demographics = Demographics(**demographics_data) if demographics_data else None
@@ -63,13 +70,13 @@ def create_hadm_case(cursor, hadm_id: int) -> HadmCase:
 
     physical_examination = get_physical_examination(cursor, hadm_id)
 
-    lab_data = get_lab_tests(cursor, hadm_id)
+    lab_data = get_lab_tests(cursor, hadm_id, extended=extended)
     lab_results = [DetailedLabResult(**item) for item in lab_data]
 
-    microbiology_data = get_microbiology_events(cursor, hadm_id)
+    microbiology_data = get_microbiology_events(cursor, hadm_id, extended=extended)
     microbiology_events = [MicrobiologyEvent(**item) for item in microbiology_data]
 
-    radiology_reports_data = get_radiology_reports(cursor, hadm_id)
+    radiology_reports_data = get_radiology_reports(cursor, hadm_id, extended=extended)
     radiology_reports = [RadiologyReport(**report) for report in radiology_reports_data]
 
     ground_truth_diagnosis = get_ground_truth_diagnosis(cursor, hadm_id)
@@ -148,9 +155,10 @@ def main(cfg: DictConfig):
         logger.info(f"Processing {num_cases} admissions...")
 
         # Process admissions
+        extended = cfg.get("extended", False)
         for hadm_id in tqdm(hadm_ids[:num_cases], desc="Processing admissions"):
             try:
-                case = create_hadm_case(cursor, hadm_id)
+                case = create_hadm_case(cursor, hadm_id, extended=extended)
 
                 # Add case
                 cases.append(case)

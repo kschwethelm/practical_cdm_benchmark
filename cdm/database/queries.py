@@ -205,99 +205,177 @@ def get_physical_examination(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]
     return None
 
 
-def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
+def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int, extended: bool = False) -> list[dict]:
     """
-    Get max. 3 lab tests for a given admission where charttime is before the first procedure.
+    Get lab tests for a given admission.
     Uses window function to rank test results for each unique itemid.
 
     Args:
         cursor: Database cursor
         hadm_id: Hospital admission ID
+        extended: If True, get up to 3 results per test type with procedure filtering;
+                 if False, use original CDMv1 logic (1 test, no filtering)
 
     Returns:
         list of dicts with lab test details (may be empty)
     """
-    query = """
-        WITH FirstProcedure AS (
-            SELECT MIN(chartdate) as first_procedure_time
-            FROM cdm_hosp.procedures_icd
-            WHERE hadm_id = %s
-        ),
-        CombinedLabEvents AS (
-            SELECT itemid, charttime, valuenum, value, valueuom, flag, comments,
-                   ref_range_lower, ref_range_upper, hadm_id, storetime
-            FROM cdm_hosp.labevents
-            WHERE hadm_id = %s
 
-            UNION ALL
+    if not extended:
+        # CDMv1 compatibility: no procedure time filter, only first test
+        query = """
+            WITH CombinedLabEvents AS (
+                SELECT itemid, charttime, valuenum, value, valueuom, flag, comments,
+                       ref_range_lower, ref_range_upper, hadm_id, storetime
+                FROM cdm_hosp.labevents
+                WHERE hadm_id = %s
 
-            SELECT itemid, charttime, valuenum, value, valueuom, flag, comments,
-                   ref_range_lower, ref_range_upper, hadm_id, storetime
-            FROM cdm_hosp.labevents_assigned
-            WHERE hadm_id = %s
-        ),
-        FilteredLabEvents AS (
+                UNION ALL
+
+                SELECT itemid, charttime, valuenum, value, valueuom, flag, comments,
+                       ref_range_lower, ref_range_upper, hadm_id, storetime
+                FROM cdm_hosp.labevents_assigned
+                WHERE hadm_id = %s
+            ),
+            FilteredLabEvents AS (
+                SELECT
+                    le.itemid,
+                    le.charttime,
+                    le.storetime,
+                    CASE
+                        WHEN le.valuenum IS NOT NULL AND CAST(le.valuenum AS TEXT) != '___' THEN
+                            CASE
+                                WHEN le.valueuom IS NOT NULL THEN CAST(le.valuenum AS TEXT) || ' ' || le.valueuom
+                                ELSE CAST(le.valuenum AS TEXT)
+                            END
+                        WHEN le.value IS NOT NULL AND le.value != '___' THEN
+                            CASE
+                                WHEN le.valueuom IS NOT NULL THEN le.value || ' ' || le.valueuom
+                                ELSE le.value
+                            END
+                        WHEN le.flag IS NOT NULL THEN le.flag
+                        WHEN le.comments IS NOT NULL THEN le.comments
+                        ELSE NULL
+                    END AS valuestr,
+                    le.ref_range_lower,
+                    le.ref_range_upper,
+                    di.label AS test_name,
+                    di.fluid,
+                    di.category
+                FROM CombinedLabEvents le
+                JOIN cdm_hosp.d_labitems di ON le.itemid = di.itemid
+            ),
+            RankedLabEvents AS (
+                SELECT
+                    itemid,
+                    charttime,
+                    valuestr,
+                    ref_range_lower,
+                    ref_range_upper,
+                    test_name,
+                    fluid,
+                    category,
+                    ROW_NUMBER() OVER(PARTITION BY itemid ORDER BY charttime ASC, storetime ASC NULLS LAST) as rn
+                FROM FilteredLabEvents
+                WHERE valuestr IS NOT NULL
+                    AND valuestr != '___'
+            )
             SELECT
-                le.itemid,
-                le.charttime,
-                le.storetime,
-                CASE
-                    WHEN le.valuenum IS NOT NULL AND CAST(le.valuenum AS TEXT) != '___' THEN
-                        CASE
-                            WHEN le.valueuom IS NOT NULL THEN CAST(le.valuenum AS TEXT) || ' ' || le.valueuom
-                            ELSE CAST(le.valuenum AS TEXT)
-                        END
-                    WHEN le.value IS NOT NULL AND le.value != '___' THEN
-                        CASE
-                            WHEN le.valueuom IS NOT NULL THEN le.value || ' ' || le.valueuom
-                            ELSE le.value
-                        END
-                    WHEN le.flag IS NOT NULL THEN le.flag
-                    WHEN le.comments IS NOT NULL THEN le.comments
-                    ELSE NULL
-                END AS valuestr,
-                le.ref_range_lower,
-                le.ref_range_upper,
-                di.label AS test_name,
-                di.fluid,
-                di.category
-            FROM CombinedLabEvents le
-            JOIN cdm_hosp.d_labitems di ON le.itemid = di.itemid
-            CROSS JOIN FirstProcedure fp
-            WHERE le.charttime < fp.first_procedure_time
-               OR fp.first_procedure_time IS NULL
-        ),
-        RankedLabEvents AS (
-            SELECT
-                itemid,
-                charttime,
-                valuestr,
+                test_name,
+                valuestr AS value,
                 ref_range_lower,
                 ref_range_upper,
-                test_name,
                 fluid,
                 category,
-                ROW_NUMBER() OVER(PARTITION BY itemid ORDER BY charttime ASC, storetime ASC NULLS LAST) as rn
-            FROM FilteredLabEvents
-            WHERE valuestr IS NOT NULL
-                AND valuestr != '___'
-        )
-        SELECT
-            test_name,
-            valuestr AS value,
-            ref_range_lower,
-            ref_range_upper,
-            fluid,
-            category,
-            itemid,
-            charttime,
-            rn
-        FROM RankedLabEvents
-        WHERE rn <= 3
-        ORDER BY charttime
-    """
+                itemid,
+                charttime,
+                rn
+            FROM RankedLabEvents
+            WHERE rn = 1
+            ORDER BY charttime
+        """
+        cursor.execute(query, (hadm_id, hadm_id))
+    else:
+        # Extended mode: filter by procedure time, up to 3 results
+        query = """
+            WITH FirstProcedure AS (
+                SELECT MIN(chartdate) as first_procedure_time
+                FROM cdm_hosp.procedures_icd
+                WHERE hadm_id = %s
+            ),
+            CombinedLabEvents AS (
+                SELECT itemid, charttime, valuenum, value, valueuom, flag, comments,
+                       ref_range_lower, ref_range_upper, hadm_id, storetime
+                FROM cdm_hosp.labevents
+                WHERE hadm_id = %s
 
-    cursor.execute(query, (hadm_id, hadm_id, hadm_id))
+                UNION ALL
+
+                SELECT itemid, charttime, valuenum, value, valueuom, flag, comments,
+                       ref_range_lower, ref_range_upper, hadm_id, storetime
+                FROM cdm_hosp.labevents_assigned
+                WHERE hadm_id = %s
+            ),
+            FilteredLabEvents AS (
+                SELECT
+                    le.itemid,
+                    le.charttime,
+                    le.storetime,
+                    CASE
+                        WHEN le.valuenum IS NOT NULL AND CAST(le.valuenum AS TEXT) != '___' THEN
+                            CASE
+                                WHEN le.valueuom IS NOT NULL THEN CAST(le.valuenum AS TEXT) || ' ' || le.valueuom
+                                ELSE CAST(le.valuenum AS TEXT)
+                            END
+                        WHEN le.value IS NOT NULL AND le.value != '___' THEN
+                            CASE
+                                WHEN le.valueuom IS NOT NULL THEN le.value || ' ' || le.valueuom
+                                ELSE le.value
+                            END
+                        WHEN le.flag IS NOT NULL THEN le.flag
+                        WHEN le.comments IS NOT NULL THEN le.comments
+                        ELSE NULL
+                    END AS valuestr,
+                    le.ref_range_lower,
+                    le.ref_range_upper,
+                    di.label AS test_name,
+                    di.fluid,
+                    di.category
+                FROM CombinedLabEvents le
+                JOIN cdm_hosp.d_labitems di ON le.itemid = di.itemid
+                CROSS JOIN FirstProcedure fp
+                WHERE le.charttime::date < fp.first_procedure_time
+                   OR fp.first_procedure_time IS NULL
+            ),
+            RankedLabEvents AS (
+                SELECT
+                    itemid,
+                    charttime,
+                    valuestr,
+                    ref_range_lower,
+                    ref_range_upper,
+                    test_name,
+                    fluid,
+                    category,
+                    ROW_NUMBER() OVER(PARTITION BY itemid ORDER BY charttime ASC, storetime ASC NULLS LAST) as rn
+                FROM FilteredLabEvents
+                WHERE valuestr IS NOT NULL
+                    AND valuestr != '___'
+            )
+            SELECT
+                test_name,
+                valuestr AS value,
+                ref_range_lower,
+                ref_range_upper,
+                fluid,
+                category,
+                itemid,
+                charttime,
+                rn
+            FROM RankedLabEvents
+            WHERE rn <= 3
+            ORDER BY charttime
+        """
+        cursor.execute(query, (hadm_id, hadm_id, hadm_id))
     results = cursor.fetchall()
 
     lab_tests = [
@@ -317,77 +395,136 @@ def get_lab_tests(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     return lab_tests
 
 
-def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
+def get_microbiology_events(
+    cursor: psycopg.Cursor, hadm_id: int, extended: bool = False
+) -> list[dict]:
     """
-    Get max. 3 microbiology tests for a given admission where charttime is before the first procedure,
-    merging multiple organisms/comments for the same test_itemid and charttime.
+    Get microbiology tests for a given admission.
 
     Args:
         cursor: Database cursor
         hadm_id: Hospital admission ID
+        extended: If True, get up to 3 results per test type with procedure filtering;
+                 if False, use original CDMv1 logic (1 test, no filtering)
 
     Returns:
         list of dicts with microbiology event details (may be empty)
     """
-    query = """
-        WITH FirstProcedure AS (
-            SELECT MIN(chartdate) as first_procedure_time
-            FROM cdm_hosp.procedures_icd
-            WHERE hadm_id = %s
-        ),
-        CombinedMicroEvents AS (
-            SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id, storetime
-            FROM cdm_hosp.microbiologyevents
-            WHERE hadm_id = %s
 
-            UNION ALL
+    if not extended:
+        # CDMv1 compatibility: no procedure time filter, only first test
+        query = """
+            WITH CombinedMicroEvents AS (
+                SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id, storetime
+                FROM cdm_hosp.microbiologyevents
+                WHERE hadm_id = %s
 
-            SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id, storetime
-            FROM cdm_hosp.microbiologyevents_assigned
-            WHERE hadm_id = %s
-        ),
-        FilteredMicroEvents AS (
-            SELECT
-                micro.test_name,
-                micro.spec_type_desc,
-                micro.org_name,
-                micro.comments,
-                micro.charttime,
-                micro.storetime,
-                micro.test_itemid
-            FROM CombinedMicroEvents micro
-            CROSS JOIN FirstProcedure fp
-            WHERE ((micro.org_name IS NOT NULL AND micro.org_name != 'CANCELLED') OR (micro.comments IS NOT NULL AND micro.comments != '___'))
-              AND (micro.charttime < fp.first_procedure_time OR fp.first_procedure_time IS NULL)
-        ),
-        RankedMicroEvents AS (
+                UNION ALL
+
+                SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id, storetime
+                FROM cdm_hosp.microbiologyevents_assigned
+                WHERE hadm_id = %s
+            ),
+            FilteredMicroEvents AS (
+                SELECT
+                    micro.test_name,
+                    micro.spec_type_desc,
+                    micro.org_name,
+                    micro.comments,
+                    micro.charttime,
+                    micro.storetime,
+                    micro.test_itemid
+                FROM CombinedMicroEvents micro
+                WHERE (micro.org_name IS NOT NULL AND micro.org_name != 'CANCELLED')
+                   OR (micro.comments IS NOT NULL AND micro.comments != '___')
+            ),
+            RankedMicroEvents AS (
+                SELECT
+                    test_name,
+                    spec_type_desc,
+                    STRING_AGG(DISTINCT org_name, ', ' ORDER BY org_name) FILTER (WHERE org_name IS NOT NULL) AS org_name,
+                    STRING_AGG(DISTINCT comments, ', ' ORDER BY comments) FILTER (WHERE comments IS NOT NULL) AS comments,
+                    charttime,
+                    MIN(storetime) as storetime,
+                    test_itemid,
+                    ROW_NUMBER() OVER(PARTITION BY test_itemid ORDER BY charttime ASC, MIN(storetime) ASC NULLS LAST) as rn
+                FROM FilteredMicroEvents
+                GROUP BY test_name, spec_type_desc, charttime, test_itemid
+            )
             SELECT
                 test_name,
                 spec_type_desc,
-                STRING_AGG(DISTINCT org_name, ', ' ORDER BY org_name) FILTER (WHERE org_name IS NOT NULL) AS org_name,
-                STRING_AGG(DISTINCT comments, ', ' ORDER BY comments) FILTER (WHERE comments IS NOT NULL) AS comments,
+                org_name,
+                comments,
                 charttime,
-                MIN(storetime) as storetime,
                 test_itemid,
-                ROW_NUMBER() OVER(PARTITION BY test_itemid ORDER BY charttime ASC, MIN(storetime) ASC NULLS LAST) as rn
-            FROM FilteredMicroEvents
-            GROUP BY test_name, spec_type_desc, charttime, test_itemid
-        )
-        SELECT
-            test_name,
-            spec_type_desc,
-            org_name,
-            comments,
-            charttime,
-            test_itemid,
-            rn
-        FROM RankedMicroEvents
-        WHERE (org_name IS NOT NULL OR comments IS NOT NULL)
-          AND rn <= 3
-        ORDER BY charttime
-    """
+                rn
+            FROM RankedMicroEvents
+            WHERE (org_name IS NOT NULL OR comments IS NOT NULL)
+              AND rn = 1
+            ORDER BY charttime
+        """
+        cursor.execute(query, (hadm_id, hadm_id))
+    else:
+        # Extended mode: filter by procedure time, up to 3 results
+        query = """
+            WITH FirstProcedure AS (
+                SELECT MIN(chartdate) as first_procedure_time
+                FROM cdm_hosp.procedures_icd
+                WHERE hadm_id = %s
+            ),
+            CombinedMicroEvents AS (
+                SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id, storetime
+                FROM cdm_hosp.microbiologyevents
+                WHERE hadm_id = %s
 
-    cursor.execute(query, (hadm_id, hadm_id, hadm_id))
+                UNION ALL
+
+                SELECT test_name, spec_type_desc, org_name, comments, charttime, test_itemid, hadm_id, storetime
+                FROM cdm_hosp.microbiologyevents_assigned
+                WHERE hadm_id = %s
+            ),
+            FilteredMicroEvents AS (
+                SELECT
+                    micro.test_name,
+                    micro.spec_type_desc,
+                    micro.org_name,
+                    micro.comments,
+                    micro.charttime,
+                    micro.storetime,
+                    micro.test_itemid
+                FROM CombinedMicroEvents micro
+                CROSS JOIN FirstProcedure fp
+                WHERE ((micro.org_name IS NOT NULL AND micro.org_name != 'CANCELLED') OR (micro.comments IS NOT NULL AND micro.comments != '___'))
+                  AND (micro.charttime::date < fp.first_procedure_time OR fp.first_procedure_time IS NULL)
+            ),
+            RankedMicroEvents AS (
+                SELECT
+                    test_name,
+                    spec_type_desc,
+                    STRING_AGG(DISTINCT org_name, ', ' ORDER BY org_name) FILTER (WHERE org_name IS NOT NULL) AS org_name,
+                    STRING_AGG(DISTINCT comments, ', ' ORDER BY comments) FILTER (WHERE comments IS NOT NULL) AS comments,
+                    charttime,
+                    MIN(storetime) as storetime,
+                    test_itemid,
+                    ROW_NUMBER() OVER(PARTITION BY test_itemid ORDER BY charttime ASC, MIN(storetime) ASC NULLS LAST) as rn
+                FROM FilteredMicroEvents
+                GROUP BY test_name, spec_type_desc, charttime, test_itemid
+            )
+            SELECT
+                test_name,
+                spec_type_desc,
+                org_name,
+                comments,
+                charttime,
+                test_itemid,
+                rn
+            FROM RankedMicroEvents
+            WHERE (org_name IS NOT NULL OR comments IS NOT NULL)
+              AND rn <= 3
+            ORDER BY charttime
+        """
+        cursor.execute(query, (hadm_id, hadm_id, hadm_id))
     results = cursor.fetchall()
 
     microbiology_events = [
@@ -405,70 +542,172 @@ def get_microbiology_events(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
     return microbiology_events
 
 
-def get_radiology_reports(cursor: psycopg.Cursor, hadm_id: int) -> list[dict]:
+def get_radiology_reports(
+    cursor: psycopg.Cursor, hadm_id: int, extended: bool = False
+) -> list[dict]:
     """
-    Get max. 3 radiology reports for a given admission where charttime is before the first procedure.
+    Get radiology reports for a given admission.
     Uses window function to rank reports for each unique note_id.
     If a report has unknown modality/region, tries the next rank.
 
     Args:
         cursor: Database cursor
         hadm_id: Hospital admission ID
+        extended: If True, get up to 3 results per report type with procedure filtering;
+                 if False, use original CDMv1 logic (1 report, no filtering)
 
     Returns:
         list of dicts with radiology report details (may be empty)
     """
-    query = """
-        WITH FirstProcedure AS (
-            SELECT MIN(chartdate) as first_procedure_time
-            FROM cdm_hosp.procedures_icd
-            WHERE hadm_id = %s
-        ),
-        CombinedRadiology AS (
-            SELECT note_id, hadm_id, text, charttime, storetime
-            FROM cdm_note.radiology
-            WHERE hadm_id = %s
 
-            UNION ALL
+    if not extended:
+        # CDMv1 compatibility: no procedure time filter, only first report
+        # Radiology reports sometimes are parent_note_ids of other reports, so we use a CTE to get the exam_name for each report by checking both direct and parent note details
+        query = """
+            WITH CombinedRadiology AS (
+                SELECT note_id, hadm_id, text, charttime, storetime
+                FROM cdm_note.radiology
+                WHERE hadm_id = %s
 
-            SELECT note_id, hadm_id, text, charttime, storetime
-            FROM cdm_note.radiology_assigned
-            WHERE hadm_id = %s
-        ),
-        FilteredRadiology AS (
+                UNION ALL
+
+                SELECT note_id, hadm_id, text, charttime, storetime
+                FROM cdm_note.radiology_assigned
+                WHERE hadm_id = %s
+            ),
+            DirectExamNames AS (
+                SELECT
+                    note_id,
+                    STRING_AGG(field_value, ' ' ORDER BY field_ordinal) AS exam_name
+                FROM cdm_note.radiology_detail
+                WHERE field_name = 'exam_name'
+                GROUP BY note_id
+            ),
+            ParentLinks AS (
+                SELECT
+                    note_id,
+                    field_value AS parent_note_id
+                FROM cdm_note.radiology_detail
+                WHERE field_name = 'parent_note_id'
+            ),
+            ExamNames AS (
+                SELECT
+                    cr.note_id,
+                    COALESCE(den.exam_name, parent_den.exam_name) AS exam_name
+                FROM CombinedRadiology cr
+                LEFT JOIN DirectExamNames den ON cr.note_id = den.note_id
+                LEFT JOIN ParentLinks pl ON cr.note_id = pl.note_id
+                LEFT JOIN DirectExamNames parent_den ON pl.parent_note_id = parent_den.note_id
+            ),
+            FilteredRadiology AS (
+                SELECT
+                    rad.charttime,
+                    rad.storetime,
+                    en.exam_name,
+                    rad.text AS findings,
+                    rad.note_id
+                FROM CombinedRadiology rad
+                JOIN ExamNames en ON rad.note_id = en.note_id
+                WHERE rad.text IS NOT NULL
+                  AND en.exam_name IS NOT NULL
+            ),
+            RankedRadiology AS (
+                SELECT
+                    charttime,
+                    exam_name,
+                    findings,
+                    note_id,
+                    ROW_NUMBER() OVER(PARTITION BY note_id ORDER BY charttime ASC, storetime ASC NULLS LAST) as rn
+                FROM FilteredRadiology
+            )
             SELECT
-                rad.charttime,
-                rad.storetime,
-                det.field_value AS exam_name,
-                rad.text AS findings,
-                rad.note_id
-            FROM CombinedRadiology rad
-            JOIN cdm_note.radiology_detail det ON rad.note_id = det.note_id
-            CROSS JOIN FirstProcedure fp
-            WHERE rad.text IS NOT NULL
-                AND (det.field_name = 'exam_name' OR det.field_name = 'parent_note_id')
-                AND (rad.charttime < fp.first_procedure_time OR fp.first_procedure_time IS NULL)
-        ),
-        RankedRadiology AS (
-            SELECT
-                charttime,
                 exam_name,
                 findings,
                 note_id,
-                ROW_NUMBER() OVER(PARTITION BY note_id ORDER BY charttime ASC, storetime ASC NULLS LAST) as rn
-            FROM FilteredRadiology
-        )
-        SELECT
-            exam_name,
-            findings,
-            note_id,
-            rn,
-            charttime
-        FROM RankedRadiology
-        WHERE rn <= 3
-        ORDER BY note_id, rn;
-    """
-    cursor.execute(query, (hadm_id, hadm_id, hadm_id))
+                rn,
+                charttime
+            FROM RankedRadiology
+            WHERE rn = 1
+            ORDER BY note_id, rn;
+        """
+        cursor.execute(query, (hadm_id, hadm_id))
+    else:
+        # Extended mode: filter by procedure time, up to 3 results
+        query = """
+            WITH FirstProcedure AS (
+                SELECT MIN(chartdate) as first_procedure_time
+                FROM cdm_hosp.procedures_icd
+                WHERE hadm_id = %s
+            ),
+            CombinedRadiology AS (
+                SELECT note_id, hadm_id, text, charttime, storetime
+                FROM cdm_note.radiology
+                WHERE hadm_id = %s
+
+                UNION ALL
+
+                SELECT note_id, hadm_id, text, charttime, storetime
+                FROM cdm_note.radiology_assigned
+                WHERE hadm_id = %s
+            ),
+            DirectExamNames AS (
+                SELECT
+                    note_id,
+                    STRING_AGG(field_value, ' ' ORDER BY field_ordinal) AS exam_name
+                FROM cdm_note.radiology_detail
+                WHERE field_name = 'exam_name'
+                GROUP BY note_id
+            ),
+            ParentLinks AS (
+                SELECT
+                    note_id,
+                    field_value AS parent_note_id
+                FROM cdm_note.radiology_detail
+                WHERE field_name = 'parent_note_id'
+            ),
+            ExamNames AS (
+                SELECT
+                    cr.note_id,
+                    COALESCE(den.exam_name, parent_den.exam_name) AS exam_name
+                FROM CombinedRadiology cr
+                LEFT JOIN DirectExamNames den ON cr.note_id = den.note_id
+                LEFT JOIN ParentLinks pl ON cr.note_id = pl.note_id
+                LEFT JOIN DirectExamNames parent_den ON pl.parent_note_id = parent_den.note_id
+            ),
+            FilteredRadiology AS (
+                SELECT
+                    rad.charttime,
+                    rad.storetime,
+                    en.exam_name,
+                    rad.text AS findings,
+                    rad.note_id
+                FROM CombinedRadiology rad
+                JOIN ExamNames en ON rad.note_id = en.note_id
+                CROSS JOIN FirstProcedure fp
+                WHERE rad.text IS NOT NULL
+                    AND en.exam_name IS NOT NULL
+                    AND (rad.charttime::date < fp.first_procedure_time OR fp.first_procedure_time IS NULL)
+            ),
+            RankedRadiology AS (
+                SELECT
+                    charttime,
+                    exam_name,
+                    findings,
+                    note_id,
+                    ROW_NUMBER() OVER(PARTITION BY note_id ORDER BY charttime ASC, storetime ASC NULLS LAST) as rn
+                FROM FilteredRadiology
+            )
+            SELECT
+                exam_name,
+                findings,
+                note_id,
+                rn,
+                charttime
+            FROM RankedRadiology
+            WHERE rn <= 3
+            ORDER BY note_id, rn;
+        """
+        cursor.execute(query, (hadm_id, hadm_id, hadm_id))
     results = cursor.fetchall()
 
     # Group by note_id and select up to 3 valid reports per note
